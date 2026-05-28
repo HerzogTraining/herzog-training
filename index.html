@@ -404,7 +404,7 @@ function importData(event){
       S.nxtVId=data.nxtVId||1;
       S.katalog=data.katalog||null;
       S.trainingsVorlagen=data.trainingsVorlagen||[];
-      save();rTraining();
+      save();rUebersicht();
       alert('Backup erfolgreich eingespielt.');
     }catch(err){alert('Fehler beim Lesen der Datei.');}
   };
@@ -498,7 +498,7 @@ function toggleWkExclude(aid,id){
   const idx=a.wkExcluded.indexOf(id);
   if(idx>=0)a.wkExcluded.splice(idx,1);
   else a.wkExcluded.push(id);
-  save();rTraining();
+  save();rUebersicht();
 }
 
 function sortA(list){
@@ -652,7 +652,7 @@ function buildLegend(a){
 
 const histOpen={};
 function histId(aid,key){return aid+'_'+key;}
-function toggleHist(aid,key){histOpen[histId(aid,key)]=!histOpen[histId(aid,key)];rTraining();}
+function toggleHist(aid,key){histOpen[histId(aid,key)]=!histOpen[histId(aid,key)];rUebersicht();}
 
 function buildKrafttests(a){
   const mainHTML=MAIN_TESTS.map(t=>{
@@ -692,8 +692,8 @@ function buildKrafttests(a){
 
 const wkHistOpen={};
 const wkMgmtOpen={};
-function toggleWkHist(id){wkHistOpen[id]=!wkHistOpen[id];rTraining();}
-function toggleWkMgmt(id){wkMgmtOpen[id]=!wkMgmtOpen[id];rTraining();}
+function toggleWkHist(id){wkHistOpen[id]=!wkHistOpen[id];rUebersicht();}
+function toggleWkMgmt(id){wkMgmtOpen[id]=!wkMgmtOpen[id];rUebersicht();}
 
 function buildWkList(a){
   const v=S.vorlagen.find(x=>x.name===a.sport);
@@ -778,7 +778,7 @@ function delAthletWk(aid,idx){
   const sorted=[...a.wettkaempfe].sort((x,y)=>x.yr*100+x.kw-(y.yr*100+y.kw));
   const w=sorted[idx];
   a.wettkaempfe=a.wettkaempfe.filter(x=>x!==w);
-  save();rTraining();
+  save();rUebersicht();
 }
 
 function showAddAthletWk(aid){
@@ -812,7 +812,7 @@ function confAddAthletWk(aid){
   let awyFinal=parseInt(document.getElementById('m-awy').value);
   if(awdat){const d=parseDate(awdat);if(d){const kwy=dateToKwYr(d);awkFinal=kwy.kw;awyFinal=kwy.yr;}}
   a.wettkaempfe.push({name,dat:awdat||null,ort:document.getElementById('m-awo').value.trim(),kw:awkFinal,yr:awyFinal,prio:document.getElementById('m-awp').value});
-  save();closeM();rTraining();
+  save();closeM();rUebersicht();
 }
 
 // ---- TRAINING ----
@@ -1056,7 +1056,8 @@ function confLoadTrainingsVorlage(aid){
   if(tv.training1)a.wochen[key].plan=tv.training1;
   if(tv.training2)a.wochen[key].plan2=tv.training2;
   if(tv.training3)a.wochen[key].plan3=tv.training3;
-  save();closeM();rTraining();
+  _dwOpen[aid]=true;
+  save();closeM();rUebersicht();
 }
 function showUebungPicker(aid,planField){
   const k=getKatalog();
@@ -1088,10 +1089,10 @@ function confUebungPicker(aid,planField){
   closeM();
 }
 
-function rTraining(){
+function rUebersicht(){
   const q=(document.getElementById('srch')||{value:''}).value||'';
   const list=sortA(q?S.athleten.filter(a=>a.name.toLowerCase().includes(q.toLowerCase())||a.sport.toLowerCase().includes(q.toLowerCase())):S.athleten);
-  let h=`<input class="search-input" id="srch" type="text" placeholder="Athlet suchen…" oninput="rTraining()" value="${q}">`;
+  let h=`<input class="search-input" id="srch" type="text" placeholder="Athlet suchen…" oninput="rUebersicht()" value="${q}">`;
   if(!S.athleten.length){h+='<div class="empty">Noch keine Athleten. Unter "Planung" hinzufügen.</div>';document.getElementById('view-training').innerHTML=h;return;}
   list.forEach(a=>{
     const avc=av(a.avIdx);
@@ -1837,7 +1838,7 @@ function confAthlet(){
   S.athleten.push({id,name,sport,avIdx:id%AVC.length,startKW:sk,startYr:sy,
     letzteNotiz:null,naechstes:null,tests:{},plan:[],notiz:{zustand:null,text:''}});
   if(vlId){applyVorlage(parseInt(vlId),id);}
-  S.edId=id;save();closeM();rEditor();rTraining();
+  S.edId=id;save();closeM();rEditor();rUebersicht();
 }
 function showEditAthlet(aid){
   const a=S.athleten.find(x=>x.id===aid);
@@ -1929,18 +1930,18 @@ function confEditAthlet(aid){
   }
   a.urlaub=readPeriods(a.urlaub||[],'u');
   a.tl=readPeriods(a.tl||[],'t');
-  save();closeM();rEditor();rTraining();
+  save();closeM();rEditor();rUebersicht();
 }
 function clearVerletzt(aid){
   const a=S.athleten.find(x=>x.id===aid);
   if(a)a.verletzt=null;
-  save();closeM();rEditor();rTraining();
+  save();closeM();rEditor();rUebersicht();
 }
 function confirmDelete(aid){
   if(confirm('Athlet wirklich löschen? Alle Daten gehen verloren.')){
     S.athleten=S.athleten.filter(x=>x.id!==aid);
     if(S.edId===aid)S.edId=S.athleten.length?S.athleten[0].id:null;
-    save();closeM();rEditor();rTraining();
+    save();closeM();rEditor();rUebersicht();
   }
 }
 function showEditTest(aid,key,label,unit){
@@ -1961,7 +1962,7 @@ function confTest(aid,key){
     if(cur.val!==null)a.tests[key].history.push({val:cur.val,dat:cur.dat});
     a.tests[key].current={val,dat};
   }
-  save();closeM();rTraining();
+  save();closeM();rUebersicht();
 }
 
 function focusKG(aid){
@@ -1984,7 +1985,7 @@ function saveKG(aid){
   if(a.tests.koerpergewicht.current)a.tests.koerpergewicht.history.push({...a.tests.koerpergewicht.current});
   a.tests.koerpergewicht.current={val,dat};
   document.getElementById('kg-quick-'+aid).style.display='none';
-  save();rTraining();
+  save();rUebersicht();
 }
 function quickSaveTest(aid,key,unit){
   const inp=document.getElementById('qi-'+aid+'-'+key);
@@ -2000,7 +2001,7 @@ function quickSaveTest(aid,key,unit){
   if(a.tests[key].current){a.tests[key].history.push({...a.tests[key].current});}
   a.tests[key].current={val,dat};
   inp.value='';
-  save();rTraining();
+  save();rUebersicht();
 }
 function showEditHistItem(aid,key,idx,label,unit){
   modal(`<h3>${label} – Eintrag bearbeiten</h3>
@@ -2018,7 +2019,7 @@ function confEditHistItem(aid,key,idx){
   const dat=document.getElementById('m-td').value.trim();
   if(isNaN(val)){alert('Ungültiger Wert.');return;}
   a.tests[key].history[origIdx]={val,dat};
-  save();closeM();rTraining();
+  save();closeM();rUebersicht();
 }
 function confDelHistItem(aid,key,idx){
   const a=S.athleten.find(x=>x.id===aid);
@@ -2026,7 +2027,7 @@ function confDelHistItem(aid,key,idx){
   const rev=[...a.tests[key].history].reverse();
   const origIdx=a.tests[key].history.indexOf(rev[idx]);
   a.tests[key].history.splice(origIdx,1);
-  save();closeM();rTraining();
+  save();closeM();rUebersicht();
 }
 function modal(content){
   document.getElementById('modal-wrap').innerHTML=`<div class="modal-bg" onclick="bgClose(event)"><div class="modal">${content}</div></div>`;
@@ -2041,7 +2042,7 @@ function navWeek(dir){
   // Don't go into future beyond current week
   if(yr>YRN||(yr===YRN&&kw>KWN)){kw=KWN;yr=YRN;}
   S.viewKW=kw;S.viewYR=yr;
-  rTraining();
+  rUebersicht();
 }
 
 function kwKeyStr(kw,yr){return `${yr}-${kw}`;}
@@ -2076,7 +2077,7 @@ function buildHist(a){
 
 function weeksInYear(yr){const d=new Date(yr,11,31);const kw=kwOfDate(d).kw;return kw===1?52:kw;}
 
-function tog(id){S.openId=S.openId===id?null:id;S.viewKW=KWN;S.viewYR=YRN;rTraining();}
+function tog(id){S.openId=S.openId===id?null:id;S.viewKW=KWN;S.viewYR=YRN;rUebersicht();}
 function setZ(id,z){
   const a=S.athleten.find(x=>x.id===id);
   if(!a)return;
@@ -2084,7 +2085,7 @@ function setZ(id,z){
   const key=kwKeyStr(S.viewKW||KWN,S.viewYR||YRN);
   if(!a.wochen[key])a.wochen[key]={zustand:null,einheiten:{}};
   a.wochen[key].zustand=z;
-  rTraining();
+  rUebersicht();
 }
 function saveEinheit(aid,i,val){
   const a=S.athleten.find(x=>x.id===aid);
@@ -2129,6 +2130,7 @@ function saveN(id){
   save();
   const sv=document.getElementById('sv-'+id);
   if(sv){sv.style.display='block';setTimeout(()=>{sv.style.display='none';},2000);}
+  rUebersicht();
 }
 function autoSaveBeachten(id){
   const a=S.athleten.find(x=>x.id===id);
@@ -2143,7 +2145,7 @@ function switchTab(t,btn){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   btn.classList.add('active');
   document.getElementById('view-'+t).classList.add('active');
-  if(t==='training')rTraining();
+  if(t==='training')rUebersicht();
   else if(t==='uebersicht')rUebersicht();
   else if(t==='editor')rEditor();
   else if(t==='vorlagen')rVorlagen();
