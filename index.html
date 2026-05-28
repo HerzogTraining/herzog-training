@@ -1351,6 +1351,10 @@ function rUebersicht(){
     </div>`;
   });
   document.getElementById('view-uebersicht').innerHTML=h;
+  // Auto-resize all plan textareas to fit content
+  setTimeout(()=>{
+    document.querySelectorAll('#view-uebersicht textarea').forEach(ta=>autoResize(ta));
+  },0);
 }
 
 // ---- PLANUNG ----
