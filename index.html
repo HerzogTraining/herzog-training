@@ -526,7 +526,12 @@ function buildBar(a,big){
     const isNow=s.kw===KWN&&s.yr===YRN;
     const nowStyle=isNow&&big?'outline:2.5px solid white;outline-offset:-2.5px;':'';
     const nowArrow=isNow&&big?'<div style="position:absolute;bottom:-10px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid white;z-index:5;filter:drop-shadow(0 1px 1px rgba(0,0,0,.3));"></div>':'';
-    segs+=`<div class="seg" style="background:${p.f};flex:1;position:relative;${nowStyle}" title="KW ${s.kw}/${s.yr}${e?' · '+e.phase+' · '+e.int+'%':' · Ungeplant'}">${nowArrow}</div>`;
+    const pt=big?getPeriodType(s.kw,s.yr,a):null;
+    const bottomColor=pt==='tl'?'#111111':pt==='urlaub'?'#F5C518':null;
+    const innerHtml=nowArrow+(big&&bottomColor
+      ?'<div style="position:absolute;bottom:0;left:0;right:0;height:40%;background:'+bottomColor+';opacity:.85;pointer-events:none;"></div>'
+      :'');
+    segs+=`<div class="seg" style="background:${p.f};flex:1;position:relative;${nowStyle}" title="KW ${s.kw}/${s.yr}${e?' · '+e.phase+' · '+e.int+'%':' · Ungeplant'}${pt?' · '+(pt==='tl'?'Trainingslager':'Urlaub'):''}">${innerHtml}</div>`;
   });
   let yrMark='';
   if(yrIdx>0&&big){
