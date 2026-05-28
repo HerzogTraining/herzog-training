@@ -634,7 +634,7 @@ function buildVorlageBar(v){
       </div>`;
     });
   }
-  return `<div class="bar-outer" style="padding-top:${v.wettkaempfe&&v.wettkaempfe.length?'20px':'4px'};"><div class="bar-row bar-sm">${segs}</div>${vpins}</div>`;
+  return `<div class="bar-outer"><div style="position:relative;width:936px;height:20px;">${vpins}</div><div class="bar-inner"><div class="bar-row bar-sm">${segs}</div></div></div>`;
 }
 
 function buildLegend(a){
