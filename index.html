@@ -352,7 +352,7 @@ async function sbFetch(method, body){
 }
 
 async function saveState(){
-  const data={athleten:S.athleten,nxtId:S.nxtId,vorlagen:S.vorlagen,nxtVId:S.nxtVId};
+  const data={athleten:S.athleten,nxtId:S.nxtId,vorlagen:S.vorlagen,nxtVId:S.nxtVId,katalog:S.katalog,trainingsVorlagen:S.trainingsVorlagen};
   try{localStorage.setItem(LS_KEY,JSON.stringify(data));}catch(e){}
   setSyncDot('busy');
   try{
@@ -382,7 +382,7 @@ async function loadState(){
 }
 
 function exportData(){
-  const data={athleten:S.athleten,nxtId:S.nxtId,vorlagen:S.vorlagen,nxtVId:S.nxtVId,exportDatum:new Date().toLocaleDateString('de-CH')};
+  const data={athleten:S.athleten,nxtId:S.nxtId,vorlagen:S.vorlagen,nxtVId:S.nxtVId,katalog:S.katalog,trainingsVorlagen:S.trainingsVorlagen,exportDatum:new Date().toLocaleDateString('de-CH')};
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
@@ -403,6 +403,8 @@ function importData(event){
       S.nxtId=data.nxtId||1;
       S.vorlagen=data.vorlagen||S.vorlagen;
       S.nxtVId=data.nxtVId||1;
+      S.katalog=data.katalog||null;
+      S.trainingsVorlagen=data.trainingsVorlagen||[];
       save();rTraining();
       alert('Backup erfolgreich eingespielt.');
     }catch(err){alert('Fehler beim Lesen der Datei.');}
@@ -2076,6 +2078,7 @@ async function init(){
   }
   S={...base,openId:null,edId:null,edVId:null};
   if(!S.katalog)S.katalog=JSON.parse(JSON.stringify(UEBUNGEN_KATALOG));
+  if(!S.trainingsVorlagen)S.trainingsVorlagen=[];
   // Einmalige Bereinigung: alte Vorlage-Kopien aus a.wettkaempfe entfernen
   S.athleten.forEach(a=>{
     if(!a.wettkaempfe||!a.wettkaempfe.length)return;
