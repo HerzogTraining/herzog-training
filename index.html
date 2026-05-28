@@ -129,6 +129,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--border2);}
 .hist-link{font-size:11px;padding:2px 7px;background:var(--teal-bg);color:var(--teal);border-radius:5px;text-decoration:none;border:1px solid #b2ddd0;}
 .hist-empty{font-size:12px;color:var(--muted);padding:8px 0;}
 border-radius:50%;background:var(--hint);display:inline-block;margin-left:6px;vertical-align:middle;}
+.sync-dot{width:10px;height:10px;border-radius:50%;background:var(--hint);display:inline-block;margin-left:8px;vertical-align:middle;flex-shrink:0;}
 .sync-dot.ok{background:#1D9E75;}
 .sync-dot.err{background:#E24B4A;}
 .sync-dot.busy{background:#EF9F27;animation:pulse .8s infinite alternate;}
@@ -154,6 +155,7 @@ border-radius:50%;background:var(--hint);display:inline-block;margin-left:6px;ve
     <h1>Herzog Training</h1>
     <span class="kw-tag" id="kw-badge"></span>
     <span id="sync-dot" class="sync-dot" title="Sync-Status"></span>
+    <span id="sync-label" style="font-size:11px;color:var(--muted);margin-left:4px;transition:opacity .5s;opacity:0;"></span>
     <button onclick="exportData()" title="Daten sichern" style="margin-left:8px;background:none;border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer;color:var(--text);font-family:'DM Sans',sans-serif;">⬇ Backup</button>
     <button onclick="document.getElementById('import-input').click()" title="Backup einspielen" style="margin-left:4px;background:none;border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer;color:var(--text);font-family:'DM Sans',sans-serif;">⬆ Wiederherstellen</button>
     <input type="file" id="import-input" accept=".json" style="display:none" onchange="importData(event)">
@@ -335,7 +337,14 @@ const sbConfigured = true;
 
 function setSyncDot(state){
   const d=document.getElementById('sync-dot');
-  if(d){d.className='sync-dot'+(state?' '+state:'');d.title=state==='ok'?'Synchronisiert':state==='err'?'Sync-Fehler':state==='busy'?'Speichert…':'Kein Sync';}
+  const l=document.getElementById('sync-label');
+  if(d){d.className='sync-dot'+(state?' '+state:'');}
+  if(l){
+    if(state==='ok'){l.textContent='✓ Gespeichert';l.style.color='#1D9E75';l.style.opacity='1';setTimeout(()=>{l.style.opacity='0';},2000);}
+    else if(state==='err'){l.textContent='⚠ Fehler';l.style.color='#E24B4A';l.style.opacity='1';}
+    else if(state==='busy'){l.textContent='Speichert…';l.style.color='var(--muted)';l.style.opacity='1';}
+    else{l.style.opacity='0';}
+  }
 }
 
 async function sbFetch(method, body){
