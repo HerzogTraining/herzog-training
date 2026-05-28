@@ -49,6 +49,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--border2);}
 .bar-footer{display:flex;justify-content:space-between;font-size:10px;color:#555555;margin-bottom:3px;font-family:'DM Mono',monospace;font-weight:500;}
 .bar-outer{margin-bottom:6px;overflow-x:auto;overflow-y:visible;-webkit-overflow-scrolling:touch;}
 .bar-inner{position:relative;width:936px;}.bar-row{display:flex;gap:1px;border-radius:var(--radius-sm);width:936px;}
+.bar-pins-wrap{position:relative;width:936px;height:26px;}
 .bar-big{height:52px;}
 .bar-sm{height:12px;border-radius:4px;}
 .seg{flex:1;position:relative;}
@@ -603,7 +604,7 @@ function buildBar(a,big){
   const s0=seq[0],sE=seq[51];
   if(big){
     return `<div class="bar-footer"><span>KW ${s0.kw} / ${s0.yr}</span><span>KW ${sE.kw} / ${sE.yr}</span></div>
-      <div class="bar-outer"><div class="bar-inner" style="padding-top:26px;"><div class="bar-row bar-big">${segs}</div>${yrMark}${pins}</div></div>`;
+      <div class="bar-outer"><div class="bar-pins-wrap">${pins}${yrMark}</div><div class="bar-inner"><div class="bar-row bar-big">${segs}</div></div></div>`;
   }
   return `<div class="bar-outer"><div class="bar-inner"><div class="bar-row bar-sm">${segs}</div></div></div>`;
 }
