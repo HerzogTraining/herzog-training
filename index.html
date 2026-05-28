@@ -536,6 +536,10 @@ function showBarPopup(txt,el){
   popup.style.top=top+'px';
   _barPopupTimer=setTimeout(hideBarPopup,2500);
 }
+function barTap(e,el){
+  e.stopPropagation();
+  showBarPopup(el.dataset.tip,el);
+}
 function hideBarPopup(){
   if(_barPopupTimer){clearTimeout(_barPopupTimer);_barPopupTimer=null;}
   const p=document.getElementById('bar-popup');
@@ -559,7 +563,7 @@ function buildBar(a,big){
       ?'<div style="position:absolute;bottom:0;left:0;right:0;height:40%;background:'+bottomColor+';opacity:.85;pointer-events:none;"></div>'
       :'');
     const safeTip=tipTxt.replace(/'/g,'&apos;').replace(/"/g,'&quot;');
-    const touchAttr=big?` ontouchstart="showBarPopup(this.dataset.tip,this)" onclick="showBarPopup(this.dataset.tip,this)" data-tip="${safeTip}"`:'';
+    const touchAttr=big?` ontouchstart="barTap(event,this)" onclick="barTap(event,this)" data-tip="${safeTip}"`:'';
     segs+=`<div class="seg" style="background:${p.f};flex:1;position:relative;${nowStyle}" title="${safeTip}"${touchAttr}>${innerHtml}</div>`;
   });
   let yrMark='';
@@ -580,7 +584,7 @@ function buildBar(a,big){
       const size=w.prio==='A'?18:w.prio==='B'?14:11;
       const wTip=w.name+' · KW '+w.kw+'/'+w.yr+(w.ort?' · '+w.ort:'')+(w.dat?' · '+w.dat:'');
       const safeWTip=wTip.replace(/'/g,'&apos;').replace(/"/g,'&quot;');
-      pins+=`<div title="${safeWTip}" data-tip="${safeWTip}" ontouchstart="showBarPopup(this.dataset.tip,this)" onclick="showBarPopup(this.dataset.tip,this)" style="position:absolute;top:0;left:${pct}%;transform:translateX(-50%);z-index:4;cursor:pointer;">
+      pins+=`<div title="${safeWTip}" data-tip="${safeWTip}" ontouchstart="barTap(event,this)" onclick="barTap(event,this)" style="position:absolute;top:0;left:${pct}%;transform:translateX(-50%);z-index:4;cursor:pointer;">
         <div style="width:${size}px;height:${size}px;background:${pc.bg};border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:${size<=11?8:10}px;font-weight:500;color:${pc.c};border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,.2);">${w.prio||'C'}</div>
       </div>`;
     });
@@ -592,7 +596,7 @@ function buildBar(a,big){
       if(idx<0)return;
       const pct=((idx+0.5)/52*100).toFixed(2);
       const kTip=k.name+' · KW '+k.kw+'/'+k.yr;
-      pins+=`<div title="${kTip}" data-tip="${kTip}" ontouchstart="showBarPopup(this.dataset.tip,this)" onclick="showBarPopup(this.dataset.tip,this)" style="position:absolute;top:0;left:${pct}%;transform:translateX(-50%);z-index:4;cursor:pointer;">
+      pins+=`<div title="${kTip}" data-tip="${kTip}" ontouchstart="barTap(event,this)" onclick="barTap(event,this)" style="position:absolute;top:0;left:${pct}%;transform:translateX(-50%);z-index:4;cursor:pointer;">
         <div style="width:13px;height:13px;background:#4A7BE2;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,.2);">K</div>
       </div>`;
     });
