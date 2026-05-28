@@ -562,9 +562,9 @@ function buildBar(a,big){
     const innerHtml=nowArrow+(big&&bottomColor
       ?'<div style="position:absolute;bottom:0;left:0;right:0;height:40%;background:'+bottomColor+';opacity:.85;pointer-events:none;"></div>'
       :'');
-    const safeTip=tipTxt.replace(/'/g,'&apos;').replace(/"/g,'&quot;');
-    const touchAttr=big?` ontouchstart="barTap(event,this)" onclick="barTap(event,this)" data-tip="${safeTip}"`:'';
-    segs+=`<div class="seg" style="background:${p.f};flex:1;position:relative;${nowStyle}" title="${safeTip}"${touchAttr}>${innerHtml}</div>`;
+    const tipSafe=(tipTxt||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/`/g,'&#96;');
+    const touchAttr=big?` ontouchstart="barTap(event,this)" onclick="barTap(event,this)" data-tip="${tipSafe}"`:'';
+    segs+=`<div class="seg" style="background:${p.f};flex:1;position:relative;${nowStyle}" title="${tipSafe}"${touchAttr}>${innerHtml}</div>`;
   });
   let yrMark='';
   if(yrIdx>0&&big){
