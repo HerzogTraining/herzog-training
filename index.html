@@ -516,9 +516,36 @@ function getSportarten(){
   const all=[...new Set([...fromVorlagen,...fromAthleten])].filter(Boolean);
   return all.sort((a,b)=>a.localeCompare(b,'de'));
 }
+// Bar tap popup
+let _barPopupTimer=null;
+function showBarPopup(txt,el){
+  hideBarPopup();
+  const popup=document.createElement('div');
+  popup.id='bar-popup';
+  popup.style.cssText='position:fixed;z-index:999;background:#111;color:#fff;font-size:12px;padding:6px 10px;border-radius:8px;pointer-events:none;max-width:200px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.4);line-height:1.4;';
+  popup.textContent=txt;
+  document.body.appendChild(popup);
+  const r=el.getBoundingClientRect();
+  const pw=200,ph=40;
+  let left=r.left+r.width/2-pw/2;
+  let top=r.top-ph-8;
+  if(top<8)top=r.bottom+8;
+  if(left<8)left=8;
+  if(left+pw>window.innerWidth-8)left=window.innerWidth-pw-8;
+  popup.style.left=left+'px';
+  popup.style.top=top+'px';
+  _barPopupTimer=setTimeout(hideBarPopup,2500);
+}
+function hideBarPopup(){
+  if(_barPopupTimer){clearTimeout(_barPopupTimer);_barPopupTimer=null;}
+  const p=document.getElementById('bar-popup');
+  if(p)p.remove();
+}
+
 function buildBar(a,big){
   const seq=buildSeq(a.startKW,a.startYr);
   let segs='',yrIdx=-1;
+  const aid=a.id;
   seq.forEach((s,i)=>{
     if(i>0&&s.yr!==seq[i-1].yr)yrIdx=i;
     const e=getEntry(a.plan,s.kw,s.yr);
@@ -531,7 +558,9 @@ function buildBar(a,big){
     const innerHtml=nowArrow+(big&&bottomColor
       ?'<div style="position:absolute;bottom:0;left:0;right:0;height:40%;background:'+bottomColor+';opacity:.85;pointer-events:none;"></div>'
       :'');
-    segs+=`<div class="seg" style="background:${p.f};flex:1;position:relative;${nowStyle}" title="KW ${s.kw}/${s.yr}${e?' · '+e.phase+' · '+e.int+'%':' · Ungeplant'}${pt?' · '+(pt==='tl'?'Trainingslager':'Urlaub'):''}">${innerHtml}</div>`;
+    const safeTip=tipTxt.replace(/'/g,'&apos;').replace(/"/g,'&quot;');
+    const touchAttr=big?` ontouchstart="showBarPopup(this.dataset.tip,this)" onclick="showBarPopup(this.dataset.tip,this)" data-tip="${safeTip}"`:'';
+    segs+=`<div class="seg" style="background:${p.f};flex:1;position:relative;${nowStyle}" title="${safeTip}"${touchAttr}>${innerHtml}</div>`;
   });
   let yrMark='';
   if(yrIdx>0&&big){
@@ -549,7 +578,9 @@ function buildBar(a,big){
       const pct=((idx+0.5)/52*100).toFixed(2);
       const pc=wkPriColor(w.prio||'C');
       const size=w.prio==='A'?18:w.prio==='B'?14:11;
-      pins+=`<div title="${w.name}\nKW ${w.kw}/${w.yr}${w.ort?' · '+w.ort:''}" style="position:absolute;top:0;left:${pct}%;transform:translateX(-50%);z-index:4;cursor:pointer;">
+      const wTip=w.name+' · KW '+w.kw+'/'+w.yr+(w.ort?' · '+w.ort:'')+(w.dat?' · '+w.dat:'');
+      const safeWTip=wTip.replace(/'/g,'&apos;').replace(/"/g,'&quot;');
+      pins+=`<div title="${safeWTip}" data-tip="${safeWTip}" ontouchstart="showBarPopup(this.dataset.tip,this)" onclick="showBarPopup(this.dataset.tip,this)" style="position:absolute;top:0;left:${pct}%;transform:translateX(-50%);z-index:4;cursor:pointer;">
         <div style="width:${size}px;height:${size}px;background:${pc.bg};border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:${size<=11?8:10}px;font-weight:500;color:${pc.c};border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,.2);">${w.prio||'C'}</div>
       </div>`;
     });
@@ -560,7 +591,8 @@ function buildBar(a,big){
       const idx=seq.findIndex(s=>s.kw===k.kw&&s.yr===k.yr);
       if(idx<0)return;
       const pct=((idx+0.5)/52*100).toFixed(2);
-      pins+=`<div title="${k.name}\nKW ${k.kw}/${k.yr}" style="position:absolute;top:0;left:${pct}%;transform:translateX(-50%);z-index:4;cursor:pointer;">
+      const kTip=k.name+' · KW '+k.kw+'/'+k.yr;
+      pins+=`<div title="${kTip}" data-tip="${kTip}" ontouchstart="showBarPopup(this.dataset.tip,this)" onclick="showBarPopup(this.dataset.tip,this)" style="position:absolute;top:0;left:${pct}%;transform:translateX(-50%);z-index:4;cursor:pointer;">
         <div style="width:13px;height:13px;background:#4A7BE2;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,.2);">K</div>
       </div>`;
     });
