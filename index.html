@@ -1312,7 +1312,7 @@ function rUebersicht(){
                   <div style="font-size:10px;font-weight:700;color:#E8000F;text-transform:uppercase;">${lbl}</div>
                   <button onclick="showUebungPicker(${a.id},'${planIds[i]}')" style="font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid #E8000F;background:#FFF5F5;color:#E8000F;cursor:pointer;">+ Übung</button>
                 </div>
-                <textarea id="${planIds[i]}-${a.id}" rows="4" style="width:100%;font-size:13px;resize:vertical;min-height:70px;border-radius:6px;border:1px solid var(--teal);padding:8px 10px;font-family:'DM Mono',monospace;background:var(--teal-bg);color:var(--text);white-space:pre-wrap;line-height:1.6;" placeholder="${lbl}…">${plans[i]}</textarea>
+                <textarea id="${planIds[i]}-${a.id}" rows="4" style="width:100%;font-size:13px;resize:vertical;min-height:70px;border-radius:6px;border:1px solid var(--teal);padding:8px 10px;font-family:'DM Mono',monospace;background:var(--teal-bg);color:var(--text);white-space:pre-wrap;line-height:1.6;" placeholder="${lbl}…" oninput="autoResize(this)">${plans[i]}</textarea>
               </div>`;
             });
             out+=`<div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;margin:8px 0 3px;">Notizen nach Training</div>
@@ -2101,6 +2101,10 @@ function saveEinheit(aid,i,val){
       else{const a2=document.createElement('a');a2.href=val.trim();a2.target='_blank';a2.style.cssText='font-size:12px;padding:5px 10px;background:var(--teal-bg);color:var(--teal);border-radius:6px;white-space:nowrap;text-decoration:none;border:1px solid #b2ddd0;';a2.textContent='Öffnen';input.after(a2);}
     }else{if(btn&&btn.tagName==='A')btn.remove();}
   }
+}
+function autoResize(ta){
+  ta.style.height='auto';
+  ta.style.height=(ta.scrollHeight+2)+'px';
 }
 function saveN(id){
   const a=S.athleten.find(x=>x.id===id);
