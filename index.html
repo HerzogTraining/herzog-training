@@ -872,7 +872,7 @@ function confAddUebung(){
   if(!cat)return;
   const val=document.getElementById('m-un').value.trim();
   if(!val)return;
-  getKatalog();
+  S.katalog=getKatalog();
   if(!S.katalog[cat])S.katalog[cat]=[];
   S.katalog[cat].push(val);
   saveKatalog();closeM();
@@ -896,7 +896,7 @@ function confEditUebung(){
   if(!cat)return;
   const val=document.getElementById('m-ue').value.trim();
   if(!val)return;
-  getKatalog();
+  S.katalog=getKatalog();
   S.katalog[cat][idx]=val;
   saveKatalog();closeM();
 }
@@ -904,7 +904,7 @@ function delUebung(){
   const cat=window._kPcat;
   const idx=window._kPidx;
   if(!cat)return;
-  getKatalog();
+  S.katalog=getKatalog();
   S.katalog[cat].splice(idx,1);
   saveKatalog();
 }
