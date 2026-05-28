@@ -522,13 +522,11 @@ function buildBar(a,big){
   seq.forEach((s,i)=>{
     if(i>0&&s.yr!==seq[i-1].yr)yrIdx=i;
     const e=getEntry(a.plan,s.kw,s.yr);
-    const pt=getPeriodType(s.kw,s.yr,a);
-    const p=pt==='urlaub'?{f:'#C8E6FA',t:'#0C447C'}:pt==='tl'?{f:'#CEB3F6',t:'#26215C'}:pd(e?e.phase:'Ungeplant',e?e.int:null);
+    const p=pd(e?e.phase:'Ungeplant',e?e.int:null);
     const isNow=s.kw===KWN&&s.yr===YRN;
     const nowStyle=isNow&&big?'outline:2.5px solid white;outline-offset:-2.5px;':'';
     const nowArrow=isNow&&big?'<div style="position:absolute;bottom:-10px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid white;z-index:5;filter:drop-shadow(0 1px 1px rgba(0,0,0,.3));"></div>':'';
-    const periodLabel=pt?` · ${pt==='urlaub'?'Urlaub':'Trainingslager'}`:'';
-    segs+=`<div class="seg" style="background:${p.f};flex:1;position:relative;${nowStyle}" title="KW ${s.kw}/${s.yr}${e?' · '+e.phase+' · '+e.int+'%':' · Ungeplant'}${periodLabel}">${nowArrow}</div>`;
+    segs+=`<div class="seg" style="background:${p.f};flex:1;position:relative;${nowStyle}" title="KW ${s.kw}/${s.yr}${e?' · '+e.phase+' · '+e.int+'%':' · Ungeplant'}">${nowArrow}</div>`;
   });
   let yrMark='';
   if(yrIdx>0&&big){
