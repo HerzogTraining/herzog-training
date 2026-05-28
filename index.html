@@ -159,7 +159,6 @@ border-radius:50%;background:var(--hint);display:inline-block;margin-left:6px;ve
   </div>
   <div class="tabs">
     <button class="tab active" onclick="switchTab('uebersicht',this)">Diese Woche</button>
-    <button class="tab" onclick="switchTab('training',this)">Training</button>
     <button class="tab" onclick="switchTab('editor',this)">Planung</button>
     <button class="tab" onclick="switchTab('vorlagen',this)">Vorlagen</button>
     <button class="tab" onclick="switchTab('katalog',this)">Übungen</button>
@@ -1217,6 +1216,8 @@ function npHelper(periods){
 function pdHelper(p){
   return daysUntilPeriod(p);
 }
+const _dwOpen={};
+function togDW(aid){_dwOpen[aid]=!_dwOpen[aid];rUebersicht();}
 function saveUNotiz(aid,week){
   const a=S.athleten.find(x=>x.id===aid);
   if(!a)return;
@@ -1280,28 +1281,72 @@ function rUebersicht(){
       h+=`<div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:${lastSport?'16px':'4px'} 0 6px;">${a.sport}</div>`;
       lastSport=a.sport;
     }
-    h+=`<div style="background:#FFFFFF;border:2px solid #D0D0D0;border-radius:10px;padding:12px 14px;margin-bottom:8px;">
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+    // Build expanded content (same as training card)
+    const isODW=!!_dwOpen[a.id];
+    const vkw=S.viewKW||KWN, vyr=S.viewYR||YRN;
+    const woche=(a.wochen&&a.wochen[kwKeyStr(vkw,vyr)])||{};
+    const beachtenVal=a.letzteNotiz||'';
+    let expDW='';
+    if(isODW){
+      expDW=`
+        <div style="border-top:1px solid var(--border);margin-top:10px;padding-top:10px;">
+          ${buildBar(a,true)}${buildLegend(a)}
+          <div style="margin-bottom:10px;">
+            <div style="font-size:10px;font-weight:600;color:#854F0B;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">⚠ Beachten</div>
+            <textarea id="beachten-${a.id}" rows="2" style="width:100%;font-size:13px;resize:none;border-radius:6px;border:1px solid #EF9F27;padding:7px 10px;font-family:'DM Sans',sans-serif;background:#FAEEDA;color:#633806;" placeholder="z.B. Verletzung linkes Knie beachten…" oninput="autoSaveBeachten(${a.id})">${beachtenVal}</textarea>
+          </div>
+          ${buildWkList(a)}
+          ${buildKrafttests(a)}
+          <div style="display:flex;align-items:center;justify-content:space-between;margin:12px 0 6px;">
+            <div class="slabel" style="margin:0;">Training KW ${vkw} / ${vyr}</div>
+            <button onclick="showLoadTrainingsVorlage(${a.id})" style="font-size:11px;padding:4px 12px;border-radius:6px;border:1px solid #E8000F;background:#FFF5F5;color:#E8000F;cursor:pointer;font-weight:600;">📋 Vorlage laden</button>
+          </div>
+          ${(()=>{
+            const link=(woche.einheiten&&woche.einheiten[1])||'';
+            const plans=[woche.plan||'',woche.plan2||'',woche.plan3||''];
+            const planIds=['plan','plan2','plan3'];
+            let out='';
+            ['Training 1','Training 2','Training 3'].forEach((lbl,i)=>{
+              out+=`<div style="margin-bottom:10px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">
+                  <div style="font-size:10px;font-weight:700;color:#E8000F;text-transform:uppercase;">${lbl}</div>
+                  <button onclick="showUebungPicker(${a.id},'${planIds[i]}')" style="font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid #E8000F;background:#FFF5F5;color:#E8000F;cursor:pointer;">+ Übung</button>
+                </div>
+                <textarea id="${planIds[i]}-${a.id}" rows="4" style="width:100%;font-size:13px;resize:vertical;min-height:70px;border-radius:6px;border:1px solid var(--teal);padding:8px 10px;font-family:'DM Mono',monospace;background:var(--teal-bg);color:var(--text);white-space:pre-wrap;line-height:1.6;" placeholder="${lbl}…">${plans[i]}</textarea>
+              </div>`;
+            });
+            out+=`<div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;margin:8px 0 3px;">Notizen nach Training</div>
+            <textarea id="notiz-${a.id}" rows="3" style="width:100%;font-size:13px;resize:none;border-radius:6px;border:1px solid var(--border2);padding:8px 10px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);" placeholder="Was war gut / schlecht…">${woche.notiz||''}</textarea>`;
+            return out;
+          })()}
+          <button class="savebtn" onclick="saveN(${a.id})" style="margin-top:10px;">Speichern</button>
+          <div class="savedok" id="sv-${a.id}">✓ Gespeichert</div>
+        </div>`;
+    }
+    h+=`<div style="background:#FFFFFF;border:2px solid ${isODW?'#E8000F':'#D0D0D0'};border-radius:10px;padding:12px 14px;margin-bottom:8px;">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;cursor:pointer;" onclick="togDW(${a.id})">
         <div class="avatar" style="width:32px;height:32px;font-size:12px;flex-shrink:0;background:${avc.bg};color:${avc.c};">${ini(a.name)}</div>
         <div style="flex:1;min-width:100px;">
-          <div style="font-size:14px;font-weight:500;">${a.name}</div>
+          <div style="font-size:14px;font-weight:500;">${a.name}${isODW?` <span style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;">KW ${KWN}/${YRN}</span>`:''}</div>
           <div style="font-size:11px;color:var(--muted);">${a.sport}</div>
         </div>
         ${a.verletzt?`<span class="ppill" style="background:#FCEAEA;color:#C0392B;font-size:11px;font-weight:600;">🤕 Verletzt seit KW ${a.verletzt.kw}/${a.verletzt.yr}</span>`:`<span class="ppill" style="background:${p.f};color:${p.t};font-size:11px;">${phase} · ${ins}%</span>`}
+        <span style="font-size:18px;color:var(--muted);margin-left:auto;">${isODW?'▲':'▼'}</span>
       </div>
-      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">
         ${wkBadge}${periodBadge}${bdBadge}${notizBadge}
       </div>
-      <div style="position:relative;margin-bottom:6px;">
+      <div style="position:relative;margin-top:8px;margin-bottom:6px;" onclick="event.stopPropagation()">
         <div style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">KW ${KWN} / ${YRN}</div>
-        <textarea id="un-${a.id}" rows="2" style="width:100%;font-size:13px;resize:none;border-radius:6px;border:1px solid var(--border2);padding:7px 10px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);" placeholder="Notiz diese Woche… (Uhrzeit, Anpassung, …)" oninput="saveUNotiz(${a.id},'current')">${uNotiz}</textarea>
+        <textarea id="un-${a.id}" rows="2" style="width:100%;font-size:13px;resize:none;border-radius:6px;border:1px solid var(--border2);padding:7px 10px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);" placeholder="Notiz diese Woche…" oninput="saveUNotiz(${a.id},'current')">${uNotiz}</textarea>
         <span id="un-sv-${a.id}" style="position:absolute;right:8px;bottom:8px;font-size:11px;color:var(--teal);opacity:0;transition:opacity .3s;">✓</span>
       </div>
-      <div style="position:relative;">
+      <div style="position:relative;" onclick="event.stopPropagation()">
         <div style="font-size:10px;font-weight:600;color:#1D9E75;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">KW ${nextKW} / ${nextYR} — Nächste Woche</div>
-        <textarea id="un2-${a.id}" rows="2" style="width:100%;font-size:13px;resize:none;border-radius:6px;border:1px solid #b2ddd0;padding:7px 10px;font-family:'DM Sans',sans-serif;background:#F0FBF7;color:var(--text);" placeholder="Vorausplanung nächste Woche… (kommt Di statt Mo, …)" oninput="saveUNotiz(${a.id},'next')">${uNotizNext}</textarea>
+        <textarea id="un2-${a.id}" rows="2" style="width:100%;font-size:13px;resize:none;border-radius:6px;border:1px solid #b2ddd0;padding:7px 10px;font-family:'DM Sans',sans-serif;background:#F0FBF7;color:var(--text);" placeholder="Vorausplanung nächste Woche…" oninput="saveUNotiz(${a.id},'next')">${uNotizNext}</textarea>
         <span id="un2-sv-${a.id}" style="position:absolute;right:8px;bottom:8px;font-size:11px;color:var(--teal);opacity:0;transition:opacity .3s;">✓</span>
       </div>
+      ${expDW}
     </div>`;
   });
   document.getElementById('view-uebersicht').innerHTML=h;
