@@ -1253,6 +1253,7 @@ function rUebersicht(){
   const nextKwKey=kwKeyStr(nextKW,nextYR);
   let h=`<div style="font-size:12px;color:var(--muted);margin-bottom:12px;font-weight:500;">KW ${KWN} / ${YRN} — Was steht an?</div>`;
   let lastSport='';
+  let athletCards='';
   sortA().forEach(a=>{
     const avc=av(a.avIdx);
     const{phase,int:ins}=curPhase(a);
@@ -1291,6 +1292,8 @@ function rUebersicht(){
     const notizText=uNotiz||uNotizNext;
     const notizBadge=hasNotiz?`<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:#FFF3CD;color:#856404;font-weight:500;">📝 ${notizText.split('\n')[0].substring(0,30)}${notizText.length>30?'…':''}</span>`:'';
     if(a.sport!==lastSport){
+      if(athletCards)h+=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:6px;">${athletCards}</div>`;
+      athletCards='';
       h+=`<div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:${lastSport?'16px':'4px'} 0 6px;">${a.sport}</div>`;
       lastSport=a.sport;
     }
@@ -1346,17 +1349,30 @@ function rUebersicht(){
           <div class="savedok" id="sv-${a.id}">✓ Gespeichert</div>
         </div>`;
     }
-    h+=`<div style="background:#FFFFFF;border:2px solid ${isODW?'#E8000F':'#D0D0D0'};border-radius:10px;padding:12px 14px;margin-bottom:8px;">
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;cursor:pointer;" onclick="togDW(${a.id})">
+    athletCards+=`<div onclick="togDW(${a.id})" style="background:#FFFFFF;border:2px solid ${isODW?'#E8000F':'#D0D0D0'};border-radius:10px;padding:8px 10px;cursor:pointer;position:relative;">
+      <div style="display:flex;align-items:center;gap:6px;">
+        <div class="avatar" style="width:26px;height:26px;font-size:10px;flex-shrink:0;background:${avc.bg};color:${avc.c};">${ini(a.name)}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${a.name.split(' ')[0]}</div>
+          <div style="font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${a.verletzt?'🤕':(wkBadge?'🏆':'')}${periodBadge?'🏖':''} ${a.verletzt?'Verletzt':(phase+' '+ins+'%')}</div>
+        </div>
+      </div>
+      ${isODW||notizBadge?`<div style="position:absolute;top:4px;right:6px;font-size:9px;color:var(--muted);">${isODW?'▲':''}${notizBadge?'📝':''}</div>`:''}
+    </div>`;
+    if(!isODW)return;
+    h+=athletCards.length>0?`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:6px;">${athletCards}</div>`:'';
+    athletCards='';
+    h+=`<div style="background:#FFFFFF;border:2px solid #E8000F;border-radius:10px;padding:12px 14px;margin-bottom:8px;">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;cursor:pointer;margin-bottom:6px;" onclick="togDW(${a.id})">
         <div class="avatar" style="width:32px;height:32px;font-size:12px;flex-shrink:0;background:${avc.bg};color:${avc.c};">${ini(a.name)}</div>
         <div style="flex:1;min-width:100px;">
-          <div style="font-size:14px;font-weight:500;">${a.name}${isODW?` <span style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;">KW ${KWN}/${YRN}</span>`:''}</div>
+          <div style="font-size:14px;font-weight:500;">${a.name} <span style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;">KW ${KWN}/${YRN}</span></div>
           <div style="font-size:11px;color:var(--muted);">${a.sport}</div>
         </div>
         ${a.verletzt?`<span class="ppill" style="background:#FCEAEA;color:#C0392B;font-size:11px;font-weight:600;">🤕 Verletzt seit KW ${a.verletzt.kw}/${a.verletzt.yr}</span>`:`<span class="ppill" style="background:${p.f};color:${p.t};font-size:11px;">${phase} · ${ins}%</span>`}
-        <span style="font-size:18px;color:var(--muted);margin-left:auto;">${isODW?'▲':'▼'}</span>
+        <span style="font-size:18px;color:var(--muted);">▲</span>
       </div>
-      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">
         ${wkBadge}${periodBadge}${bdBadge}${notizBadge}
       </div>
       <div style="position:relative;margin-top:8px;margin-bottom:6px;" onclick="event.stopPropagation()">
@@ -1372,6 +1388,7 @@ function rUebersicht(){
       ${expDW}
     </div>`;
   });
+  if(athletCards)h+=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:6px;">${athletCards}</div>`;
   document.getElementById('view-uebersicht').innerHTML=h;
   // Auto-resize all plan textareas to fit content
   setTimeout(()=>{
