@@ -1251,7 +1251,33 @@ function rUebersicht(){
   const nextKW=KWN===52?1:KWN+1;
   const nextYR=KWN===52?YRN+1:YRN;
   const nextKwKey=kwKeyStr(nextKW,nextYR);
-  let h=`<div style="font-size:12px;color:var(--muted);margin-bottom:12px;font-weight:500;">KW ${KWN} / ${YRN} — Was steht an?</div>`;
+
+  // Build mini calendar for current month
+  const now=new Date();
+  const todayD=now.getDate(), todayM=now.getMonth(), todayY=now.getFullYear();
+  const firstDay=new Date(todayY,todayM,1);
+  const daysInMonth=new Date(todayY,todayM+1,0).getDate();
+  const startDow=(firstDay.getDay()+6)%7; // Mon=0
+  const monthName=firstDay.toLocaleDateString('de-CH',{month:'long',year:'numeric'});
+  const dayNames=['Mo','Di','Mi','Do','Fr','Sa','So'];
+  let calHtml='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;text-align:center;">';
+  dayNames.forEach(d=>{calHtml+=`<div style="font-size:9px;font-weight:600;color:var(--muted);padding:2px 0;">${d}</div>`;});
+  for(let i=0;i<startDow;i++)calHtml+=`<div></div>`;
+  for(let d=1;d<=daysInMonth;d++){
+    const isToday=d===todayD;
+    const dow=(startDow+d-1)%7;
+    const isWeekend=dow===5||dow===6;
+    calHtml+=`<div style="font-size:11px;padding:3px 1px;border-radius:50%;${isToday?'background:#E8000F;color:#fff;font-weight:700;':isWeekend?'color:var(--muted);':''}">${d}</div>`;
+  }
+  calHtml+='</div>';
+
+  let h=`<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:14px;flex-wrap:wrap;">
+    <div style="flex:1;min-width:200px;background:#FFFFFF;border:1.5px solid #D0D0D0;border-radius:10px;padding:10px 12px;">
+      <div style="font-size:11px;font-weight:700;color:#E8000F;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">${monthName}</div>
+      ${calHtml}
+    </div>
+    <div style="font-size:12px;color:var(--muted);font-weight:500;padding-top:4px;">KW ${KWN} / ${YRN} — Was steht an?</div>
+  </div>`;
   let lastSport='';
   let athletCards='';
   sortA().forEach(a=>{
