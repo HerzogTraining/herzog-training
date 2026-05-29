@@ -1252,28 +1252,34 @@ function rUebersicht(){
   const nextYR=KWN===52?YRN+1:YRN;
   const nextKwKey=kwKeyStr(nextKW,nextYR);
 
-  // Build mini calendar for current month
+  // Mini calendar with month navigation
+  if(!window._calOffset)window._calOffset=0;
   const now=new Date();
+  const calDate=new Date(now.getFullYear(),now.getMonth()+window._calOffset,1);
   const todayD=now.getDate(), todayM=now.getMonth(), todayY=now.getFullYear();
-  const firstDay=new Date(todayY,todayM,1);
-  const daysInMonth=new Date(todayY,todayM+1,0).getDate();
-  const startDow=(firstDay.getDay()+6)%7; // Mon=0
-  const monthName=firstDay.toLocaleDateString('de-CH',{month:'long',year:'numeric'});
+  const cM=calDate.getMonth(), cY=calDate.getFullYear();
+  const daysInMonth=new Date(cY,cM+1,0).getDate();
+  const startDow=(calDate.getDay()+6)%7;
+  const monthName=calDate.toLocaleDateString('de-CH',{month:'short',year:'numeric'});
   const dayNames=['Mo','Di','Mi','Do','Fr','Sa','So'];
   let calHtml='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;text-align:center;">';
-  dayNames.forEach(d=>{calHtml+=`<div style="font-size:9px;font-weight:600;color:var(--muted);padding:2px 0;">${d}</div>`;});
+  dayNames.forEach(d=>{calHtml+=`<div style="font-size:8px;font-weight:600;color:var(--muted);padding:1px 0;">${d}</div>`;});
   for(let i=0;i<startDow;i++)calHtml+=`<div></div>`;
   for(let d=1;d<=daysInMonth;d++){
-    const isToday=d===todayD;
+    const isToday=d===todayD&&cM===todayM&&cY===todayY;
     const dow=(startDow+d-1)%7;
     const isWeekend=dow===5||dow===6;
-    calHtml+=`<div style="font-size:11px;padding:3px 1px;border-radius:50%;${isToday?'background:#E8000F;color:#fff;font-weight:700;':isWeekend?'color:var(--muted);':''}">${d}</div>`;
+    calHtml+=`<div style="font-size:10px;padding:2px 0;border-radius:50%;${isToday?'background:#E8000F;color:#fff;font-weight:700;':isWeekend?'color:var(--muted);':''}">${d}</div>`;
   }
   calHtml+='</div>';
 
-  let h=`<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:14px;flex-wrap:wrap;">
-    <div style="flex:1;min-width:200px;background:#FFFFFF;border:1.5px solid #D0D0D0;border-radius:10px;padding:10px 12px;">
-      <div style="font-size:11px;font-weight:700;color:#E8000F;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">${monthName}</div>
+  let h=`<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:14px;flex-wrap:wrap;">
+    <div style="width:168px;flex-shrink:0;background:#FFFFFF;border:1.5px solid #D0D0D0;border-radius:10px;padding:8px 10px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <button onclick="window._calOffset--;rUebersicht();" style="background:none;border:none;cursor:pointer;font-size:14px;color:var(--muted);padding:0 4px;">‹</button>
+        <div style="font-size:10px;font-weight:700;color:#E8000F;text-transform:uppercase;letter-spacing:.05em;">${monthName}</div>
+        <button onclick="window._calOffset++;rUebersicht();" style="background:none;border:none;cursor:pointer;font-size:14px;color:var(--muted);padding:0 4px;">›</button>
+      </div>
       ${calHtml}
     </div>
     <div style="font-size:12px;color:var(--muted);font-weight:500;padding-top:4px;">KW ${KWN} / ${YRN} — Was steht an?</div>
@@ -1375,15 +1381,18 @@ function rUebersicht(){
           <div class="savedok" id="sv-${a.id}">✓ Gespeichert</div>
         </div>`;
     }
-    athletCards+=`<div onclick="togDW(${a.id})" style="background:#FFFFFF;border:2px solid ${isODW?'#E8000F':'#D0D0D0'};border-radius:10px;padding:8px 10px;cursor:pointer;position:relative;">
+    const cardBg=a.verletzt?'#FFF5F5':p.f+'22';
+    const cardBorder=isODW?'#E8000F':a.verletzt?'#E8000F20':'#D0D0D0';
+    athletCards+=`<div onclick="togDW(${a.id})" style="background:${cardBg};border:2px solid ${cardBorder};border-radius:10px;padding:8px 10px;cursor:pointer;position:relative;">
       <div style="display:flex;align-items:center;gap:6px;">
         <div class="avatar" style="width:26px;height:26px;font-size:10px;flex-shrink:0;background:${avc.bg};color:${avc.c};">${ini(a.name)}</div>
         <div style="flex:1;min-width:0;">
           <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${a.name.split(' ')[0]}</div>
-          <div style="font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${a.verletzt?'🤕':(wkBadge?'🏆':'')}${periodBadge?'🏖':''} ${a.verletzt?'Verletzt':(phase+' '+ins+'%')}</div>
+          <div style="font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:${p.t};">${a.verletzt?'🤕 Verletzt':phase+' <strong>'+ins+'%</strong>'}</div>
         </div>
       </div>
-      ${isODW||notizBadge?`<div style="position:absolute;top:4px;right:6px;font-size:9px;color:var(--muted);">${isODW?'▲':''}${notizBadge?'📝':''}</div>`:''}
+      ${notizBadge?`<div style="position:absolute;top:3px;right:5px;font-size:9px;">📝</div>`:''}
+      ${isODW?`<div style="position:absolute;top:3px;right:${notizBadge?'18':'5'}px;font-size:9px;color:var(--muted);">▲</div>`:''}
     </div>`;
     if(!isODW)return;
     h+=athletCards.length>0?`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:6px;">${athletCards}</div>`:'';
