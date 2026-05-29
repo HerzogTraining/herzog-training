@@ -1228,7 +1228,9 @@ function pdHelper(p){
   return daysUntilPeriod(p);
 }
 const _dwOpen={};
-function togDW(aid){_dwOpen[aid]=!_dwOpen[aid];rUebersicht();}
+const _dwDetails={};
+function togDW(aid){_dwOpen[aid]=!_dwOpen[aid];if(!_dwOpen[aid])_dwDetails[aid]=false;rUebersicht();}
+function togDWDetails(aid){_dwDetails[aid]=!_dwDetails[aid];rUebersicht();}
 function saveUNotiz(aid,week){
   const a=S.athleten.find(x=>x.id===aid);
   if(!a)return;
@@ -1297,10 +1299,12 @@ function rUebersicht(){
     const vkw=S.viewKW||KWN, vyr=S.viewYR||YRN;
     const woche=(a.wochen&&a.wochen[kwKeyStr(vkw,vyr)])||{};
     const beachtenVal=a.letzteNotiz||'';
+    const isDetails=!!_dwDetails[a.id];
     let expDW='';
     if(isODW){
-      expDW=`
-        <div style="border-top:1px solid var(--border);margin-top:10px;padding-top:10px;">
+      // Details section (Balken, Beachten, Wettkämpfe, Krafttests) — collapsible
+      const detailsContent=isDetails?`
+        <div style="margin-bottom:10px;">
           ${buildBar(a,true)}${buildLegend(a)}
           <div style="margin-bottom:10px;">
             <div style="font-size:10px;font-weight:600;color:#854F0B;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">⚠ Beachten</div>
@@ -1308,7 +1312,15 @@ function rUebersicht(){
           </div>
           ${buildWkList(a)}
           ${buildKrafttests(a)}
-          <div style="display:flex;align-items:center;justify-content:space-between;margin:12px 0 6px;">
+        </div>`:'';
+
+      expDW=`
+        <div style="border-top:1px solid var(--border);margin-top:10px;padding-top:10px;">
+          <button onclick="togDWDetails(${a.id})" style="font-size:11px;padding:3px 12px;border-radius:6px;border:1px solid var(--border2);background:none;color:var(--muted);cursor:pointer;margin-bottom:8px;width:100%;text-align:left;">
+            ${isDetails?'▲ Jahresplan, Wettkämpfe & Krafttests ausblenden':'▼ Jahresplan, Wettkämpfe & Krafttests'}
+          </button>
+          ${detailsContent}
+          <div style="display:flex;align-items:center;justify-content:space-between;margin:4px 0 6px;">
             <div class="slabel" style="margin:0;">Training KW ${vkw} / ${vyr}</div>
             <button onclick="showLoadTrainingsVorlage(${a.id})" style="font-size:11px;padding:4px 12px;border-radius:6px;border:1px solid #E8000F;background:#FFF5F5;color:#E8000F;cursor:pointer;font-weight:600;">📋 Vorlage laden</button>
           </div>
@@ -1323,7 +1335,7 @@ function rUebersicht(){
                   <div style="font-size:10px;font-weight:700;color:#E8000F;text-transform:uppercase;">${lbl}</div>
                   <button onclick="showUebungPicker(${a.id},'${planIds[i]}')" style="font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid #E8000F;background:#FFF5F5;color:#E8000F;cursor:pointer;">+ Übung</button>
                 </div>
-                <textarea id="${planIds[i]}-${a.id}" rows="4" style="width:100%;font-size:13px;resize:vertical;min-height:70px;border-radius:6px;border:1px solid var(--teal);padding:8px 10px;font-family:'DM Mono',monospace;background:var(--teal-bg);color:var(--text);white-space:pre-wrap;line-height:1.6;" placeholder="${lbl}…" oninput="autoResize(this)">${plans[i]}</textarea>
+                <textarea id="${planIds[i]}-${a.id}" rows="4" style="width:100%;font-size:13px;resize:none;min-height:70px;border-radius:6px;border:1px solid var(--teal);padding:8px 10px;font-family:'DM Mono',monospace;background:var(--teal-bg);color:var(--text);white-space:pre-wrap;line-height:1.6;" placeholder="${lbl}…" oninput="autoResize(this)">${plans[i]}</textarea>
               </div>`;
             });
             out+=`<div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;margin:8px 0 3px;">Notizen nach Training</div>
