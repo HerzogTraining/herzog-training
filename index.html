@@ -1398,15 +1398,14 @@ function rUebersicht(){
                   <div style="font-size:10px;font-weight:700;color:#E8000F;text-transform:uppercase;">${lbl}</div>
                   <button onclick="showUebungPicker(${a.id},'${planIds[i]}')" style="font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid #E8000F;background:#FFF5F5;color:#E8000F;cursor:pointer;">+ Übung</button>
                 </div>
-                <textarea id="${planIds[i]}-${a.id}" rows="4" style="width:100%;font-size:13px;resize:none;min-height:70px;border-radius:6px;border:1px solid var(--teal);padding:8px 10px;font-family:'DM Mono',monospace;background:var(--teal-bg);color:var(--text);white-space:pre-wrap;line-height:1.6;" placeholder="${lbl}…" oninput="autoResize(this)">${plans[i]}</textarea>
+                <textarea id="${planIds[i]}-${a.id}" rows="4" style="width:100%;font-size:13px;resize:none;min-height:70px;border-radius:6px;border:1px solid var(--teal);padding:8px 10px;font-family:'DM Mono',monospace;background:var(--teal-bg);color:var(--text);white-space:pre-wrap;line-height:1.6;" placeholder="${lbl}…" oninput="autoResize(this);autoSaveN(${a.id})">${plans[i]}</textarea>
               </div>`;
             });
             out+=`<div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;margin:8px 0 3px;">Notizen nach Training</div>
-            <textarea id="notiz-${a.id}" rows="3" style="width:100%;font-size:13px;resize:none;border-radius:6px;border:1px solid var(--border2);padding:8px 10px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);" placeholder="Was war gut / schlecht…">${woche.notiz||''}</textarea>`;
+            <textarea id="notiz-${a.id}" rows="3" style="width:100%;font-size:13px;resize:none;border-radius:6px;border:1px solid var(--border2);padding:8px 10px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);" placeholder="Was war gut / schlecht…" oninput="autoSaveN(${a.id})">${woche.notiz||''}</textarea>`;
             return out;
           })()}
-          <button class="savebtn" onclick="saveN(${a.id})" style="margin-top:10px;">Speichern</button>
-          <div class="savedok" id="sv-${a.id}">✓ Gespeichert</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:6px;text-align:right;">✓ Autosave aktiv</div>
         </div>`;
     }
     const cardBg=a.verletzt?'#FFF5F5':p.f+'22';
@@ -2227,14 +2226,17 @@ function saveN(id){
     if(plan2Ta)a.wochen[key].plan2=plan2Ta.value;
     const plan3Ta=document.getElementById('plan3-'+id);
     if(plan3Ta)a.wochen[key].plan3=plan3Ta.value;
-    // Beachten
     const bt=document.getElementById('beachten-'+id);
     if(bt)a.letzteNotiz=bt.value.trim()||null;
   }
   save();
   const sv=document.getElementById('sv-'+id);
   if(sv){sv.style.display='block';setTimeout(()=>{sv.style.display='none';},2000);}
-  rUebersicht();
+}
+const _saveNTimers={};
+function autoSaveN(id){
+  if(_saveNTimers[id])clearTimeout(_saveNTimers[id]);
+  _saveNTimers[id]=setTimeout(()=>saveN(id),1500);
 }
 function autoSaveBeachten(id){
   const a=S.athleten.find(x=>x.id===id);
