@@ -2122,8 +2122,6 @@ function navWeek(dir){
   kw+=dir;
   if(kw<1){yr--;kw=weeksInYear(yr);}
   else if(kw>weeksInYear(yr)){yr++;kw=1;}
-  // Don't go into future beyond current week
-  if(yr>YRN||(yr===YRN&&kw>KWN)){kw=KWN;yr=YRN;}
   S.viewKW=kw;S.viewYR=yr;
   rUebersicht();
 }
