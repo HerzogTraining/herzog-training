@@ -227,7 +227,7 @@ document.getElementById('kw-badge').textContent='KW '+KWN+' / '+YRN;
 
 function buildSeq(sKW,sYr){
   const s=[];let kw=sKW,yr=sYr;
-  for(let i=0;i<52;i++){s.push({kw,yr});const n=nextSlot(kw,yr);kw=n.kw;yr=n.yr;}
+  for(let i=0;i<104;i++){s.push({kw,yr});const n=nextSlot(kw,yr);kw=n.kw;yr=n.yr;}
   return s;
 }
 function getEntry(plan,kw,yr){
@@ -432,8 +432,8 @@ function applyVorlage(vorlageId,athletId){
   const seq=buildSeq(a.startKW,a.startYr);
   if(v.phasen&&v.phasen.length){
     a.plan=v.phasen.map(p=>{
-      const vonSlot=seq[Math.min(p.vonW,51)];
-      const bisSlot=seq[Math.min(p.bisW,51)];
+      const vonSlot=seq[Math.min(p.vonW,103)];
+      const bisSlot=seq[Math.min(p.bisW,103)];
       return{von:{kw:vonSlot.kw,yr:vonSlot.yr},bis:{kw:bisSlot.kw,yr:bisSlot.yr},phase:p.phase,int:p.int};
     });
   }
@@ -610,7 +610,7 @@ function buildBar(a,big){
       </div>`;
     });
   }
-  const s0=seq[0],sE=seq[51];
+  const s0=seq[0],sE=seq[103];
   if(big){
     return `<div class="bar-footer"><span>KW ${s0.kw} / ${s0.yr}</span><span>KW ${sE.kw} / ${sE.yr}</span></div>
       <div class="bar-outer"><div class="bar-pins-wrap">${pins}${yrMark}</div><div class="bar-inner"><div class="bar-row bar-big">${segs}</div></div></div>`;
@@ -1351,6 +1351,11 @@ function rUebersicht(){
 
       expDW=`
         <div style="border-top:1px solid var(--border);margin-top:10px;padding-top:10px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;" onclick="event.stopPropagation()">
+            <button onclick="navWeek(-1);_dwOpen[${a.id}]=true;" style="background:none;border:1px solid var(--border2);border-radius:6px;width:34px;height:34px;font-size:18px;cursor:pointer;color:var(--text);">‹</button>
+            <span style="font-size:13px;font-weight:700;color:${vkw===KWN&&vyr===YRN?'#E8000F':'var(--text)'};">KW ${vkw} / ${vyr}${vkw===KWN&&vyr===YRN?' · diese Woche':''}</span>
+            <button onclick="navWeek(1);_dwOpen[${a.id}]=true;" style="background:none;border:1px solid var(--border2);border-radius:6px;width:34px;height:34px;font-size:18px;cursor:pointer;color:var(--text);">›</button>
+          </div>
           <button onclick="togDWDetails(${a.id})" style="font-size:11px;padding:3px 12px;border-radius:6px;border:1px solid var(--border2);background:none;color:var(--muted);cursor:pointer;margin-bottom:8px;width:100%;text-align:left;">
             ${isDetails?'▲ Jahresplan, Wettkämpfe & Krafttests ausblenden':'▼ Jahresplan, Wettkämpfe & Krafttests'}
           </button>
