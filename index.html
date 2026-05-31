@@ -264,17 +264,26 @@ function dateToKwYr(d){
   const kw=Math.ceil((((tmp-ys)/86400000)+1)/7);
   return{kw,yr:tmp.getFullYear()};
 }
+function kwToDate(kw,yr){
+  // Returns Monday of the given KW
+  const jan4=new Date(yr,0,4);
+  const d=new Date(jan4);
+  d.setDate(jan4.getDate()-(jan4.getDay()||7)+1+(kw-1)*7);
+  d.setHours(0,0,0,0);
+  return d;
+}
 function isInPeriod(kw,yr,periods){
   if(!periods||!periods.length)return false;
-  const now=today();
+  // Use Wednesday of the given week as reference point
+  const ref=kwToDate(kw,yr);
+  ref.setDate(ref.getDate()+2);
   return periods.some(p=>{
-    // Neues Format: {vonDat, bisDat}
     if(p.vonDat&&p.bisDat){
       const von=parseDate(p.vonDat),bis=parseDate(p.bisDat);
       if(!von||!bis)return false;
-      return now>=von&&now<=bis;
+      return ref>=von&&ref<=bis;
     }
-    // Altes Format: {vonKW,vonYr,bisKW,bisYr} — Fallback
+    // Altes Format: {vonKW,vonYr,bisKW,bisYr}
     const abs=kwAbs(kw,yr);
     return abs>=kwAbs(p.vonKW,p.vonYr)&&abs<=kwAbs(p.bisKW,p.bisYr);
   });
