@@ -227,7 +227,7 @@ document.getElementById('kw-badge').textContent='KW '+KWN+' / '+YRN;
 
 function buildSeq(sKW,sYr){
   const s=[];let kw=sKW,yr=sYr;
-  for(let i=0;i<104;i++){s.push({kw,yr});const n=nextSlot(kw,yr);kw=n.kw;yr=n.yr;}
+  for(let i=0;i<52;i++){s.push({kw,yr});const n=nextSlot(kw,yr);kw=n.kw;yr=n.yr;}
   return s;
 }
 function getEntry(plan,kw,yr){
@@ -441,8 +441,8 @@ function applyVorlage(vorlageId,athletId){
   const seq=buildSeq(a.startKW,a.startYr);
   if(v.phasen&&v.phasen.length){
     a.plan=v.phasen.map(p=>{
-      const vonSlot=seq[Math.min(p.vonW,103)];
-      const bisSlot=seq[Math.min(p.bisW,103)];
+      const vonSlot=seq[Math.min(p.vonW,51)];
+      const bisSlot=seq[Math.min(p.bisW,51)];
       return{von:{kw:vonSlot.kw,yr:vonSlot.yr},bis:{kw:bisSlot.kw,yr:bisSlot.yr},phase:p.phase,int:p.int};
     });
   }
@@ -586,7 +586,7 @@ function buildBar(a,big){
   });
   let yrMark='';
   if(yrIdx>0&&big){
-    const pct=(yrIdx/104*100).toFixed(2);
+    const pct=(yrIdx/52*100).toFixed(2);
     yrMark=`<div style="position:absolute;top:0;bottom:0;left:${pct}%;width:2px;background:white;opacity:.9;z-index:3;pointer-events:none;box-shadow:0 0 4px rgba(0,0,0,.4);"></div>
       <div style="position:absolute;top:-24px;left:${pct}%;transform:translateX(-50%);background:var(--text);color:var(--bg);font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;white-space:nowrap;font-family:'DM Mono',monospace;z-index:5;box-shadow:0 1px 4px rgba(0,0,0,.25);">${seq[yrIdx].yr}</div>`;
   }
@@ -597,7 +597,7 @@ function buildBar(a,big){
     wks.forEach(w=>{
       const idx=seq.findIndex(s=>s.kw===w.kw&&s.yr===w.yr);
       if(idx<0)return;
-      const pct=((idx+0.5)/104*100).toFixed(2);
+      const pct=((idx+0.5)/52*100).toFixed(2);
       const pc=wkPriColor(w.prio||'C');
       const size=w.prio==='A'?18:w.prio==='B'?14:11;
       const wTip=w.name+' · KW '+w.kw+'/'+w.yr+(w.ort?' · '+w.ort:'')+(w.dat?' · '+w.dat:'');
@@ -612,14 +612,14 @@ function buildBar(a,big){
     a.krafttestPlan.forEach(k=>{
       const idx=seq.findIndex(s=>s.kw===k.kw&&s.yr===k.yr);
       if(idx<0)return;
-      const pct=((idx+0.5)/104*100).toFixed(2);
+      const pct=((idx+0.5)/52*100).toFixed(2);
       const kTip=k.name+' · KW '+k.kw+'/'+k.yr;
       pins+=`<div title="${kTip}" data-tip="${kTip}" ontouchstart="barTap(event,this)" onclick="barTap(event,this)" style="position:absolute;top:0;left:${pct}%;transform:translateX(-50%);z-index:4;cursor:pointer;">
         <div style="width:13px;height:13px;background:#4A7BE2;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,.2);">K</div>
       </div>`;
     });
   }
-  const s0=seq[0],sE=seq[103];
+  const s0=seq[0],sE=seq[51];
   if(big){
     return `<div class="bar-footer"><span>KW ${s0.kw} / ${s0.yr}</span><span>KW ${sE.kw} / ${sE.yr}</span></div>
       <div class="bar-outer"><div class="bar-pins-wrap">${pins}${yrMark}</div><div class="bar-inner"><div class="bar-row bar-big">${segs}</div></div></div>`;
@@ -646,7 +646,7 @@ function buildVorlageBar(v){
       const seq2=buildSeq(1,wk.yr||YRN);// rough approx
       const idx=seq2.findIndex(s=>s.kw===wk.kw&&s.yr===wk.yr);
       if(idx<0)return;
-      const pct=((idx+0.5)/104*100).toFixed(2);
+      const pct=((idx+0.5)/52*100).toFixed(2);
       vpins+=`<div title="${wk.name}\nKW ${wk.kw}/${wk.yr}" style="position:absolute;top:0;left:${pct}%;transform:translateX(-50%);z-index:4;">
         <div style="width:${size}px;height:${size}px;background:${pc.bg};border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:500;color:${pc.c};border:1.5px solid white;"></div>
       </div>`;
