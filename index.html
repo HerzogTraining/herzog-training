@@ -1405,7 +1405,11 @@ function rUebersicht(){
             <textarea id="notiz-${a.id}" rows="3" style="width:100%;font-size:13px;resize:none;border-radius:6px;border:1px solid var(--border2);padding:8px 10px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);" placeholder="Was war gut / schlecht…" oninput="autoSaveN(${a.id})">${woche.notiz||''}</textarea>`;
             return out;
           })()}
-          <div style="font-size:11px;color:var(--muted);margin-top:6px;text-align:right;">✓ Autosave aktiv</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;">
+            <span style="font-size:11px;color:var(--muted);">✓ Autosave</span>
+            <button class="savebtn" style="width:auto;padding:8px 20px;" onclick="saveN(${a.id})">Speichern</button>
+            <div class="savedok" id="sv-${a.id}">✓ Gespeichert</div>
+          </div>
         </div>`;
     }
     const cardBg=a.verletzt?'#FFF5F5':p.f+'22';
@@ -2232,6 +2236,7 @@ function saveN(id){
   save();
   const sv=document.getElementById('sv-'+id);
   if(sv){sv.style.display='block';setTimeout(()=>{sv.style.display='none';},2000);}
+  // Do NOT call rUebersicht() here — it would re-render and lose cursor position
 }
 const _saveNTimers={};
 function autoSaveN(id){
