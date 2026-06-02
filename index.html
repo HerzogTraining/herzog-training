@@ -1083,10 +1083,11 @@ function showUebungPicker(aid,planField){
   const cats=Object.keys(k).sort((a,b)=>a.localeCompare(b,'de'));
   const catOpts=cats.map(c=>`<option value="${c}">${c}</option>`).join('');
   modal(`<h3>Übung hinzufügen</h3>
-    <div style="display:flex;gap:6px;margin-bottom:8px;">
-      <select id="m-upcat" style="flex:1;font-size:13px;" onchange="upCatChange()"><option value="">Kategorie wählen…</option>${catOpts}</select>
+    <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
+      <select id="m-upcat" style="flex:1;min-width:120px;font-size:13px;" onchange="upCatChange()"><option value="">Kategorie wählen…</option>${catOpts}</select>
+      <select id="m-upueb" style="flex:2;min-width:160px;font-size:13px;height:44px;"><option value="">Übung wählen…</option></select>
     </div>
-    <select id="m-upueb" size="8" style="width:100%;font-size:13px;border:1px solid var(--border2);border-radius:6px;padding:4px;margin-bottom:8px;"><option value="">Übung wählen…</option></select>
+    <div id="m-upueb-preview" style="display:none;font-size:12px;color:var(--muted);background:var(--bg);border:1px solid var(--border2);border-radius:6px;padding:8px;margin-bottom:8px;white-space:pre-wrap;max-height:120px;overflow-y:auto;"></div>
     <div class="frow"><label>Sätze × Wdh × Gewicht × Pause (optional)</label>
       <input type="text" id="m-updetail" placeholder="z.B. 4×6×80kg Pause 3 Min." style="font-size:13px;"></div>
     <div class="mbtns"><button onclick="closeM()">Abbrechen</button><button class="primary" onclick="confUebungPicker(${aid},'${planField}')">Hinzufügen</button></div>`);
@@ -1097,6 +1098,12 @@ function upCatChange(){
   const sel=document.getElementById('m-upueb');
   sel.innerHTML='<option value="">Übung wählen…</option>';
   if(cat&&k[cat]){k[cat].forEach(u=>{const o=document.createElement('option');o.value=u;o.textContent=u.substring(0,70)+(u.length>70?'…':'');sel.appendChild(o);});}
+  const prev=document.getElementById('m-upueb-preview');
+  if(prev)prev.style.display='none';
+  sel.onchange=function(){
+    const v=sel.value;
+    if(prev){prev.textContent=v;prev.style.display=v?'block':'none';}
+  };
 }
 function confUebungPicker(aid,planField){
   const ueb=document.getElementById('m-upueb').value;
