@@ -101,7 +101,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--border2);}
 .addbtn{display:flex;align-items:center;gap:6px;padding:10px;border-radius:var(--radius-sm);border:2px dashed #E8000F;background:#FFF5F5;color:#E8000F;font-size:13px;cursor:pointer;width:100%;justify-content:center;margin-bottom:1rem;font-family:'DM Sans',sans-serif;font-weight:500;transition:all .15s;}
 .addbtn:hover{background:#FFF0F0;color:#A80000;}
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:100;}
-.modal{background:var(--surface);border-radius:var(--radius);padding:1.5rem;width:400px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.18);}
+.modal{background:var(--surface);border-radius:var(--radius);padding:1.5rem;width:520px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.18);}
 .modal h3{font-size:16px;font-weight:500;margin-bottom:1rem;}
 .frow{margin-bottom:12px;}
 .frow label{font-size:11px;color:var(--muted);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em;}
@@ -1083,10 +1083,10 @@ function showUebungPicker(aid,planField){
   const cats=Object.keys(k).sort((a,b)=>a.localeCompare(b,'de'));
   const catOpts=cats.map(c=>`<option value="${c}">${c}</option>`).join('');
   modal(`<h3>Übung hinzufügen</h3>
-    <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
-      <select id="m-upcat" style="flex:1;min-width:120px;font-size:13px;" onchange="upCatChange()"><option value="">Kategorie wählen…</option>${catOpts}</select>
-      <select id="m-upueb" style="flex:2;min-width:160px;font-size:13px;"><option value="">Übung wählen…</option></select>
+    <div style="display:flex;gap:6px;margin-bottom:8px;">
+      <select id="m-upcat" style="flex:1;font-size:13px;" onchange="upCatChange()"><option value="">Kategorie wählen…</option>${catOpts}</select>
     </div>
+    <select id="m-upueb" size="8" style="width:100%;font-size:13px;border:1px solid var(--border2);border-radius:6px;padding:4px;margin-bottom:8px;"><option value="">Übung wählen…</option></select>
     <div class="frow"><label>Sätze × Wdh × Gewicht × Pause (optional)</label>
       <input type="text" id="m-updetail" placeholder="z.B. 4×6×80kg Pause 3 Min." style="font-size:13px;"></div>
     <div class="mbtns"><button onclick="closeM()">Abbrechen</button><button class="primary" onclick="confUebungPicker(${aid},'${planField}')">Hinzufügen</button></div>`);
