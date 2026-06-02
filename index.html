@@ -1354,7 +1354,6 @@ function rUebersicht(){
       const wKey=kwKeyStr(kw,yr);
       const wo=a.wochen&&a.wochen[wKey];
       if(wo&&wo.uNotiz&&wo.uNotiz.trim())items.push('📝 '+wo.uNotiz.trim().split('\n')[0].substring(0,25));
-      if(a.letzteNotiz)items.push('⚠ '+a.letzteNotiz.substring(0,25));
       if(items.length)rows.push({name:a.name.split(' ')[0]+' '+a.name.split(' ').slice(1).join(' ').substring(0,1)+'.', items});
     });
     return rows;
