@@ -1096,14 +1096,24 @@ function upCatChange(){
   const k=getKatalog();
   const cat=document.getElementById('m-upcat').value;
   const sel=document.getElementById('m-upueb');
-  sel.innerHTML='<option value="">Übung wählen…</option>';
-  if(cat&&k[cat]){k[cat].forEach(u=>{const o=document.createElement('option');o.value=u;o.textContent=u.substring(0,70)+(u.length>70?'…':'');sel.appendChild(o);});}
   const prev=document.getElementById('m-upueb-preview');
+  sel.innerHTML='<option value="">Übung wählen…</option>';
+  if(cat&&k[cat]){
+    k[cat].forEach(u=>{
+      const o=document.createElement('option');
+      o.value=u;
+      o.textContent=u.substring(0,60)+(u.length>60?'…':'');
+      o.title=u;
+      sel.appendChild(o);
+    });
+  }
   if(prev)prev.style.display='none';
-  sel.onchange=function(){
-    const v=sel.value;
-    if(prev){prev.textContent=v;prev.style.display=v?'block':'none';}
-  };
+  sel.addEventListener('change',function(){
+    if(prev){
+      if(sel.value){prev.textContent=sel.value;prev.style.display='block';}
+      else prev.style.display='none';
+    }
+  });
 }
 function confUebungPicker(aid,planField){
   const ueb=document.getElementById('m-upueb').value;
