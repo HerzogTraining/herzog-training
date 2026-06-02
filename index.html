@@ -1388,7 +1388,6 @@ function rUebersicht(){
       const wo=a.wochen&&a.wochen[wKey];
       if(wo&&wo.uNotiz&&wo.uNotiz.trim())items.push('📝 '+wo.uNotiz.trim().split('\n')[0].substring(0,25));
       if(a.letzteNotiz)items.push('⚠ '+a.letzteNotiz.substring(0,25));
-      if(a.verletzt)items.push('🤕 Verletzt');
       if(items.length)rows.push({name:a.name.split(' ')[0]+' '+a.name.split(' ').slice(1).join(' ').substring(0,1)+'.', items});
     });
     return rows;
@@ -1402,17 +1401,20 @@ function rUebersicht(){
       +'<div style="font-size:10px;color:var(--muted);">'+r.items.join(' · ')+'</div>'
       +'</div>').join('');
   }
-  let h=`<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:14px;flex-wrap:wrap;">
-    <div style="width:168px;flex-shrink:0;background:#FFFFFF;border:1.5px solid #D0D0D0;border-radius:10px;padding:8px 10px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-        <button onclick="window._calOffset--;rUebersicht();" style="background:none;border:none;cursor:pointer;font-size:14px;color:var(--muted);padding:0 4px;">‹</button>
-        <div style="font-size:10px;font-weight:700;color:#E8000F;text-transform:uppercase;letter-spacing:.05em;">${monthName}</div>
-        <button onclick="window._calOffset++;rUebersicht();" style="background:none;border:none;cursor:pointer;font-size:14px;color:var(--muted);padding:0 4px;">›</button>
+  let h=`<div style="margin-bottom:14px;">
+    <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:8px;flex-wrap:wrap;">
+      <div style="width:168px;flex-shrink:0;background:#FFFFFF;border:1.5px solid #D0D0D0;border-radius:10px;padding:8px 10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+          <button onclick="window._calOffset--;rUebersicht();" style="background:none;border:none;cursor:pointer;font-size:14px;color:var(--muted);padding:0 4px;">‹</button>
+          <div style="font-size:10px;font-weight:700;color:#E8000F;text-transform:uppercase;letter-spacing:.05em;">${monthName}</div>
+          <button onclick="window._calOffset++;rUebersicht();" style="background:none;border:none;cursor:pointer;font-size:14px;color:var(--muted);padding:0 4px;">›</button>
+        </div>
+        ${calHtml}
+        <button onclick="exportIcal()" style="margin-top:8px;width:100%;font-size:10px;padding:4px;border-radius:6px;border:1px solid #E8000F;background:#FFF5F5;color:#E8000F;cursor:pointer;">📅 iCal Export</button>
       </div>
-      ${calHtml}
-      <button onclick="exportIcal()" style="margin-top:8px;width:100%;font-size:10px;padding:4px;border-radius:6px;border:1px solid #E8000F;background:#FFF5F5;color:#E8000F;cursor:pointer;">📅 iCal Export</button>
+      <div style="font-size:12px;color:var(--muted);font-weight:500;padding-top:4px;">KW ${KWN} / ${YRN} — Was steht an?</div>
     </div>
-    <div style="flex:1;min-width:180px;display:flex;flex-direction:column;gap:8px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
       <div style="background:#FFFFFF;border:1.5px solid #D0D0D0;border-radius:10px;padding:8px 10px;">
         <div style="font-size:10px;font-weight:700;color:#E8000F;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">KW ${KWN} / ${YRN} — Diese Woche</div>
         ${mkRadarSection('',thisRows,KWN,YRN)}
