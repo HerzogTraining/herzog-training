@@ -2071,9 +2071,11 @@ function confirmDelete(aid){
   }
 }
 function showEditTest(aid,key,label,unit){
+  const now=new Date();
+  const todayStr=String(now.getDate()).padStart(2,'0')+'.'+String(now.getMonth()+1).padStart(2,'0')+'.'+now.getFullYear();
   modal(`<h3>${label} – neuer Wert</h3>
     <div class="frow"><label>Wert${unit?' ('+unit+')':''}</label><input type="number" id="m-tv" step="0.1" placeholder="z.B. 145"></div>
-    <div class="frow"><label>Datum</label><input type="text" id="m-td" placeholder="z.B. Mai 2026"></div>
+    <div class="frow"><label>Datum</label><input type="text" id="m-td" value="${todayStr}" placeholder="TT.MM.JJJJ"></div>
     <div class="mbtns"><button onclick="closeM()">Abbrechen</button><button class="primary" onclick="confTest(${aid},'${key}')">Speichern</button></div>`);
 }
 function confTest(aid,key){
