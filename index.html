@@ -1127,7 +1127,7 @@ function confUebungPicker(aid,planField){
 
 function exportIcal(){
   const fmt=d=>{const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return y+m+day;};
-  let ical='BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Herzog Training//DE\r\nCALSCALE:GREGORIAN\r\n';
+  let ical='BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Herzog Training//DE\r\nCALSCALE:GREGORIAN\r\nMETHOD:PUBLISH\r\n';
   // Wettkämpfe: gruppiert — ein Eintrag pro Wettkampf mit allen Athleten
   const wkMap={};
   sortA().forEach(a=>{
@@ -1163,7 +1163,7 @@ function exportIcal(){
     });
   });
   ical+='END:VCALENDAR';
-  const blob=new Blob([ical],{type:'text/calendar;charset=utf-8'});
+  const blob=new Blob([ical],{type:'text/calendar'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
   a.href=url;a.download='herzog-training.ics';a.click();
@@ -1353,7 +1353,7 @@ function rUebersicht(){
       if(isInPeriod(kw,yr,a.tl))items.push('🏋️ TL');
       const wKey=kwKeyStr(kw,yr);
       const wo=a.wochen&&a.wochen[wKey];
-      if(wo&&wo.uNotiz&&wo.uNotiz.trim())items.push('📝 '+wo.uNotiz.trim().split('\n')[0].substring(0,25));
+      if(wo&&wo.uNotiz&&wo.uNotiz.trim())items.push('📝 '+wo.uNotiz.trim());
       if(items.length)rows.push({name:a.name.split(' ')[0]+' '+a.name.split(' ').slice(1).join(' ').substring(0,1)+'.', items});
     });
     return rows;
