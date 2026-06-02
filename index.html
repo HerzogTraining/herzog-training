@@ -1384,8 +1384,6 @@ function rUebersicht(){
       const items=[];
       if(isInPeriod(kw,yr,a.urlaub))items.push('🏖 Urlaub');
       if(isInPeriod(kw,yr,a.tl))items.push('🏋️ TL');
-      const wksThisWk=getWettkaempfe(a).filter(w=>w.kw===kw&&w.yr===yr);
-      wksThisWk.forEach(w=>items.push('🏆 '+w.name));
       const wKey=kwKeyStr(kw,yr);
       const wo=a.wochen&&a.wochen[wKey];
       if(wo&&wo.uNotiz&&wo.uNotiz.trim())items.push('📝 '+wo.uNotiz.trim().split('\n')[0].substring(0,25));
