@@ -1125,6 +1125,45 @@ function confUebungPicker(aid,planField){
   closeM();
 }
 
+function exportIcal(){
+  let ical='BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Herzog Training//DE\r\nCALSCALE:GREGORIAN\r\n';
+  sortA().forEach(a=>{
+    // Wettkämpfe
+    getWettkaempfe(a).forEach(w=>{
+      const d=w.dat?parseDate(w.dat):kwToDate(w.kw,w.yr);
+      if(!d)return;
+      const fmt=d=>{const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return y+m+day;};
+      const uid=`wk-${a.id}-${w.kw}-${w.yr}-${w.name.replace(/\s/g,'')}@herzogtraining`;
+      ical+=`BEGIN:VEVENT\r\nUID:${uid}\r\nDTSTART;VALUE=DATE:${fmt(d)}\r\nDTEND;VALUE=DATE:${fmt(d)}\r\nSUMMARY:${a.name.split(' ')[0]} – ${w.name} (${w.prio||'C'})\r\nEND:VEVENT\r\n`;
+    });
+    // Urlaub
+    (a.urlaub||[]).forEach((u,i)=>{
+      const von=u.vonDat?parseDate(u.vonDat):kwToDate(u.vonKW,u.vonYr);
+      const bis=u.bisDat?parseDate(u.bisDat):kwToDate(u.bisKW,u.bisYr);
+      if(!von||!bis)return;
+      const fmt=d=>{const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return y+m+day;};
+      const bisNext=new Date(bis);bisNext.setDate(bisNext.getDate()+1);
+      const uid=`urlaub-${a.id}-${i}@herzogtraining`;
+      ical+=`BEGIN:VEVENT\r\nUID:${uid}\r\nDTSTART;VALUE=DATE:${fmt(von)}\r\nDTEND;VALUE=DATE:${fmt(bisNext)}\r\nSUMMARY:${a.name.split(' ')[0]} – Urlaub\r\nEND:VEVENT\r\n`;
+    });
+    // TL
+    (a.tl||[]).forEach((t,i)=>{
+      const von=t.vonDat?parseDate(t.vonDat):kwToDate(t.vonKW,t.vonYr);
+      const bis=t.bisDat?parseDate(t.bisDat):kwToDate(t.bisKW,t.bisYr);
+      if(!von||!bis)return;
+      const fmt=d=>{const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return y+m+day;};
+      const bisNext=new Date(bis);bisNext.setDate(bisNext.getDate()+1);
+      const uid=`tl-${a.id}-${i}@herzogtraining`;
+      ical+=`BEGIN:VEVENT\r\nUID:${uid}\r\nDTSTART;VALUE=DATE:${fmt(von)}\r\nDTEND;VALUE=DATE:${fmt(bisNext)}\r\nSUMMARY:${a.name.split(' ')[0]} – Trainingslager\r\nEND:VEVENT\r\n`;
+    });
+  });
+  ical+='END:VCALENDAR';
+  const blob=new Blob([ical],{type:'text/calendar;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download='herzog-training.ics';a.click();
+  URL.revokeObjectURL(url);
+}
 function rUebersicht(){
   const q=(document.getElementById('srch')||{value:''}).value||'';
   const list=sortA(q?S.athleten.filter(a=>a.name.toLowerCase().includes(q.toLowerCase())||a.sport.toLowerCase().includes(q.toLowerCase())):S.athleten);
@@ -1271,6 +1310,45 @@ function saveUNotiz(aid,week){
   const sv=document.getElementById(week==='next'?'un2-sv-'+aid:'un-sv-'+aid);
   if(sv){sv.style.opacity='1';setTimeout(()=>{sv.style.opacity='0';},1500);}
 }
+function exportIcal(){
+  let ical='BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Herzog Training//DE\r\nCALSCALE:GREGORIAN\r\n';
+  sortA().forEach(a=>{
+    // Wettkämpfe
+    getWettkaempfe(a).forEach(w=>{
+      const d=w.dat?parseDate(w.dat):kwToDate(w.kw,w.yr);
+      if(!d)return;
+      const fmt=d=>{const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return y+m+day;};
+      const uid=`wk-${a.id}-${w.kw}-${w.yr}-${w.name.replace(/\s/g,'')}@herzogtraining`;
+      ical+=`BEGIN:VEVENT\r\nUID:${uid}\r\nDTSTART;VALUE=DATE:${fmt(d)}\r\nDTEND;VALUE=DATE:${fmt(d)}\r\nSUMMARY:${a.name.split(' ')[0]} – ${w.name} (${w.prio||'C'})\r\nEND:VEVENT\r\n`;
+    });
+    // Urlaub
+    (a.urlaub||[]).forEach((u,i)=>{
+      const von=u.vonDat?parseDate(u.vonDat):kwToDate(u.vonKW,u.vonYr);
+      const bis=u.bisDat?parseDate(u.bisDat):kwToDate(u.bisKW,u.bisYr);
+      if(!von||!bis)return;
+      const fmt=d=>{const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return y+m+day;};
+      const bisNext=new Date(bis);bisNext.setDate(bisNext.getDate()+1);
+      const uid=`urlaub-${a.id}-${i}@herzogtraining`;
+      ical+=`BEGIN:VEVENT\r\nUID:${uid}\r\nDTSTART;VALUE=DATE:${fmt(von)}\r\nDTEND;VALUE=DATE:${fmt(bisNext)}\r\nSUMMARY:${a.name.split(' ')[0]} – Urlaub\r\nEND:VEVENT\r\n`;
+    });
+    // TL
+    (a.tl||[]).forEach((t,i)=>{
+      const von=t.vonDat?parseDate(t.vonDat):kwToDate(t.vonKW,t.vonYr);
+      const bis=t.bisDat?parseDate(t.bisDat):kwToDate(t.bisKW,t.bisYr);
+      if(!von||!bis)return;
+      const fmt=d=>{const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return y+m+day;};
+      const bisNext=new Date(bis);bisNext.setDate(bisNext.getDate()+1);
+      const uid=`tl-${a.id}-${i}@herzogtraining`;
+      ical+=`BEGIN:VEVENT\r\nUID:${uid}\r\nDTSTART;VALUE=DATE:${fmt(von)}\r\nDTEND;VALUE=DATE:${fmt(bisNext)}\r\nSUMMARY:${a.name.split(' ')[0]} – Trainingslager\r\nEND:VEVENT\r\n`;
+    });
+  });
+  ical+='END:VCALENDAR';
+  const blob=new Blob([ical],{type:'text/calendar;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download='herzog-training.ics';a.click();
+  URL.revokeObjectURL(url);
+}
 function rUebersicht(){
   if(!S.athleten.length){document.getElementById('view-uebersicht').innerHTML='<div class="empty">Noch keine Athleten. Unter «Planung» hinzufügen.</div>';return;}
   const kwKey=kwKeyStr(KWN,YRN);
@@ -1299,6 +1377,33 @@ function rUebersicht(){
   }
   calHtml+='</div>';
 
+  // Build Wochenradar
+  function radarRows(kw,yr){
+    const rows=[];
+    sortA().forEach(a=>{
+      const items=[];
+      if(isInPeriod(kw,yr,a.urlaub))items.push('🏖 Urlaub');
+      if(isInPeriod(kw,yr,a.tl))items.push('🏋️ TL');
+      const wksThisWk=getWettkaempfe(a).filter(w=>w.kw===kw&&w.yr===yr);
+      wksThisWk.forEach(w=>items.push('🏆 '+w.name));
+      const wKey=kwKeyStr(kw,yr);
+      const wo=a.wochen&&a.wochen[wKey];
+      if(wo&&wo.uNotiz&&wo.uNotiz.trim())items.push('📝 '+wo.uNotiz.trim().split('\n')[0].substring(0,25));
+      if(a.letzteNotiz)items.push('⚠ '+a.letzteNotiz.substring(0,25));
+      if(a.verletzt)items.push('🤕 Verletzt');
+      if(items.length)rows.push({name:a.name.split(' ')[0]+' '+a.name.split(' ').slice(1).join(' ').substring(0,1)+'.', items});
+    });
+    return rows;
+  }
+  const thisRows=radarRows(KWN,YRN);
+  const nextRows=radarRows(nextKW,nextYR);
+  function mkRadarSection(label,rows,kw,yr){
+    if(!rows.length)return '<div style="font-size:11px;color:var(--muted);padding:4px 0;">Nichts eingetragen</div>';
+    return rows.map(r=>'<div style="padding:3px 0;border-bottom:1px solid var(--border);">'
+      +'<span style="font-size:11px;font-weight:600;color:var(--text);">'+r.name+'</span>'
+      +'<div style="font-size:10px;color:var(--muted);">'+r.items.join(' · ')+'</div>'
+      +'</div>').join('');
+  }
   let h=`<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:14px;flex-wrap:wrap;">
     <div style="width:168px;flex-shrink:0;background:#FFFFFF;border:1.5px solid #D0D0D0;border-radius:10px;padding:8px 10px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
@@ -1307,8 +1412,18 @@ function rUebersicht(){
         <button onclick="window._calOffset++;rUebersicht();" style="background:none;border:none;cursor:pointer;font-size:14px;color:var(--muted);padding:0 4px;">›</button>
       </div>
       ${calHtml}
+      <button onclick="exportIcal()" style="margin-top:8px;width:100%;font-size:10px;padding:4px;border-radius:6px;border:1px solid #E8000F;background:#FFF5F5;color:#E8000F;cursor:pointer;">📅 iCal Export</button>
     </div>
-    <div style="font-size:12px;color:var(--muted);font-weight:500;padding-top:4px;">KW ${KWN} / ${YRN} — Was steht an?</div>
+    <div style="flex:1;min-width:180px;display:flex;flex-direction:column;gap:8px;">
+      <div style="background:#FFFFFF;border:1.5px solid #D0D0D0;border-radius:10px;padding:8px 10px;">
+        <div style="font-size:10px;font-weight:700;color:#E8000F;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">KW ${KWN} / ${YRN} — Diese Woche</div>
+        ${mkRadarSection('',thisRows,KWN,YRN)}
+      </div>
+      <div style="background:#FFFFFF;border:1.5px solid #D0D0D0;border-radius:10px;padding:8px 10px;">
+        <div style="font-size:10px;font-weight:700;color:#1D9E75;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">KW ${nextKW} / ${nextYR} — Nächste Woche</div>
+        ${mkRadarSection('',nextRows,nextKW,nextYR)}
+      </div>
+    </div>
   </div>`;
   let lastSport='';
   let athletCards='';
