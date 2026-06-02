@@ -1126,35 +1126,40 @@ function confUebungPicker(aid,planField){
 }
 
 function exportIcal(){
+  const fmt=d=>{const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return y+m+day;};
   let ical='BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Herzog Training//DE\r\nCALSCALE:GREGORIAN\r\n';
+  // Wettkämpfe: gruppiert — ein Eintrag pro Wettkampf mit allen Athleten
+  const wkMap={};
   sortA().forEach(a=>{
-    // Wettkämpfe
     getWettkaempfe(a).forEach(w=>{
       const d=w.dat?parseDate(w.dat):kwToDate(w.kw,w.yr);
       if(!d)return;
-      const fmt=d=>{const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return y+m+day;};
-      const uid=`wk-${a.id}-${w.kw}-${w.yr}-${w.name.replace(/\s/g,'')}@herzogtraining`;
-      ical+=`BEGIN:VEVENT\r\nUID:${uid}\r\nDTSTART;VALUE=DATE:${fmt(d)}\r\nDTEND;VALUE=DATE:${fmt(d)}\r\nSUMMARY:${a.name.split(' ')[0]} – ${w.name} (${w.prio||'C'})\r\nEND:VEVENT\r\n`;
+      const key=w.name+'|'+fmt(d);
+      if(!wkMap[key])wkMap[key]={w,d,athletes:[]};
+      wkMap[key].athletes.push(a.name.split(' ')[0]);
     });
-    // Urlaub
+  });
+  Object.values(wkMap).forEach(({w,d,athletes})=>{
+    const uid='wk-'+w.name.replace(/\W/g,'')+'-'+fmt(d)+'@herzogtraining';
+    ical+='BEGIN:VEVENT\r\nUID:'+uid+'\r\nDTSTART;VALUE=DATE:'+fmt(d)+'\r\nDTEND;VALUE=DATE:'+fmt(d)+'\r\nSUMMARY:🏆 '+w.name+' ('+( w.prio||'C')+') – '+athletes.join(', ')+'\r\nEND:VEVENT\r\n';
+  });
+  // Urlaub & TL: pro Athlet
+  sortA().forEach(a=>{
     (a.urlaub||[]).forEach((u,i)=>{
       const von=u.vonDat?parseDate(u.vonDat):kwToDate(u.vonKW,u.vonYr);
       const bis=u.bisDat?parseDate(u.bisDat):kwToDate(u.bisKW,u.bisYr);
       if(!von||!bis)return;
-      const fmt=d=>{const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return y+m+day;};
       const bisNext=new Date(bis);bisNext.setDate(bisNext.getDate()+1);
-      const uid=`urlaub-${a.id}-${i}@herzogtraining`;
-      ical+=`BEGIN:VEVENT\r\nUID:${uid}\r\nDTSTART;VALUE=DATE:${fmt(von)}\r\nDTEND;VALUE=DATE:${fmt(bisNext)}\r\nSUMMARY:${a.name.split(' ')[0]} – Urlaub\r\nEND:VEVENT\r\n`;
+      const uid='urlaub-'+a.id+'-'+i+'@herzogtraining';
+      ical+='BEGIN:VEVENT\r\nUID:'+uid+'\r\nDTSTART;VALUE=DATE:'+fmt(von)+'\r\nDTEND;VALUE=DATE:'+fmt(bisNext)+'\r\nSUMMARY:🏖 '+a.name.split(' ')[0]+' Urlaub\r\nEND:VEVENT\r\n';
     });
-    // TL
     (a.tl||[]).forEach((t,i)=>{
       const von=t.vonDat?parseDate(t.vonDat):kwToDate(t.vonKW,t.vonYr);
       const bis=t.bisDat?parseDate(t.bisDat):kwToDate(t.bisKW,t.bisYr);
       if(!von||!bis)return;
-      const fmt=d=>{const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return y+m+day;};
       const bisNext=new Date(bis);bisNext.setDate(bisNext.getDate()+1);
-      const uid=`tl-${a.id}-${i}@herzogtraining`;
-      ical+=`BEGIN:VEVENT\r\nUID:${uid}\r\nDTSTART;VALUE=DATE:${fmt(von)}\r\nDTEND;VALUE=DATE:${fmt(bisNext)}\r\nSUMMARY:${a.name.split(' ')[0]} – Trainingslager\r\nEND:VEVENT\r\n`;
+      const uid='tl-'+a.id+'-'+i+'@herzogtraining';
+      ical+='BEGIN:VEVENT\r\nUID:'+uid+'\r\nDTSTART;VALUE=DATE:'+fmt(von)+'\r\nDTEND;VALUE=DATE:'+fmt(bisNext)+'\r\nSUMMARY:🏋️ '+a.name.split(' ')[0]+' TL\r\nEND:VEVENT\r\n';
     });
   });
   ical+='END:VCALENDAR';
@@ -1164,6 +1169,7 @@ function exportIcal(){
   a.href=url;a.download='herzog-training.ics';a.click();
   URL.revokeObjectURL(url);
 }
+
 function rUebersicht(){
   const q=(document.getElementById('srch')||{value:''}).value||'';
   const list=sortA(q?S.athleten.filter(a=>a.name.toLowerCase().includes(q.toLowerCase())||a.sport.toLowerCase().includes(q.toLowerCase())):S.athleten);
@@ -1309,45 +1315,6 @@ function saveUNotiz(aid,week){
   save();
   const sv=document.getElementById(week==='next'?'un2-sv-'+aid:'un-sv-'+aid);
   if(sv){sv.style.opacity='1';setTimeout(()=>{sv.style.opacity='0';},1500);}
-}
-function exportIcal(){
-  let ical='BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Herzog Training//DE\r\nCALSCALE:GREGORIAN\r\n';
-  sortA().forEach(a=>{
-    // Wettkämpfe
-    getWettkaempfe(a).forEach(w=>{
-      const d=w.dat?parseDate(w.dat):kwToDate(w.kw,w.yr);
-      if(!d)return;
-      const fmt=d=>{const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return y+m+day;};
-      const uid=`wk-${a.id}-${w.kw}-${w.yr}-${w.name.replace(/\s/g,'')}@herzogtraining`;
-      ical+=`BEGIN:VEVENT\r\nUID:${uid}\r\nDTSTART;VALUE=DATE:${fmt(d)}\r\nDTEND;VALUE=DATE:${fmt(d)}\r\nSUMMARY:${a.name.split(' ')[0]} – ${w.name} (${w.prio||'C'})\r\nEND:VEVENT\r\n`;
-    });
-    // Urlaub
-    (a.urlaub||[]).forEach((u,i)=>{
-      const von=u.vonDat?parseDate(u.vonDat):kwToDate(u.vonKW,u.vonYr);
-      const bis=u.bisDat?parseDate(u.bisDat):kwToDate(u.bisKW,u.bisYr);
-      if(!von||!bis)return;
-      const fmt=d=>{const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return y+m+day;};
-      const bisNext=new Date(bis);bisNext.setDate(bisNext.getDate()+1);
-      const uid=`urlaub-${a.id}-${i}@herzogtraining`;
-      ical+=`BEGIN:VEVENT\r\nUID:${uid}\r\nDTSTART;VALUE=DATE:${fmt(von)}\r\nDTEND;VALUE=DATE:${fmt(bisNext)}\r\nSUMMARY:${a.name.split(' ')[0]} – Urlaub\r\nEND:VEVENT\r\n`;
-    });
-    // TL
-    (a.tl||[]).forEach((t,i)=>{
-      const von=t.vonDat?parseDate(t.vonDat):kwToDate(t.vonKW,t.vonYr);
-      const bis=t.bisDat?parseDate(t.bisDat):kwToDate(t.bisKW,t.bisYr);
-      if(!von||!bis)return;
-      const fmt=d=>{const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return y+m+day;};
-      const bisNext=new Date(bis);bisNext.setDate(bisNext.getDate()+1);
-      const uid=`tl-${a.id}-${i}@herzogtraining`;
-      ical+=`BEGIN:VEVENT\r\nUID:${uid}\r\nDTSTART;VALUE=DATE:${fmt(von)}\r\nDTEND;VALUE=DATE:${fmt(bisNext)}\r\nSUMMARY:${a.name.split(' ')[0]} – Trainingslager\r\nEND:VEVENT\r\n`;
-    });
-  });
-  ical+='END:VCALENDAR';
-  const blob=new Blob([ical],{type:'text/calendar;charset=utf-8'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url;a.download='herzog-training.ics';a.click();
-  URL.revokeObjectURL(url);
 }
 function rUebersicht(){
   if(!S.athleten.length){document.getElementById('view-uebersicht').innerHTML='<div class="empty">Noch keine Athleten. Unter «Planung» hinzufügen.</div>';return;}
