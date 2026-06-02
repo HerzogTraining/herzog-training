@@ -859,7 +859,7 @@ function rKatalog(){
   cats.forEach((cat,ci)=>{_katMap['k'+ci]=cat;});
   let h='<button class="addbtn" onclick="showAddKategorie()">+ Neue Kategorie</button>';
   cats.forEach((cat,ci)=>{
-    const ubs=k[cat]||[];
+    const ubs=[...(k[cat]||[])].sort((a,b)=>a.localeCompare(b,'de'));
     let rows='';
     ubs.forEach((u,i)=>{
       const bb=i===ubs.length-1?'border-bottom:none;':'';
@@ -992,7 +992,7 @@ function tvCatChange(n){
   const cat=document.getElementById('m-tvcat'+n).value;
   const sel=document.getElementById('m-tvueb'+n);
   sel.innerHTML='<option value="">Übung…</option>';
-  if(cat&&k[cat]){k[cat].forEach((u,i)=>{const o=document.createElement('option');o.value=u;o.textContent=u.substring(0,60)+(u.length>60?'…':'');sel.appendChild(o);});}
+  if(cat&&k[cat]){[...(k[cat])].sort((a,b)=>a.localeCompare(b,'de')).forEach((u,i)=>{const o=document.createElement('option');o.value=u;o.textContent=u.substring(0,60)+(u.length>60?'…':'');sel.appendChild(o);});}
 }
 function tvAddUebung(n){
   const ueb=document.getElementById('m-tvueb'+n).value;
