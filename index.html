@@ -1302,19 +1302,23 @@ const _dwOpen={};
 const _dwDetails={};
 function togDW(aid){_dwOpen[aid]=!_dwOpen[aid];if(!_dwOpen[aid])_dwDetails[aid]=false;rUebersicht();}
 function togDWDetails(aid){_dwDetails[aid]=!_dwDetails[aid];rUebersicht();}
+const _uNotizTimers={};
 function saveUNotiz(aid,week){
-  const a=S.athleten.find(x=>x.id===aid);
-  if(!a)return;
-  if(!a.wochen)a.wochen={};
-  const nKW=KWN===52?1:KWN+1;
-  const nYR=KWN===52?YRN+1:YRN;
-  const key=week==='next'?kwKeyStr(nKW,nYR):kwKeyStr(KWN,YRN);
-  if(!a.wochen[key])a.wochen[key]={zustand:null,einheiten:{},notiz:'',plan:''};
-  const ta=document.getElementById(week==='next'?'un2-'+aid:'un-'+aid);
-  if(ta)a.wochen[key].uNotiz=ta.value;
-  save();
-  const sv=document.getElementById(week==='next'?'un2-sv-'+aid:'un-sv-'+aid);
-  if(sv){sv.style.opacity='1';setTimeout(()=>{sv.style.opacity='0';},1500);}
+  if(_uNotizTimers[aid+week])clearTimeout(_uNotizTimers[aid+week]);
+  _uNotizTimers[aid+week]=setTimeout(()=>{
+    const a=S.athleten.find(x=>x.id===aid);
+    if(!a)return;
+    if(!a.wochen)a.wochen={};
+    const nKW=KWN===52?1:KWN+1;
+    const nYR=KWN===52?YRN+1:YRN;
+    const key=week==='next'?kwKeyStr(nKW,nYR):kwKeyStr(KWN,YRN);
+    if(!a.wochen[key])a.wochen[key]={zustand:null,einheiten:{},notiz:'',plan:''};
+    const ta=document.getElementById(week==='next'?'un2-'+aid:'un-'+aid);
+    if(ta)a.wochen[key].uNotiz=ta.value; // saves empty string too
+    save();
+    const sv=document.getElementById(week==='next'?'un2-sv-'+aid:'un-sv-'+aid);
+    if(sv){sv.style.opacity='1';setTimeout(()=>{sv.style.opacity='0';},1500);}
+  },800);
 }
 function rUebersicht(){
   if(!S.athleten.length){document.getElementById('view-uebersicht').innerHTML='<div class="empty">Noch keine Athleten. Unter «Planung» hinzufügen.</div>';return;}
