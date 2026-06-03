@@ -1141,7 +1141,7 @@ function exportIcal(){
   });
   Object.values(wkMap).forEach(({w,d,athletes})=>{
     const uid='wk-'+w.name.replace(/\W/g,'')+'-'+fmt(d)+'@herzogtraining';
-    ical+='BEGIN:VEVENT\r\nUID:'+uid+'\r\nDTSTART;VALUE=DATE:'+fmt(d)+'\r\nDTEND;VALUE=DATE:'+fmt(d)+'\r\nSUMMARY:🏆 '+w.name+' ('+( w.prio||'C')+') – '+athletes.join(', ')+'\r\nEND:VEVENT\r\n';
+    ical+='BEGIN:VEVENT\r\nUID:'+uid+'\r\nDTSTART;VALUE=DATE:'+fmt(d)+'\r\nDTEND;VALUE=DATE:'+fmt(d)+'\r\nSUMMARY:🏆 '+w.name+'\r\nEND:VEVENT\r\n';
   });
   // Urlaub & TL: pro Athlet
   sortA().forEach(a=>{
