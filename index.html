@@ -1756,22 +1756,20 @@ function doSchwerpunkteUebernehmen(){
   const v=S.vorlagen.find(x=>x.id===vid);
   const a=S.athleten.find(x=>x.id===S.edId);
   if(!v||!a)return;
-  const seq=buildSeq(a.startKW,a.startYr);
-  let count=0;
-  v.phasen.forEach(p=>{
-    if(!p.schwerpunkte)return;
-    const vonSlot=seq[Math.min(p.vonW,51)];
-    const bisSlot=seq[Math.min(p.bisW,51)];
-    // Find matching phase in athlete plan
-    a.plan.forEach(ap=>{
-      if(ap.phase===p.phase&&ap.von.kw===vonSlot.kw&&ap.von.yr===vonSlot.yr){
-        ap.schwerpunkte=p.schwerpunkte;
-        count++;
-      }
-    });
+  // Group vorlage phases with schwerpunkte by phase name
+  const swMap={};
+  v.phasen.filter(p=>p.schwerpunkte).forEach(p=>{
+    // Use vonW as tiebreaker for same phase names
+    if(!swMap[p.phase]||p.vonW<swMap[p.phase].vonW)swMap[p.phase]={sw:p.schwerpunkte,vonW:p.vonW};
   });
-  if(count>0){save();rEditor();alert(count+' Schwerpunkte übernommen.');}
-  else alert('Keine passenden Phasen gefunden. Stelle sicher dass die Vorlage zuerst angewendet wurde.');
+  if(Object.keys(swMap).length===0){alert('Keine Schwerpunkte in der Vorlage gefunden. Bitte zuerst in der Vorlage erfassen.');return;}
+  // Apply to matching phases in athlete plan
+  let count=0;
+  a.plan.forEach(ap=>{
+    if(swMap[ap.phase]){ap.schwerpunkte=swMap[ap.phase].sw;count++;}
+  });
+  if(count>0){save();rEditor();alert(count+' Phasen mit Schwerpunkten aktualisiert.');}
+  else alert('Keine passenden Phasen beim Athleten gefunden.');
 }
 function doApplyVorlage(){
   const vid=parseInt(document.getElementById('sel-vorlage').value);
