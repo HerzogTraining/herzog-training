@@ -1151,7 +1151,7 @@ function exportIcal(){
       if(!von||!bis)return;
       const bisNext=new Date(bis);bisNext.setDate(bisNext.getDate()+1);
       const uid='urlaub-'+a.id+'-'+i+'@herzogtraining';
-      ical+='BEGIN:VEVENT\r\nUID:'+uid+'\r\nDTSTART;VALUE=DATE:'+fmt(von)+'\r\nDTEND;VALUE=DATE:'+fmt(bisNext)+'\r\nSUMMARY:🏖 '+a.name.split(' ')[0]+' Urlaub\r\nEND:VEVENT\r\n';
+      ical+='BEGIN:VEVENT\r\nUID:'+uid+'\r\nDTSTART;VALUE=DATE:'+fmt(von)+'\r\nDTEND;VALUE=DATE:'+fmt(bisNext)+'\r\nSUMMARY:🏖 '+a.name+' Urlaub\r\nEND:VEVENT\r\n';
     });
     (a.tl||[]).forEach((t,i)=>{
       const von=t.vonDat?parseDate(t.vonDat):kwToDate(t.vonKW,t.vonYr);
@@ -1159,7 +1159,7 @@ function exportIcal(){
       if(!von||!bis)return;
       const bisNext=new Date(bis);bisNext.setDate(bisNext.getDate()+1);
       const uid='tl-'+a.id+'-'+i+'@herzogtraining';
-      ical+='BEGIN:VEVENT\r\nUID:'+uid+'\r\nDTSTART;VALUE=DATE:'+fmt(von)+'\r\nDTEND;VALUE=DATE:'+fmt(bisNext)+'\r\nSUMMARY:🏋️ '+a.name.split(' ')[0]+' TL\r\nEND:VEVENT\r\n';
+      ical+='BEGIN:VEVENT\r\nUID:'+uid+'\r\nDTSTART;VALUE=DATE:'+fmt(von)+'\r\nDTEND;VALUE=DATE:'+fmt(bisNext)+'\r\nSUMMARY:🏋️ '+a.name+' TL\r\nEND:VEVENT\r\n';
     });
   });
   ical+='END:VCALENDAR';
