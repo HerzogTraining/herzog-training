@@ -207,7 +207,7 @@ function showPhasenVerwaltung(){
       +'</div>';
   }).join('');
   modal('<h3>Phasennamen verwalten</h3>'
-    +'<div style="max-height:300px;overflow-y:auto;margin-bottom:10px;">'+items+'</div>'
+    +'<div style="max-height:380px;overflow-y:auto;margin-bottom:10px;border:1px solid var(--border);border-radius:6px;padding:4px 8px;">'+items+'</div>'
     +'<button onclick="showAddPhaseItem()" style="font-size:12px;padding:5px 12px;border-radius:6px;border:1px solid #E8000F;background:#FFF5F5;color:#E8000F;cursor:pointer;width:100%;margin-bottom:8px;">+ Neue Phase hinzufügen</button>'
     +'<div class="mbtns"><button onclick="closeM()">Schliessen</button></div>');
 }
@@ -1865,6 +1865,7 @@ function showAddVPhase(vid){
     </div>
     <div class="frow"><label>Phase</label><select id="m-ph">${pOpts}</select></div>
     <div class="frow"><label>Intensität %</label><input type="number" id="m-in" min="0" max="100" value="70"></div>
+    <div class="frow"><label>Schwerpunkte (optional)</label><textarea id="m-sw" rows="3" style="width:100%;font-size:13px;resize:vertical;border-radius:6px;border:1px solid var(--border2);padding:8px;" placeholder="z.B. Langhantel als Schwerpunkt, Beckenboden, Intervall..."></textarea></div>
     <div class="mbtns"><button onclick="closeM()">Abbrechen</button><button class="primary" onclick="confVPhase(${vid})">Speichern</button></div>`);
 }
 function confVPhase(vid){
@@ -1872,11 +1873,12 @@ function confVPhase(vid){
   const bisW=parseInt(document.getElementById('m-bw').value)-1;
   const ph=document.getElementById('m-ph').value;
   const ins=parseInt(document.getElementById('m-in').value);
+  const sw=(document.getElementById('m-sw')||{value:''}).value.trim();
   if(vonW>bisW){alert('Von-Woche muss vor Bis-Woche liegen.');return;}
   const v=S.vorlagen.find(x=>x.id===vid);
   if(v){
     v.phasen=v.phasen.filter(p=>!(p.vonW>=vonW&&p.bisW<=bisW));
-    v.phasen.push({vonW,bisW,phase:ph,int:ins});
+    v.phasen.push({vonW,bisW,phase:ph,int:ins,schwerpunkte:sw||undefined});
   }
   save();closeM();rVorlagen();
 }
@@ -1899,6 +1901,7 @@ function showEditVPhase(vid,idx){
     </div>
     <div class="frow"><label>Phase</label><select id="m-ph">${pOpts}</select></div>
     <div class="frow"><label>Intensität %</label><input type="number" id="m-in" min="0" max="100" value="${p.int}"></div>
+    <div class="frow"><label>Schwerpunkte (optional)</label><textarea id="m-sw" rows="3" style="width:100%;font-size:13px;resize:vertical;border-radius:6px;border:1px solid var(--border2);padding:8px;" placeholder="z.B. Langhantel als Schwerpunkt...">${p.schwerpunkte||''}</textarea></div>
     <div class="mbtns"><button onclick="closeM()">Abbrechen</button><button class="primary" onclick="confEditVPhase(${vid},${idx})">Speichern</button></div>`);
 }
 function confEditVPhase(vid,idx){
@@ -1907,7 +1910,8 @@ function confEditVPhase(vid,idx){
   const sorted=[...v.phasen].sort((a,b)=>a.vonW-b.vonW);
   const p=sorted[idx];
   const orig=v.phasen.indexOf(p);
-  v.phasen[orig]={vonW:parseInt(document.getElementById('m-vw').value)-1,bisW:parseInt(document.getElementById('m-bw').value)-1,phase:document.getElementById('m-ph').value,int:parseInt(document.getElementById('m-in').value)};
+  const sw=(document.getElementById('m-sw')||{value:''}).value.trim();
+  v.phasen[orig]={vonW:parseInt(document.getElementById('m-vw').value)-1,bisW:parseInt(document.getElementById('m-bw').value)-1,phase:document.getElementById('m-ph').value,int:parseInt(document.getElementById('m-in').value),schwerpunkte:sw||undefined};
   save();closeM();rVorlagen();
 }
 function showAddVWk(vid){
