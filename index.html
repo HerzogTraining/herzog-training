@@ -509,7 +509,7 @@ function applyVorlage(vorlageId,athletId){
     a.plan=v.phasen.map(p=>{
       const vonSlot=seq[Math.min(p.vonW,51)];
       const bisSlot=seq[Math.min(p.bisW,51)];
-      return{von:{kw:vonSlot.kw,yr:vonSlot.yr},bis:{kw:bisSlot.kw,yr:bisSlot.yr},phase:p.phase,int:p.int};
+      return{von:{kw:vonSlot.kw,yr:vonSlot.yr},bis:{kw:bisSlot.kw,yr:bisSlot.yr},phase:p.phase,int:p.int,schwerpunkte:p.schwerpunkte||undefined};
     });
   }
   // Wettkämpfe nicht mehr kopieren — werden live aus der Vorlage geholt
@@ -1643,7 +1643,7 @@ function rEditor(){
     pitems=sorted.length?sorted.map(p=>{
       const pi=pd(p.phase,p.int);const oi=a.plan.indexOf(p);
       return `<div class="pitem"><div class="pdot" style="background:${pi.f};border:1px solid ${pi.t}30;"></div>
-        <span class="ptxt">KW ${p.von.kw}/${p.von.yr} – KW ${p.bis.kw}/${p.bis.yr} &nbsp;·&nbsp; ${p.phase} &nbsp;·&nbsp; ${p.int}%</span>
+        <span class="ptxt">KW ${p.von.kw}/${p.von.yr} – KW ${p.bis.kw}/${p.bis.yr} &nbsp;·&nbsp; ${p.phase} &nbsp;·&nbsp; ${p.int}%${p.schwerpunkte?'<br><span style="font-size:10px;color:var(--muted);">'+p.schwerpunkte+'</span>':''}</span>
         <button class="pdel" style="color:var(--muted);font-size:13px;" onclick="showEditPhase(${oi})">✎</button>
         <button class="pdel" onclick="delPhase(${oi})">×</button></div>`;
     }).join(''):`<div style="font-size:13px;color:var(--hint);padding:8px 0;">Noch keine Phasen.</div>`;
@@ -1777,7 +1777,7 @@ function rVorlagen(){
       const pi=pd(p.phase,p.int);
       return `<div class="pitem" style="margin-bottom:4px;">
         <div class="pdot" style="background:${pi.f};border:1px solid ${pi.t}30;"></div>
-        <span class="ptxt">Woche ${p.vonW+1}–${p.bisW+1} · ${p.phase} · ${p.int}%</span>
+        <span class="ptxt">Woche ${p.vonW+1}–${p.bisW+1} · ${p.phase} · ${p.int}%${p.schwerpunkte?'<br><span style="font-size:10px;color:var(--muted);">'+p.schwerpunkte+'</span>':''}</span>
         <button class="pdel" style="color:var(--muted);font-size:13px;" onclick="showEditVPhase(${v.id},${i})">✎</button>
         <button class="pdel" onclick="delVPhase(${v.id},${i})">×</button>
       </div>`;
