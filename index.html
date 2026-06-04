@@ -1621,17 +1621,20 @@ function rUebersicht(){
     let expDW='';
     if(isODW){
       // Details section (Balken, Beachten, Wettkämpfe, Krafttests) — collapsible
-      const detailsContent=isDetails
-        ?'<div style="margin-bottom:10px;">'
-          +buildBar(a,true)+buildLegend(a)
-          +'<div style="margin-bottom:10px;">'
-          +'<div style="font-size:10px;font-weight:600;color:#854F0B;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">⚠ Beachten</div>'
-          +'<textarea id="beachten-'+a.id+'" rows="2" style="width:100%;font-size:13px;resize:none;border-radius:6px;border:1px solid #EF9F27;padding:7px 10px;font-family:\'DM Sans\',sans-serif;background:#FAEEDA;color:#633806;" placeholder="z.B. Verletzung linkes Knie beachten…" oninput="autoSaveBeachten('+a.id+')">'+(a.letzteNotiz||'')+'</textarea>'
-          +'</div>'
-          +buildWkList(a)
-          +buildKrafttests(a)
-          +'</div>'
-        :'';
+      let detailsContent='';
+      if(isDetails){
+        try{
+          detailsContent='<div style="margin-bottom:10px;">'
+            +buildBar(a,true)+buildLegend(a)
+            +'<div style="margin-bottom:10px;">'
+            +'<div style="font-size:10px;font-weight:600;color:#854F0B;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">⚠ Beachten</div>'
+            +'<textarea id="beachten-'+a.id+'" rows="2" style="width:100%;font-size:13px;resize:none;border-radius:6px;border:1px solid #EF9F27;padding:7px 10px;font-family:\'DM Sans\',sans-serif;background:#FAEEDA;color:#633806;" placeholder="z.B. Verletzung linkes Knie beachten…" oninput="autoSaveBeachten('+a.id+')">'+(a.letzteNotiz||'')+'</textarea>'
+            +'</div>'
+            +buildWkList(a)
+            +buildKrafttests(a)
+            +'</div>';
+        }catch(e){detailsContent='<div style="color:red;font-size:12px;">Fehler: '+e.message+'</div>';}
+      }
 
       expDW=`
         <div style="border-top:1px solid var(--border);margin-top:10px;padding-top:10px;">
