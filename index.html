@@ -855,6 +855,8 @@ function delDok(aid,idx){
   a.dokumente.splice(idx,1);
   _dwOpen[aid]=true;_dwDetails[aid]=true;save();rUebersicht();
 }
+const wkHistOpen={};
+const wkMgmtOpen={};
 function toggleWkHist(id){wkHistOpen[id]=!wkHistOpen[id];rUebersicht();}
 function toggleWkMgmt(id){wkMgmtOpen[id]=!wkMgmtOpen[id];rUebersicht();}
 
