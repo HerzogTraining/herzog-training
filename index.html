@@ -819,7 +819,7 @@ function confAddDok(aid){
     typ:document.getElementById('m-dtyp').value,
     link:document.getElementById('m-dlink').value.trim()||null
   });
-  save();closeM();rUebersicht();
+  _dwOpen[aid]=true;_dwDetails[aid]=true;save();closeM();rUebersicht();
 }
 function showEditDok(aid,idx){
   const a=S.athleten.find(x=>x.id===aid);
@@ -842,13 +842,13 @@ function confEditDok(aid,idx){
     typ:document.getElementById('m-dtyp').value,
     link:document.getElementById('m-dlink').value.trim()||null
   };
-  save();closeM();rUebersicht();
+  _dwOpen[aid]=true;_dwDetails[aid]=true;save();closeM();rUebersicht();
 }
 function delDok(aid,idx){
   const a=S.athleten.find(x=>x.id===aid);
   if(!a||!confirm('Eintrag löschen?'))return;
   a.dokumente.splice(idx,1);
-  save();rUebersicht();
+  _dwOpen[aid]=true;_dwDetails[aid]=true;save();rUebersicht();
 }
 function toggleWkHist(id){wkHistOpen[id]=!wkHistOpen[id];rUebersicht();}
 function toggleWkMgmt(id){wkMgmtOpen[id]=!wkMgmtOpen[id];rUebersicht();}
