@@ -1601,6 +1601,23 @@ function rUebersicht(){
     // Wettkämpfe in dieser KW
     const vwWks=getWettkaempfe(a).filter(w=>w.kw===vkw&&w.yr===vyr);
     const vwWkHtml=vwWks.length?vwWks.map(w=>{const pc=wkPriColor(w.prio||'C');return'<span style="display:inline-block;margin-top:3px;margin-left:4px;padding:2px 8px;border-radius:8px;background:'+pc.bg+';color:'+pc.c+';font-size:11px;font-weight:600;">'+(w.prio||'C')+' '+w.name+'</span>';}).join(''):'';
+    // Build training plan HTML separately to avoid nested backtick issues
+    let trainingHtml='';
+    if(isODW){
+      const plans=[woche.plan||'',woche.plan2||'',woche.plan3||''];
+      const planIds=['plan','plan2','plan3'];
+      ['Training 1','Training 2','Training 3'].forEach((lbl,i)=>{
+        trainingHtml+='<div style="margin-bottom:10px;">'
+          +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">'
+          +'<div style="font-size:10px;font-weight:700;color:#E8000F;text-transform:uppercase;">'+lbl+'</div>'
+          +'<button onclick="showUebungPicker('+a.id+',\''+planIds[i]+'\')" style="font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid #E8000F;background:#FFF5F5;color:#E8000F;cursor:pointer;">+ Übung</button>'
+          +'</div>'
+          +'<textarea id="'+planIds[i]+'-'+a.id+'" rows="4" style="width:100%;font-size:13px;resize:none;min-height:70px;border-radius:6px;border:1px solid var(--teal);padding:8px 10px;font-family:\'DM Mono\',monospace;background:var(--teal-bg);color:var(--text);white-space:pre-wrap;line-height:1.6;" placeholder="'+lbl+'…" oninput="autoResize(this);autoSaveN('+a.id+')">'+plans[i]+'</textarea>'
+          +'</div>';
+      });
+      trainingHtml+='<div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;margin:8px 0 3px;">Notizen nach Training</div>'
+        +'<textarea id="notiz-'+a.id+'" rows="3" style="width:100%;font-size:13px;resize:none;border-radius:6px;border:1px solid var(--border2);padding:8px 10px;font-family:\'DM Sans\',sans-serif;background:var(--bg);color:var(--text);" placeholder="Was war gut / schlecht…" oninput="autoSaveN('+a.id+')">'+(woche.notiz||'')+'</textarea>';
+    }
     let expDW='';
     if(isODW){
       // Details section (Balken, Beachten, Wettkämpfe, Krafttests) — collapsible
@@ -1635,24 +1652,7 @@ function rUebersicht(){
             <div class="slabel" style="margin:0;">Training KW ${vkw} / ${vyr}</div>
             <button onclick="showLoadTrainingsVorlage(${a.id})" style="font-size:11px;padding:4px 12px;border-radius:6px;border:1px solid #E8000F;background:#FFF5F5;color:#E8000F;cursor:pointer;font-weight:600;">📋 Vorlage laden</button>
           </div>
-          ${(()=>{
-            const link=(woche.einheiten&&woche.einheiten[1])||'';
-            const plans=[woche.plan||'',woche.plan2||'',woche.plan3||''];
-            const planIds=['plan','plan2','plan3'];
-            let out='';
-            ['Training 1','Training 2','Training 3'].forEach((lbl,i)=>{
-              out+=`<div style="margin-bottom:10px;">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">
-                  <div style="font-size:10px;font-weight:700;color:#E8000F;text-transform:uppercase;">${lbl}</div>
-                  <button onclick="showUebungPicker(${a.id},'${planIds[i]}')" style="font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid #E8000F;background:#FFF5F5;color:#E8000F;cursor:pointer;">+ Übung</button>
-                </div>
-                <textarea id="${planIds[i]}-${a.id}" rows="4" style="width:100%;font-size:13px;resize:none;min-height:70px;border-radius:6px;border:1px solid var(--teal);padding:8px 10px;font-family:'DM Mono',monospace;background:var(--teal-bg);color:var(--text);white-space:pre-wrap;line-height:1.6;" placeholder="${lbl}…" oninput="autoResize(this);autoSaveN(${a.id})">${plans[i]}</textarea>
-              </div>`;
-            });
-            out+=`<div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;margin:8px 0 3px;">Notizen nach Training</div>
-            <textarea id="notiz-${a.id}" rows="3" style="width:100%;font-size:13px;resize:none;border-radius:6px;border:1px solid var(--border2);padding:8px 10px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);" placeholder="Was war gut / schlecht…" oninput="autoSaveN(${a.id})">${woche.notiz||''}</textarea>`;
-            return out;
-          })()}
+          ${trainingHtml}
           <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;">
             <span style="font-size:11px;color:var(--muted);">✓ Autosave</span>
             <button class="savebtn" style="width:auto;padding:8px 20px;" onclick="saveN(${a.id})">Speichern</button>
