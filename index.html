@@ -1749,7 +1749,7 @@ function rEditor(){
         <div style="display:flex;gap:6px;">
           <select id="sel-vorlage" style="flex:1;font-size:13px;padding:6px 8px;">${vorlageOpts}</select>
           <button onclick="doApplyVorlage()" style="padding:6px 12px;font-size:12px;border-radius:var(--radius-sm);border:none;background:var(--teal);color:#fff;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;">Anwenden</button>
-          <button onclick="doSchwerpunkteUebernehmen()" title="Nur Schwerpunkte aus Vorlage übernehmen" style="padding:6px 10px;font-size:12px;border-radius:var(--radius-sm);border:1px solid var(--teal);background:none;color:var(--teal-dark);cursor:pointer;white-space:nowrap;">📝</button>
+          <button onclick="doSchwerpunkteUebernehmen()" title="Nur Schwerpunkte aus Vorlage übernehmen (Plan bleibt unverändert)" style="padding:6px 10px;font-size:12px;border-radius:var(--radius-sm);border:1px solid var(--teal);background:none;color:var(--teal-dark);cursor:pointer;white-space:nowrap;" aria-label="Schwerpunkte übernehmen">📝 Schwerpunkte</button>
         </div>
       </div>`:''}
       ${kopieOpts?`<div style="flex:1;min-width:200px;background:var(--amber-bg);border:1px solid #FAC775;border-radius:var(--radius-sm);padding:10px 12px;">
