@@ -817,7 +817,7 @@ function showAddDok(aid){
     <div class="frow"><label>Titel</label><input type="text" id="m-dtitel" placeholder="z.B. Arztbericht Knie"></div>
     <div class="frow"><label>Datum</label><input type="text" id="m-ddat" value="${today}" placeholder="TT.MM.JJJJ"></div>
     <div class="frow"><label>Typ</label><select id="m-dtyp" style="font-size:13px;">
-      <option>Arztbericht</option><option>Laborbericht</option><option>MRT/Röntgen</option><option>Test</option><option>Sonstiges</option>
+      <option>Arzt</option><option>MRI/Röntgen</option><option>Test</option><option>Physio</option><option>Sonstiges</option>
     </select></div>
     <div class="frow"><label>Link (iCloud, Google Drive, etc.)</label><input type="url" id="m-dlink" placeholder="https://..."></div>
     <div class="mbtns"><button onclick="closeM()">Abbrechen</button><button class="primary" onclick="confAddDok(${aid})">Speichern</button></div>`);
@@ -843,7 +843,7 @@ function showEditDok(aid,idx){
     <div class="frow"><label>Titel</label><input type="text" id="m-dtitel" value="${d.titel}"></div>
     <div class="frow"><label>Datum</label><input type="text" id="m-ddat" value="${d.datum}"></div>
     <div class="frow"><label>Typ</label><select id="m-dtyp" style="font-size:13px;">
-      ${['Arztbericht','Laborbericht','MRT/Röntgen','Test','Sonstiges'].map(t=>`<option${t===d.typ?' selected':''}>${t}</option>`).join('')}
+      ${['Arzt','MRI/Röntgen','Test','Physio','Sonstiges'].map(t=>`<option${t===d.typ?' selected':''}>${t}</option>`).join('')}
     </select></div>
     <div class="frow"><label>Link</label><input type="url" id="m-dlink" value="${d.link||''}"></div>
     <div class="mbtns"><button onclick="closeM()">Abbrechen</button><button class="primary" onclick="confEditDok(${aid},${idx})">Speichern</button></div>`);
