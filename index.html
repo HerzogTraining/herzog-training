@@ -775,30 +775,40 @@ function buildKrafttests(a){
   return `<div class="slabel">Krafttests</div><div class="main-tests">${mainHTML}</div><div class="sub-tests">${subHTML}</div>${buildDokumente(a)}`;
 }
 
+const _dokOpen={};
+function togDok(aid){_dokOpen[aid]=!_dokOpen[aid];rUebersicht();}
 function buildDokumente(a){
   const docs=a.dokumente||[];
+  const isOpen=!!_dokOpen[a.id];
   let rows='';
-  docs.forEach((d,i)=>{
-    const bb=i===docs.length-1?'border-bottom:none;':'';
-    const linkBtn=d.link?'<a href="'+d.link+'" target="_blank" style="font-size:12px;color:#E8000F;text-decoration:none;padding:3px 8px;border:1px solid #E8000F;border-radius:5px;flex-shrink:0;">🔗 Öffnen</a>':'';
-    rows+='<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--border);'+bb+'">'
-      +'<div style="flex:1;min-width:0;">'
-      +'<div style="font-size:13px;font-weight:500;">'+d.titel.replace(/</g,'&lt;')+'</div>'
-      +'<div style="font-size:11px;color:var(--muted);">'+d.datum+(d.typ?' · '+d.typ:'')+'</div>'
-      +'</div>'
-      +linkBtn
-      +'<button onclick="showEditDok('+a.id+','+i+')" style="font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;padding:2px 4px;">✎</button>'
-      +'<button onclick="delDok('+a.id+','+i+')" style="font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;padding:2px 4px;">✕</button>'
-      +'</div>';
-  });
-  const listHtml=docs.length
-    ?'<div style="background:#FFFFFF;border:1.5px solid #D0D0D0;border-radius:10px;overflow:hidden;">'+rows+'</div>'
-    :'<div style="font-size:12px;color:var(--muted);">Noch keine Dokumente.</div>';
+  if(isOpen){
+    docs.forEach((d,i)=>{
+      const bb=i===docs.length-1?'border-bottom:none;':'';
+      const linkBtn=d.link?'<a href="'+d.link+'" target="_blank" style="font-size:12px;color:#E8000F;text-decoration:none;padding:3px 8px;border:1px solid #E8000F;border-radius:5px;flex-shrink:0;">🔗 Öffnen</a>':'';
+      rows+='<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--border);'+bb+'">'
+        +'<div style="flex:1;min-width:0;">'
+        +'<div style="font-size:13px;font-weight:500;">'+d.titel.replace(/</g,'&lt;')+'</div>'
+        +'<div style="font-size:11px;color:var(--muted);">'+d.datum+(d.typ?' · '+d.typ:'')+'</div>'
+        +'</div>'
+        +linkBtn
+        +'<button onclick="showEditDok('+a.id+','+i+')" style="font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;padding:2px 4px;">✎</button>'
+        +'<button onclick="delDok('+a.id+','+i+')" style="font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;padding:2px 4px;">✕</button>'
+        +'</div>';
+    });
+  }
+  const listHtml=isOpen?(docs.length
+    ?'<div style="background:#FFFFFF;border:1.5px solid #D0D0D0;border-radius:10px;overflow:hidden;margin-top:6px;">'+rows+'</div>'
+    +'<button onclick="showAddDok('+a.id+')" style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid #E8000F;background:#FFF5F5;color:#E8000F;cursor:pointer;margin-top:6px;">+ Hinzufügen</button>'
+    :'<div style="font-size:12px;color:var(--muted);margin-top:6px;">Noch keine Dokumente.</div>'
+    +'<button onclick="showAddDok('+a.id+')" style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid #E8000F;background:#FFF5F5;color:#E8000F;cursor:pointer;margin-top:6px;">+ Hinzufügen</button>')
+  :'';
+  const badge=docs.length?'<span style="font-size:10px;background:#E8000F;color:#fff;border-radius:8px;padding:1px 6px;margin-left:6px;">'+docs.length+'</span>':'';
   return '<div style="margin-top:12px;">'
-    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">'
-    +'<div class="slabel" style="margin:0;">Dokumente &amp; Links</div>'
-    +'<button onclick="showAddDok('+a.id+')" style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid #E8000F;background:#FFF5F5;color:#E8000F;cursor:pointer;">+ Hinzufügen</button>'
-    +'</div>'+listHtml+'</div>';
+    +'<div onclick="togDok('+a.id+')" style="display:flex;align-items:center;cursor:pointer;padding:4px 0;">'
+    +'<div class="slabel" style="margin:0;">📁 Dokumente &amp; Links'+badge+'</div>'
+    +'<span style="font-size:12px;color:var(--muted);margin-left:auto;">'+(isOpen?'▲':'▼')+'</span>'
+    +'</div>'
+    +listHtml+'</div>';
 }
 function showAddDok(aid){
   const now=new Date();
@@ -824,7 +834,7 @@ function confAddDok(aid){
     typ:document.getElementById('m-dtyp').value,
     link:document.getElementById('m-dlink').value.trim()||null
   });
-  _dwOpen[aid]=true;_dwDetails[aid]=true;save();closeM();rUebersicht();
+  _dwOpen[aid]=true;_dwDetails[aid]=true;_dokOpen[aid]=true;save();closeM();rUebersicht();
 }
 function showEditDok(aid,idx){
   const a=S.athleten.find(x=>x.id===aid);
@@ -847,13 +857,13 @@ function confEditDok(aid,idx){
     typ:document.getElementById('m-dtyp').value,
     link:document.getElementById('m-dlink').value.trim()||null
   };
-  _dwOpen[aid]=true;_dwDetails[aid]=true;save();closeM();rUebersicht();
+  _dwOpen[aid]=true;_dwDetails[aid]=true;_dokOpen[aid]=true;save();closeM();rUebersicht();
 }
 function delDok(aid,idx){
   const a=S.athleten.find(x=>x.id===aid);
   if(!a||!confirm('Eintrag löschen?'))return;
   a.dokumente.splice(idx,1);
-  _dwOpen[aid]=true;_dwDetails[aid]=true;save();rUebersicht();
+  _dwOpen[aid]=true;_dwDetails[aid]=true;_dokOpen[aid]=true;save();rUebersicht();
 }
 const wkHistOpen={};
 const wkMgmtOpen={};
