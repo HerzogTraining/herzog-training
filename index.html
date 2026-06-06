@@ -1493,13 +1493,27 @@ function rUebersicht(){
   const startDow=(calDate.getDay()+6)%7;
   const monthName=calDate.toLocaleDateString('de-CH',{month:'short',year:'numeric'});
   const dayNames=['Mo','Di','Mi','Do','Fr','Sa','So'];
-  let calHtml='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;text-align:center;">';
+  const isoKw=dt=>{const t=new Date(dt);t.setHours(0,0,0,0);t.setDate(t.getDate()+3-(t.getDay()+6)%7);const w=new Date(t.getFullYear(),0,4);return 1+Math.round(((t-w)/86400000-3+(w.getDay()+6)%7)/7);};
+  let calHtml='<div style="display:grid;grid-template-columns:18px repeat(7,1fr);gap:1px;text-align:center;">';
+  calHtml+=`<div style="font-size:8px;font-weight:600;color:var(--muted);padding:1px 0;"></div>`;
   dayNames.forEach(d=>{calHtml+=`<div style="font-size:8px;font-weight:600;color:var(--muted);padding:1px 0;">${d}</div>`;});
-  for(let i=0;i<startDow;i++)calHtml+=`<div></div>`;
+  let kwShownForRow=-1;
+  for(let i=0;i<startDow;i++){
+    if(i===0){
+      const kw=isoKw(new Date(cY,cM,1));
+      calHtml+=`<div style="font-size:8px;font-weight:700;color:#E8000F;padding:2px 0;">${kw}</div>`;
+      kwShownForRow=kw;
+    }
+    calHtml+=`<div></div>`;
+  }
   for(let d=1;d<=daysInMonth;d++){
     const isToday=d===todayD&&cM===todayM&&cY===todayY;
     const dow=(startDow+d-1)%7;
     const isWeekend=dow===5||dow===6;
+    if(dow===0){
+      const kw=isoKw(new Date(cY,cM,d));
+      calHtml+=`<div style="font-size:8px;font-weight:700;color:#E8000F;padding:2px 0;">${kw}</div>`;
+    }
     calHtml+=`<div style="font-size:10px;padding:2px 0;border-radius:50%;${isToday?'background:#E8000F;color:#fff;font-weight:700;':isWeekend?'color:var(--muted);':''}">${d}</div>`;
   }
   calHtml+='</div>';
@@ -1529,7 +1543,7 @@ function rUebersicht(){
   }
   let h=`<div style="margin-bottom:14px;">
     <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:8px;flex-wrap:wrap;">
-      <div style="width:168px;flex-shrink:0;background:#FFFFFF;border:1.5px solid #D0D0D0;border-radius:10px;padding:8px 10px;">
+      <div style="width:190px;flex-shrink:0;background:#FFFFFF;border:1.5px solid #D0D0D0;border-radius:10px;padding:8px 10px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
           <button onclick="window._calOffset--;rUebersicht();" style="background:none;border:none;cursor:pointer;font-size:14px;color:var(--muted);padding:0 4px;">‹</button>
           <div style="font-size:10px;font-weight:700;color:#E8000F;text-transform:uppercase;letter-spacing:.05em;">${monthName}</div>
