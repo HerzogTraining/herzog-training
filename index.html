@@ -2531,7 +2531,11 @@ function saveEinheit(aid,i,val){
 // ============================================================
 (function(){
   let _acDrop=null,_acTgt=null,_acIdx=-1;
-  function allNames(){const k=getKatalog();const r=[];Object.values(k).forEach(a=>a.forEach(n=>r.push(n)));return r;}
+  function allNames(){
+    const k=getKatalog();const r=[];
+    Object.values(k).forEach(a=>a.forEach(n=>r.push(n)));
+    return r;
+  }
   function curWord(ta){
     const v=ta.value,pos=ta.selectionStart;
     let s=pos;
@@ -2574,8 +2578,17 @@ function saveEinheit(aid,i,val){
     const wi=curWord(e.target);
     if(wi.word.length<2){hide();return;}
     const q=wi.word.toLowerCase();
-    const m=allNames().filter(n=>n.toLowerCase().includes(q)).slice(0,8);
-    if(m.length)show(e.target,m,wi);else hide();
+    const matches=allNames()
+      .filter(n=>n.toLowerCase().includes(q))
+      .sort((a,b)=>{
+        // startsWith match comes first, then by length (shorter = simpler name)
+        const as=a.toLowerCase().startsWith(q)?0:1;
+        const bs=b.toLowerCase().startsWith(q)?0:1;
+        if(as!==bs)return as-bs;
+        return a.length-b.length;
+      })
+      .slice(0,8);
+    if(matches.length)show(e.target,matches,wi);else hide();
   });
   document.addEventListener('keydown',e=>{
     if(!_acDrop||!isPlanTA(e.target))return;
