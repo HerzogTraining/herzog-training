@@ -32,6 +32,13 @@ body{background:var(--bg);color:var(--text);min-height:100vh;}
 .view{display:none;}.view.active{display:block;}
 input[type=text],input[type=number],select,textarea{font-family:'DM Sans',sans-serif;font-size:14px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;width:100%;transition:border-color .15s;outline:none;}
 input:focus,select:focus,textarea:focus{border-color:var(--border2);}
+
+/* Übungen Autocomplete */
+.ac-dropdown{position:fixed;z-index:9999;background:#fff;border:1.5px solid var(--teal);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.13);max-height:200px;overflow-y:auto;min-width:180px;max-width:300px;}
+.ac-item{padding:7px 12px;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ac-item:hover,.ac-item.ac-active{background:var(--teal-bg);color:var(--teal);}
+.ac-item strong{color:#E8000F;}
+
 .search-input{margin-bottom:1rem;}
 .acard{background:var(--surface);border:1.5px solid #D0D0D0;border-radius:var(--radius);padding:1rem 1.25rem;cursor:pointer;margin-bottom:8px;transition:border-color .15s;}
 .acard:hover{border-color:#E8000F;}
@@ -2520,6 +2527,133 @@ function saveEinheit(aid,i,val){
     }else{if(btn&&btn.tagName==='A')btn.remove();}
   }
 }
+// ============================================================
+// ÜBUNGEN AUTOCOMPLETE
+// ============================================================
+(function(){
+  let _acDropdown=null;
+  let _acTarget=null;
+  let _acActiveIdx=-1;
+
+  function getAllUebungNames(){
+    const k=getKatalog();
+    const names=[];
+    Object.values(k).forEach(arr=>arr.forEach(n=>names.push(n)));
+    return names;
+  }
+
+  function getCurrentWord(ta){
+    const val=ta.value;
+    const pos=ta.selectionStart;
+    // find start of current word (non-space, non-newline chars before cursor)
+    let start=pos;
+    while(start>0&&!/[\s]/.test(val[start-1]))start--;
+    return{word:val.slice(start,pos),start,end:pos};
+  }
+
+  function highlight(name,query){
+    const idx=name.toLowerCase().indexOf(query.toLowerCase());
+    if(idx<0)return name;
+    return name.slice(0,idx)+'<strong>'+name.slice(idx,idx+query.length)+'</strong>'+name.slice(idx+query.length);
+  }
+
+  function removeDropdown(){
+    if(_acDropdown){_acDropdown.remove();_acDropdown=null;}
+    _acTarget=null;
+    _acActiveIdx=-1;
+  }
+
+  function applyItem(ta,item,wordInfo){
+    const val=ta.value;
+    ta.value=val.slice(0,wordInfo.start)+item+val.slice(wordInfo.end);
+    const newPos=wordInfo.start+item.length;
+    ta.setSelectionRange(newPos,newPos);
+    ta.dispatchEvent(new Event('input',{bubbles:true}));
+    removeDropdown();
+    ta.focus();
+  }
+
+  function showDropdown(ta,matches,wordInfo){
+    removeDropdown();
+    if(!matches.length)return;
+    _acTarget=ta;
+    _acActiveIdx=-1;
+
+    const rect=ta.getBoundingClientRect();
+    // estimate line height and cursor line position
+    const lineH=parseInt(getComputedStyle(ta).lineHeight)||20;
+    const lines=ta.value.slice(0,wordInfo.start).split('\n');
+    const lineNum=lines.length-1;
+    const top=rect.top+window.scrollY+(lineNum+1)*lineH+2;
+    const left=rect.left+window.scrollX+8;
+
+    const div=document.createElement('div');
+    div.className='ac-dropdown';
+    div.style.top=(rect.bottom+4+window.scrollY)+'px';
+    div.style.left=left+'px';
+
+    matches.forEach((m,i)=>{
+      const el=document.createElement('div');
+      el.className='ac-item';
+      el.innerHTML=highlight(m,wordInfo.word);
+      el.addEventListener('mousedown',e=>{
+        e.preventDefault();
+        applyItem(ta,m,wordInfo);
+      });
+      div.appendChild(el);
+    });
+
+    document.body.appendChild(div);
+    _acDropdown=div;
+  }
+
+  function onInput(e){
+    const ta=e.target;
+    const wi=getCurrentWord(ta);
+    if(wi.word.length<2){removeDropdown();return;}
+    const all=getAllUebungNames();
+    const q=wi.word.toLowerCase();
+    const matches=all.filter(n=>n.toLowerCase().includes(q)).slice(0,8);
+    if(matches.length)showDropdown(ta,matches,wi);
+    else removeDropdown();
+  }
+
+  function onKeydown(e){
+    if(!_acDropdown)return;
+    const items=_acDropdown.querySelectorAll('.ac-item');
+    if(e.key==='ArrowDown'){
+      e.preventDefault();
+      _acActiveIdx=Math.min(_acActiveIdx+1,items.length-1);
+      items.forEach((el,i)=>el.classList.toggle('ac-active',i===_acActiveIdx));
+    }else if(e.key==='ArrowUp'){
+      e.preventDefault();
+      _acActiveIdx=Math.max(_acActiveIdx-1,0);
+      items.forEach((el,i)=>el.classList.toggle('ac-active',i===_acActiveIdx));
+    }else if(e.key==='Enter'||e.key==='Tab'){
+      if(_acActiveIdx>=0&&items[_acActiveIdx]){
+        e.preventDefault();
+        items[_acActiveIdx].dispatchEvent(new MouseEvent('mousedown'));
+      }else{
+        removeDropdown();
+      }
+    }else if(e.key==='Escape'){
+      removeDropdown();
+    }
+  }
+
+  // Attach to plan textareas via event delegation
+  document.addEventListener('input',e=>{
+    if(e.target.matches('textarea[id^="plan"]'))onInput(e);
+  });
+  document.addEventListener('keydown',e=>{
+    if(e.target.matches('textarea[id^="plan"]'))onKeydown(e);
+  });
+  document.addEventListener('blur',e=>{
+    if(e.target.matches('textarea[id^="plan"]'))setTimeout(removeDropdown,150);
+  },true);
+  document.addEventListener('scroll',removeDropdown,true);
+})();
+
 function autoResize(ta){
   ta.style.height='auto';
   ta.style.height=(ta.scrollHeight+2)+'px';
