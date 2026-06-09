@@ -1405,7 +1405,7 @@ function rUebersicht(){
                 <div style="font-size:10px;font-weight:700;color:#E8000F;text-transform:uppercase;letter-spacing:.07em;">${lbl}</div>
                 <button onclick="showUebungPicker(${a.id},'${planIds[i]}')" style="font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid #E8000F;background:#FFF5F5;color:#E8000F;cursor:pointer;">+ Übung</button>
               </div>
-              <textarea id="${planIds[i]}-${a.id}" rows="4" style="width:100%;font-size:13px;resize:vertical;min-height:70px;border-radius:6px;border:1px solid var(--teal);padding:8px 10px;font-family:'DM Mono',monospace;background:var(--teal-bg);color:var(--text);white-space:pre-wrap;line-height:1.6;" placeholder="${lbl} – Übungen…">${plans[i]}</textarea>
+              <textarea id="${planIds[i]}-${a.id}" rows="4" style="width:100%;font-size:13px;resize:vertical;min-height:70px;border-radius:6px;border:1px solid var(--teal);padding:8px 10px;font-family:'DM Mono',monospace;background:var(--teal-bg);color:var(--text);white-space:pre-wrap;line-height:1.6;" placeholder="${lbl} – Übungen…" oninput="autoResize(this);autoSaveN(${a.id})">${plans[i]}</textarea>
             </div>`;
           });
           out+=`<div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin:8px 0 3px;">Notizen nach Training</div>
@@ -2642,14 +2642,17 @@ function saveEinheit(aid,i,val){
   }
 
   // Attach to plan textareas via event delegation
+  function isPlanTA(el){
+    return el.tagName==='TEXTAREA'&&/^plan[23]?-/.test(el.id);
+  }
   document.addEventListener('input',e=>{
-    if(e.target.matches('textarea[id^="plan"]'))onInput(e);
+    if(isPlanTA(e.target))onInput(e);
   });
   document.addEventListener('keydown',e=>{
-    if(e.target.matches('textarea[id^="plan"]'))onKeydown(e);
+    if(isPlanTA(e.target))onKeydown(e);
   });
   document.addEventListener('blur',e=>{
-    if(e.target.matches('textarea[id^="plan"]'))setTimeout(removeDropdown,150);
+    if(isPlanTA(e.target))setTimeout(removeDropdown,150);
   },true);
   document.addEventListener('scroll',removeDropdown,true);
 })();
