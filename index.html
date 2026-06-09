@@ -34,7 +34,7 @@ input[type=text],input[type=number],select,textarea{font-family:'DM Sans',sans-s
 input:focus,select:focus,textarea:focus{border-color:var(--border2);}
 
 /* Übungen Autocomplete */
-.ac-dropdown{position:fixed;z-index:9999;background:#fff;border:1.5px solid var(--teal);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.13);max-height:200px;overflow-y:auto;min-width:180px;max-width:300px;}
+.ac-dropdown{position:fixed;z-index:9999;background:#fff;border:1.5px solid var(--teal);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.13);max-height:320px;overflow-y:auto;min-width:180px;max-width:300px;}
 .ac-item{padding:7px 12px;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ac-item:hover,.ac-item.ac-active{background:var(--teal-bg);color:var(--teal);}
 .ac-item strong{color:#E8000F;}
@@ -2587,7 +2587,7 @@ function saveEinheit(aid,i,val){
         if(as!==bs)return as-bs;
         return a.length-b.length;
       })
-      .slice(0,8);
+      .slice(0,15);
     if(matches.length)show(e.target,matches,wi);else hide();
   });
   document.addEventListener('keydown',e=>{
