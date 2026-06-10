@@ -1482,9 +1482,11 @@ function saveUNotiz(aid,week){
     if(!a.wochen)a.wochen={};
     const nKW=KWN===52?1:KWN+1;
     const nYR=KWN===52?YRN+1:YRN;
-    const key=week==='next'?kwKeyStr(nKW,nYR):kwKeyStr(KWN,YRN);
+    const n2KW=nKW===maxKW(nYR)?1:nKW+1;
+    const n2YR=nKW===maxKW(nYR)?nYR+1:nYR;
+    const key=week==='next2'?kwKeyStr(n2KW,n2YR):week==='next'?kwKeyStr(nKW,nYR):kwKeyStr(KWN,YRN);
     if(!a.wochen[key])a.wochen[key]={zustand:null,einheiten:{},notiz:'',plan:''};
-    const ta=document.getElementById(week==='next'?'un2-'+aid:'un-'+aid);
+    const ta=document.getElementById(week==='next2'?'un3-'+aid:week==='next'?'un2-'+aid:'un-'+aid);
     if(ta)a.wochen[key].uNotiz=ta.value; // saves empty string too
     save();
     const sv=document.getElementById(week==='next'?'un2-sv-'+aid:'un-sv-'+aid);
@@ -1497,6 +1499,9 @@ function rUebersicht(){
   const nextKW=KWN===52?1:KWN+1;
   const nextYR=KWN===52?YRN+1:YRN;
   const nextKwKey=kwKeyStr(nextKW,nextYR);
+  const next2KW=nextKW===maxKW(nextYR)?1:nextKW+1;
+  const next2YR=nextKW===maxKW(nextYR)?nextYR+1:nextYR;
+  const next2KwKey=kwKeyStr(next2KW,next2YR);
 
   // Mini calendar with month navigation
   if(!window._calOffset)window._calOffset=0;
@@ -1549,6 +1554,7 @@ function rUebersicht(){
   }
   const thisRows=radarRows(KWN,YRN);
   const nextRows=radarRows(nextKW,nextYR);
+  const next2Rows=radarRows(next2KW,next2YR);
   function mkRadarSection(label,rows,kw,yr){
     if(!rows.length)return '<div style="font-size:11px;color:var(--muted);padding:4px 0;">Nichts eingetragen</div>';
     return rows.map(r=>'<div style="padding:3px 0;border-bottom:1px solid var(--border);">'
@@ -1569,7 +1575,7 @@ function rUebersicht(){
       </div>
       <div style="font-size:12px;color:var(--muted);font-weight:500;padding-top:4px;">KW ${KWN} / ${YRN} — Was steht an?</div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
       <div style="background:#FFFFFF;border:1.5px solid #D0D0D0;border-radius:10px;padding:8px 10px;">
         <div style="font-size:10px;font-weight:700;color:#E8000F;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">KW ${KWN} / ${YRN} — Diese Woche</div>
         ${mkRadarSection('',thisRows,KWN,YRN)}
@@ -1577,6 +1583,10 @@ function rUebersicht(){
       <div style="background:#FFFFFF;border:1.5px solid #D0D0D0;border-radius:10px;padding:8px 10px;">
         <div style="font-size:10px;font-weight:700;color:#1D9E75;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">KW ${nextKW} / ${nextYR} — Nächste Woche</div>
         ${mkRadarSection('',nextRows,nextKW,nextYR)}
+      </div>
+      <div style="background:#FFFFFF;border:1.5px solid #D0D0D0;border-radius:10px;padding:8px 10px;">
+        <div style="font-size:10px;font-weight:700;color:#4A7BE2;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">KW ${next2KW} / ${next2YR} — In 2 Wochen</div>
+        ${mkRadarSection('',next2Rows,next2KW,next2YR)}
       </div>
     </div>
   </div>`;
@@ -1616,7 +1626,8 @@ function rUebersicht(){
     // Wochennotiz
     const uNotiz=(a.wochen&&a.wochen[kwKey]&&a.wochen[kwKey].uNotiz)||'';
     const uNotizNext=(a.wochen&&a.wochen[nextKwKey]&&a.wochen[nextKwKey].uNotiz)||'';
-    const hasNotiz=uNotiz.trim().length>0||uNotizNext.trim().length>0;
+    const uNotiz2=(a.wochen&&a.wochen[next2KwKey]&&a.wochen[next2KwKey].uNotiz)||'';
+    const hasNotiz=uNotiz.trim().length>0||uNotizNext.trim().length>0||uNotiz2.trim().length>0;
     const notizText=uNotiz||uNotizNext;
     const notizBadge=hasNotiz?`<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:#FFF3CD;color:#856404;font-weight:500;">📝 ${notizText.split('\n')[0].substring(0,30)}${notizText.length>30?'…':''}</span>`:'';
     if(a.sport!==lastSport){
@@ -1743,6 +1754,11 @@ function rUebersicht(){
         <div style="font-size:10px;font-weight:600;color:#1D9E75;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">KW ${nextKW} / ${nextYR} — Nächste Woche</div>
         <textarea id="un2-${a.id}" rows="2" style="width:100%;font-size:13px;resize:none;border-radius:6px;border:1px solid #b2ddd0;padding:7px 10px;font-family:'DM Sans',sans-serif;background:#F0FBF7;color:var(--text);" placeholder="Vorausplanung nächste Woche…" oninput="saveUNotiz(${a.id},'next')">${uNotizNext}</textarea>
         <span id="un2-sv-${a.id}" style="position:absolute;right:8px;bottom:8px;font-size:11px;color:var(--teal);opacity:0;transition:opacity .3s;">✓</span>
+      </div>
+      <div style="position:relative;" onclick="event.stopPropagation()">
+        <div style="font-size:10px;font-weight:600;color:#4A7BE2;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">KW ${next2KW} / ${next2YR} — In 2 Wochen</div>
+        <textarea id="un3-${a.id}" rows="2" style="width:100%;font-size:13px;resize:none;border-radius:6px;border:1px solid #b2d0f5;padding:7px 10px;font-family:'DM Sans',sans-serif;background:#F0F5FF;color:var(--text);" placeholder="Vorausplanung in 2 Wochen…" oninput="saveUNotiz(${a.id},'next2')">${uNotiz2}</textarea>
+        <span id="un3-sv-${a.id}" style="position:absolute;right:8px;bottom:8px;font-size:11px;color:#4A7BE2;opacity:0;transition:opacity .3s;">✓</span>
       </div>
       ${expDW}
     </div>`;
@@ -2683,9 +2699,12 @@ function gcalFmtDate(d){
 async function gcalSyncAll(){
   const token=gcalGetToken();
   if(!token){gcalConnect();return;}
+  const _nKW=KWN===maxKW(YRN)?1:KWN+1,_nYR=KWN===maxKW(YRN)?YRN+1:YRN;
+  const _n2KW=_nKW===maxKW(_nYR)?1:_nKW+1,_n2YR=_nKW===maxKW(_nYR)?_nYR+1:_nYR;
   const weeks=[
     {kw:KWN,yr:YRN},
-    {kw:KWN===maxKW(YRN)?1:KWN+1,yr:KWN===maxKW(YRN)?YRN+1:YRN}
+    {kw:_nKW,yr:_nYR},
+    {kw:_n2KW,yr:_n2YR}
   ];
   let synced=0;
   for(const{kw,yr}of weeks){
