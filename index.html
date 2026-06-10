@@ -2737,10 +2737,11 @@ async function gcalUpsertEvent(token,stableId,summary,startDate,endDate){
   const h={'Authorization':'Bearer '+token,'Content-Type':'application/json'};
   const calId=encodeURIComponent(GCAL_CALENDAR_ID);
   try{
-    const res=await fetch('https://www.googleapis.com/calendar/v3/calendars/'+calId+'/events?q='+q+'&timeMin='+startDate+'T00:00:00Z&timeMax='+endDate+'T00:00:00Z&singleEvents=true',{headers:h});
+    // Find by iCalUID
+    const res=await fetch('https://www.googleapis.com/calendar/v3/calendars/'+calId+'/events?iCalUID='+encodeURIComponent(stableId),{headers:h});
     const data=await res.json();
-    const ex=data.items&&data.items.find(e=>e.summary&&e.summary.startsWith(searchTitle));
-    const body=JSON.stringify({summary,start:{date:startDate},end:{date:endDate}});
+    const ex=data.items&&data.items[0];
+    const body=JSON.stringify({summary,start:{date:startDate},end:{date:endDate},iCalUID:stableId});
     if(ex){
       await fetch('https://www.googleapis.com/calendar/v3/calendars/'+calId+'/events/'+ex.id,{method:'PUT',headers:h,body});
     }else{
