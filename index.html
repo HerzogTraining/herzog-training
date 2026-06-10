@@ -2737,7 +2737,6 @@ async function gcalUpsertEvent(token,stableId,summary,startDate,endDate){
   const h={'Authorization':'Bearer '+token,'Content-Type':'application/json'};
   const calId=encodeURIComponent(GCAL_CALENDAR_ID);
   try{
-    // Find by iCalUID
     const res=await fetch('https://www.googleapis.com/calendar/v3/calendars/'+calId+'/events?iCalUID='+encodeURIComponent(stableId),{headers:h});
     const data=await res.json();
     const ex=data.items&&data.items[0];
