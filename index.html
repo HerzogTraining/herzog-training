@@ -2712,31 +2712,32 @@ async function gcalSyncAll(){
     const sun=new Date(mon);sun.setDate(mon.getDate()+6);
     const startDate=gcalFmtDate(mon);
     const endDate=gcalFmtDate(new Date(sun.getTime()+86400000));
-    const lines=[];
-    sortA().forEach(a=>{
+    // One event per athlete
+    for(const a of sortA()){
       const key=kwKeyStr(kw,yr);
       const wo=a.wochen&&a.wochen[key];
       const notiz=wo&&wo.uNotiz&&wo.uNotiz.trim();
       const isUrlaub=isInPeriod(kw,yr,a.urlaub);
       const isTl=isInPeriod(kw,yr,a.tl);
       const parts=[];
-      if(notiz)parts.push(notiz.split('\n')[0].substring(0,40));
+      if(notiz)parts.push(notiz.split('\n')[0]);
       if(isUrlaub)parts.push('Urlaub');
       if(isTl)parts.push('TL');
-      if(parts.length)lines.push(a.name.split(' ')[0]+': '+parts.join(', '));
-    });
-    if(!lines.length)continue;
-    const summary='KW '+kw+'/'+yr+' | '+lines.join(' · ');
-    await gcalUpsertEvent(token,'KW '+kw+'/'+yr,summary,startDate,endDate);
-    synced++;
+      if(!parts.length)continue;
+      const firstName=a.name.split(' ')[0];
+      const summary=firstName+': '+parts.join(', ');
+      // Stable ID per athlete per week
+      const stableId='ht-'+a.id+'-'+startDate.replace(/-/g,'')+'@herzogtraining';
+      await gcalUpsertEvent(token,stableId,summary,startDate,endDate);
+      synced++;
+    }
   }
   gcalShowStatus(synced>0?'✓ Kalender aktualisiert':'Keine Notizen');
 }
 
-async function gcalUpsertEvent(token,searchTitle,summary,startDate,endDate){
+async function gcalUpsertEvent(token,stableId,summary,startDate,endDate){
   const h={'Authorization':'Bearer '+token,'Content-Type':'application/json'};
   const calId=encodeURIComponent(GCAL_CALENDAR_ID);
-  const q=encodeURIComponent(searchTitle);
   try{
     const res=await fetch('https://www.googleapis.com/calendar/v3/calendars/'+calId+'/events?q='+q+'&timeMin='+startDate+'T00:00:00Z&timeMax='+endDate+'T00:00:00Z&singleEvents=true',{headers:h});
     const data=await res.json();
