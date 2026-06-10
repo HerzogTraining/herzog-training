@@ -34,10 +34,16 @@ input[type=text],input[type=number],select,textarea{font-family:'DM Sans',sans-s
 input:focus,select:focus,textarea:focus{border-color:var(--border2);}
 
 /* Übungen Autocomplete */
-.ac-dropdown{position:fixed;z-index:9999;background:#fff;border:1.5px solid var(--teal);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.13);max-height:320px;overflow-y:auto;min-width:180px;max-width:300px;}
+.ac-dropdown{position:fixed;z-index:9999;background:#fff;border:1.5px solid var(--teal);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.13);max-height:200px;overflow-y:auto;min-width:180px;max-width:300px;}
 .ac-item{padding:7px 12px;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ac-item:hover,.ac-item.ac-active{background:var(--teal-bg);color:var(--teal);}
 .ac-item strong{color:#E8000F;}
+/* Google Calendar Sync */
+.gcal-btn{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:8px;border:1.5px solid #D0D0D0;background:#fff;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;color:#444;transition:all .15s;}
+.gcal-btn:hover{border-color:#E8000F;color:#E8000F;}
+.gcal-btn.connected{border-color:#1D9E75;color:#1D9E75;background:#F0FBF7;}
+.gcal-sync-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--border);margin-top:8px;}
+
 .search-input{margin-bottom:1rem;}
 .acard{background:var(--surface);border:1.5px solid #D0D0D0;border-radius:var(--radius);padding:1rem 1.25rem;cursor:pointer;margin-bottom:8px;transition:border-color .15s;}
 .acard:hover{border-color:#E8000F;}
@@ -162,6 +168,11 @@ border-radius:50%;background:var(--hint);display:inline-block;margin-left:6px;ve
     <span class="kw-tag" id="kw-badge"></span>
     <span id="sync-dot" class="sync-dot" title="Sync-Status"></span>
     <span id="sync-label" style="font-size:11px;color:var(--muted);margin-left:4px;transition:opacity .5s;opacity:0;"></span>
+    <div class="gcal-sync-row" style="display:inline-flex;align-items:center;gap:8px;margin-left:8px;">
+      <button id="gcal-connect-btn" class="gcal-btn" onclick="gcalConnect(false)" title="Google Kalender verbinden">📅 Mit Google verbinden</button>
+      <button onclick="gcalSyncAll()" style="background:#E8000F;color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;" title="Wochennotizen in Google Kalender synchronisieren">↑ Sync</button>
+      <span id="gcal-status" style="font-size:11px;color:#1D9E75;opacity:0;transition:opacity .5s;"></span>
+    </div>
     <button onclick="exportData()" title="Daten sichern" style="margin-left:8px;background:none;border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer;color:var(--text);font-family:'DM Sans',sans-serif;">⬇ Backup</button>
     <button onclick="document.getElementById('import-input').click()" title="Backup einspielen" style="margin-left:4px;background:none;border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer;color:var(--text);font-family:'DM Sans',sans-serif;">⬆ Wiederherstellen</button>
     <input type="file" id="import-input" accept=".json" style="display:none" onchange="importData(event)">
@@ -180,6 +191,7 @@ border-radius:50%;background:var(--hint);display:inline-block;margin-left:6px;ve
 </div>
 <div id="modal-wrap"></div>
 
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
 const PD={
   'Grundlagen':        {f:'#B5D4F4',t:'#0C447C'},
@@ -2587,7 +2599,7 @@ function saveEinheit(aid,i,val){
         if(as!==bs)return as-bs;
         return a.length-b.length;
       })
-      .slice(0,15);
+      .slice(0,8);
     if(matches.length)show(e.target,matches,wi);else hide();
   });
   document.addEventListener('keydown',e=>{
@@ -2601,6 +2613,142 @@ function saveEinheit(aid,i,val){
   document.addEventListener('blur',e=>{if(isPlanTA(e.target))setTimeout(hide,150);},true);
   document.addEventListener('scroll',hide,true);
 })();
+
+// ============================================================
+// GOOGLE CALENDAR SYNC
+// ============================================================
+const GCAL_CLIENT_ID='39404778455-ghk7rikonaqqlns7uslh99kmgr7ej32i.apps.googleusercontent.com';
+const GCAL_CALENDAR_ID='c1e21630629f52e714382ce32f37c77faeb7073010850c372cf9f073813bfb7e@group.calendar.google.com';
+const GCAL_SCOPES='https://www.googleapis.com/auth/calendar.events';
+
+let _gcalToken=null;
+let _gcalTokenExpiry=0;
+let _gcalTokenClient=null;
+let _gcalSyncPending=false;
+
+function gcalIsConnected(){
+  return _gcalToken&&Date.now()<_gcalTokenExpiry;
+}
+
+function gcalInit(){
+  if(typeof google==='undefined'||!google.accounts)return;
+  _gcalTokenClient=google.accounts.oauth2.initTokenClient({
+    client_id:GCAL_CLIENT_ID,
+    scope:GCAL_SCOPES,
+    callback:(resp)=>{
+      if(resp.error)return;
+      _gcalToken=resp.access_token;
+      _gcalTokenExpiry=Date.now()+(resp.expires_in-60)*1000;
+      // Store token expiry for UI
+      try{localStorage.setItem('gcal_token',_gcalToken);localStorage.setItem('gcal_expiry',_gcalTokenExpiry);}catch(e){}
+      gcalUpdateUI();
+      if(_gcalSyncPending){_gcalSyncPending=false;gcalSyncAll();}
+    }
+  });
+  // Try restore token from localStorage
+  try{
+    const t=localStorage.getItem('gcal_token');
+    const e=parseInt(localStorage.getItem('gcal_expiry')||'0');
+    if(t&&e>Date.now()+60000){_gcalToken=t;_gcalTokenExpiry=e;}
+  }catch(e){}
+}
+
+function gcalConnect(thenSync){
+  if(!_gcalTokenClient){alert('Google API noch nicht geladen. Kurz warten und nochmal versuchen.');return;}
+  _gcalSyncPending=!!thenSync;
+  _gcalTokenClient.requestAccessToken({prompt:gcalIsConnected()?'':'consent'});
+}
+
+function gcalUpdateUI(){
+  const btn=document.getElementById('gcal-connect-btn');
+  if(!btn)return;
+  if(gcalIsConnected()){
+    btn.textContent='✓ Google verbunden';
+    btn.className='gcal-btn connected';
+  } else {
+    btn.textContent='📅 Mit Google verbinden';
+    btn.className='gcal-btn';
+  }
+}
+
+// Format date as YYYY-MM-DD
+function gcalFmtDate(d){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+// Get Monday of a given KW/year
+function gcalMonday(kw,yr){
+  const jan4=new Date(yr,0,4);
+  const d=new Date(jan4);
+  d.setDate(jan4.getDate()-(jan4.getDay()||7)+1+(kw-1)*7);
+  d.setHours(0,0,0,0);
+  return d;
+}
+
+// Sync all athletes' week notes for current + next week
+async function gcalSyncAll(){
+  if(!gcalIsConnected()){gcalConnect(true);return;}
+  const weeks=[
+    {kw:KWN,yr:YRN},
+    {kw:KWN===maxKW(YRN)?1:KWN+1,yr:KWN===maxKW(YRN)?YRN+1:YRN}
+  ];
+  let synced=0;
+  for(const{kw,yr} of weeks){
+    const mon=gcalMonday(kw,yr);
+    const sun=new Date(mon);sun.setDate(mon.getDate()+6);
+    const startDate=gcalFmtDate(mon);
+    const endDate=gcalFmtDate(new Date(sun.getTime()+86400000)); // exclusive end
+    // Build summary per athlete
+    const lines=[];
+    sortA().forEach(a=>{
+      const key=kwKeyStr(kw,yr);
+      const wo=a.wochen&&a.wochen[key];
+      const notiz=wo&&wo.uNotiz&&wo.uNotiz.trim();
+      const isUrlaub=isInPeriod(kw,yr,a.urlaub);
+      const isTl=isInPeriod(kw,yr,a.tl);
+      const parts=[];
+      if(notiz)parts.push(notiz.split('\n')[0].substring(0,40));
+      if(isUrlaub)parts.push('🏖 Urlaub');
+      if(isTl)parts.push('🏋️ TL');
+      if(parts.length)lines.push(a.name.split(' ')[0]+': '+parts.join(', '));
+    });
+    if(!lines.length)continue;
+    const summary='KW '+kw+' / '+yr+' — '+lines.join(' | ');
+    // Search for existing event with this KW marker
+    const searchTitle='KW '+kw+' / '+yr;
+    await gcalUpsertEvent(searchTitle,summary,startDate,endDate);
+    synced++;
+  }
+  gcalShowStatus(synced>0?'✓ Kalender aktualisiert':'Keine Einträge');
+}
+
+async function gcalUpsertEvent(searchTitle,summary,startDate,endDate){
+  const headers={'Authorization':'Bearer '+_gcalToken,'Content-Type':'application/json'};
+  // Search for existing event
+  const q=encodeURIComponent(searchTitle);
+  const searchUrl=`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(GCAL_CALENDAR_ID)}/events?q=${q}&timeMin=${startDate}T00:00:00Z&timeMax=${endDate}T00:00:00Z&singleEvents=true`;
+  try{
+    const res=await fetch(searchUrl,{headers});
+    const data=await res.json();
+    const existing=data.items&&data.items.find(e=>e.summary&&e.summary.startsWith(searchTitle));
+    const body=JSON.stringify({summary,start:{date:startDate},end:{date:endDate}});
+    if(existing){
+      await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(GCAL_CALENDAR_ID)}/events/${existing.id}`,{method:'PUT',headers,body});
+    } else {
+      await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(GCAL_CALENDAR_ID)}/events`,{method:'POST',headers,body});
+    }
+  }catch(e){console.error('gcal error',e);}
+}
+
+function gcalShowStatus(msg){
+  const el=document.getElementById('gcal-status');
+  if(!el)return;
+  el.textContent=msg;el.style.opacity='1';
+  setTimeout(()=>{el.style.opacity='0';},3000);
+}
+
+// Call gcalInit after page loads
+window.addEventListener('load',()=>{setTimeout(gcalInit,500);});
 
 function autoResize(ta){
   ta.style.height='auto';
