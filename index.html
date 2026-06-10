@@ -2699,6 +2699,7 @@ function gcalFmtDate(d){
 async function gcalSyncAll(){
   const token=gcalGetToken();
   if(!token){gcalConnect();return;}
+  console.log('SYNC START, token:', token?token.slice(0,20)+'...':'NONE');
   const _nKW=KWN===maxKW(YRN)?1:KWN+1,_nYR=KWN===maxKW(YRN)?YRN+1:YRN;
   const _n2KW=_nKW===maxKW(_nYR)?1:_nKW+1,_n2YR=_nKW===maxKW(_nYR)?_nYR+1:_nYR;
   const weeks=[
@@ -2724,8 +2725,9 @@ async function gcalSyncAll(){
       if(isUrlaub)parts.push('Urlaub');
       if(isTl)parts.push('TL');
       if(!parts.length)continue;
-      const _np=a.name.split(' ');const summary=_np[0]+(_np[1]?' '+_np[1][0]+'.':'')+' KW'+kw+': '+parts.join(', ');
+      const summary=a.name.split(' ')[0]+' '+a.name.split(' ')[1][0]+'. KW'+kw+': '+parts.join(', ');
       const stableId='ht-'+a.id+'-'+startDate.replace(/-/g,'')+'@herzogtraining';
+      console.log('UPSERTING:', summary, stableId, startDate);
       await gcalUpsertEvent(token,stableId,summary,startDate,endDate);
       synced++;
     }
@@ -2737,13 +2739,10 @@ async function gcalUpsertEvent(token,stableId,summary,startDate,endDate){
   const h={'Authorization':'Bearer '+token,'Content-Type':'application/json'};
   const calId=encodeURIComponent(GCAL_CALENDAR_ID);
   try{
-    // Search by title prefix (stableId used as title prefix marker)
-    const searchQ=encodeURIComponent(stableId.split('@')[0]);
-    const res=await fetch('https://www.googleapis.com/calendar/v3/calendars/'+calId+'/events?q='+searchQ+'&timeMin='+startDate+'T00:00:00Z&timeMax='+endDate+'T23:59:59Z&singleEvents=true',{headers:h});
+    const res=await fetch('https://www.googleapis.com/calendar/v3/calendars/'+calId+'/events?iCalUID='+encodeURIComponent(stableId),{headers:h});
     const data=await res.json();
-    // Find event whose description contains our stableId
-    const ex=data.items&&data.items.find(e=>e.description&&e.description.includes(stableId));
-    const body=JSON.stringify({summary,description:stableId,start:{date:startDate},end:{date:endDate}});
+    const ex=data.items&&data.items[0];
+    const body=JSON.stringify({summary,start:{date:startDate},end:{date:endDate},iCalUID:stableId});
     if(ex){
       await fetch('https://www.googleapis.com/calendar/v3/calendars/'+calId+'/events/'+ex.id,{method:'PUT',headers:h,body});
     }else{
