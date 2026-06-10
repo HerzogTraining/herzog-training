@@ -2724,9 +2724,7 @@ async function gcalSyncAll(){
       if(isUrlaub)parts.push('Urlaub');
       if(isTl)parts.push('TL');
       if(!parts.length)continue;
-      const firstName=a.name.split(' ')[0];
-      const summary=firstName+': '+parts.join(', ');
-      // Stable ID per athlete per week
+      const summary=a.name.split(' ')[0]+' '+a.name.split(' ')[1][0]+'. KW'+kw+': '+parts.join(', ');
       const stableId='ht-'+a.id+'-'+startDate.replace(/-/g,'')+'@herzogtraining';
       await gcalUpsertEvent(token,stableId,summary,startDate,endDate);
       synced++;
