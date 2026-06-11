@@ -2720,11 +2720,11 @@ async function gcalSyncAll(){
       const isUrlaub=isInPeriod(kw,yr,a.urlaub);
       const isTl=isInPeriod(kw,yr,a.tl);
       const parts=[];
-      if(notiz)parts.push(notiz.split('\n')[0]);
+      if(notiz)parts.push(notiz);
       if(isUrlaub)parts.push('Urlaub');
       if(isTl)parts.push('TL');
       if(!parts.length)continue;
-      const summary=a.name.split(' ')[0]+' '+a.name.split(' ')[1][0]+'. KW'+kw+': '+parts.join(', ');
+      const summary=a.name+' KW'+kw+': '+parts.join(', ');
       const stableId='ht-'+a.id+'-'+startDate.replace(/-/g,'')+'@herzogtraining';
       await gcalUpsertEvent(token,stableId,summary,startDate,endDate);
       synced++;
