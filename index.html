@@ -190,6 +190,11 @@ border-radius:50%;background:var(--hint);display:inline-block;margin-left:6px;ve
 
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
+// Cache buster v20260610c
+if(location.search.indexOf('v=')<0){
+  const v='20260610c';
+  location.replace(location.pathname+'?v='+v+(location.hash||''));
+}
 const PD={
   'Grundlagen':        {f:'#B5D4F4',t:'#0C447C'},
   'Grundlagen VO2max': {f:'#9FE1CB',t:'#085041'},
@@ -2674,7 +2679,7 @@ function gcalHandleRedirect(){
   const state=params.get('state');
   if(token&&state===sessionStorage.getItem('gcal_state')){
     gcalSetToken(token,expiresIn);
-    history.replaceState(null,'',location.pathname);
+    history.replaceState(null,'',location.pathname+'?v=20260610c');
     gcalUpdateUI();
     gcalSyncAll();
   }
@@ -2737,9 +2742,11 @@ async function gcalUpsertEvent(token,stableId,summary,startDate,endDate){
   const h={'Authorization':'Bearer '+token,'Content-Type':'application/json'};
   const calId=encodeURIComponent(GCAL_CALENDAR_ID);
   try{
-    const res=await fetch('https://www.googleapis.com/calendar/v3/calendars/'+calId+'/events?timeMin='+startDate+'T00:00:00Z&timeMax='+endDate+'T23:59:59Z&singleEvents=true&maxResults=250',{headers:h});
+    // Fetch all events in this week, find by description (our stable marker)
+    const url='https://www.googleapis.com/calendar/v3/calendars/'+calId+'/events?timeMin='+startDate+'T00:00:00Z&timeMax='+endDate+'T23:59:59Z&singleEvents=true&maxResults=250';
+    const res=await fetch(url,{headers:h});
     const data=await res.json();
-    const ex=data.items&&data.items.find(e=>e.description===stableId);
+    const ex=data.items&&data.items.find(e=>e.description&&e.description.trim()===stableId);
     const body=JSON.stringify({summary,description:stableId,start:{date:startDate},end:{date:endDate}});
     if(ex){
       await fetch('https://www.googleapis.com/calendar/v3/calendars/'+calId+'/events/'+ex.id,{method:'PUT',headers:h,body});
