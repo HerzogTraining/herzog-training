@@ -2921,12 +2921,12 @@ async function gcalSyncAll(){
     for(let i=0;i<k.urlaub.length;i++){
       const u=k.urlaub[i];
       if(!u.vonDat||!u.bisDat)continue;
-      const vonParts=u.vonDat.split('-');
-      const bisParts=u.bisDat.split('-');
-      if(vonParts.length<3||bisParts.length<3)continue;
-      const startDate=vonParts[0]+'-'+vonParts[1]+'-'+vonParts[2];
-      const bisDate=new Date(+bisParts[0],+bisParts[1]-1,+bisParts[2]+1);
-      const endDate=gcalFmtDate(bisDate);
+      const vonD=parseDate(u.vonDat);
+      const bisD=parseDate(u.bisDat);
+      if(!vonD||!bisD)continue;
+      const startDate=gcalFmtDate(vonD);
+      const bisNext=new Date(bisD);bisNext.setDate(bisNext.getDate()+1);
+      const endDate=gcalFmtDate(bisNext);
       const summary='🏖 '+nameShort+' PT-Ferien';
       console.log('PT sync:',summary,'start='+startDate,'end='+endDate);
       try{
