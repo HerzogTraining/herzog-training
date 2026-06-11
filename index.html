@@ -2676,9 +2676,8 @@ function gcalHandleRedirect(){
     gcalSetToken(token,expiresIn);
     history.replaceState(null,'',location.pathname);
     gcalUpdateUI();
-    // Wait for S to be initialized before syncing
-    const waitAndSync=()=>{if(typeof S!=='undefined'&&S.athleten)gcalSyncAll();else setTimeout(waitAndSync,200);};
-    setTimeout(waitAndSync,500);
+    const _waitS=()=>{if(typeof S!=='undefined'&&S&&S.athleten)gcalSyncAll();else setTimeout(_waitS,300);};
+    setTimeout(_waitS,500);
   }
 }
 
