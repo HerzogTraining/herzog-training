@@ -2726,14 +2726,14 @@ async function gcalSyncAll(){
       if(!parts.length)continue;
       const summary=a.name.split(' ')[0]+' '+a.name.split(' ')[1][0]+'. KW'+kw+': '+parts.join(', ');
       const stableId='ht-'+a.id+'-'+startDate.replace(/-/g,'')+'@herzogtraining';
-      await gcalUpsert2(token,stableId,summary,startDate,endDate);
+      await gcalUpsertEvent(token,stableId,summary,startDate,endDate);
       synced++;
     }
   }
   gcalShowStatus(synced>0?'✓ Kalender aktualisiert':'Keine Notizen');
 }
 
-async function gcalUpsert2(token,stableId,summary,startDate,endDate){
+async function gcalUpsertEvent(token,stableId,summary,startDate,endDate){
   const h={'Authorization':'Bearer '+token,'Content-Type':'application/json'};
   const calId=encodeURIComponent(GCAL_CALENDAR_ID);
   try{
@@ -2846,6 +2846,23 @@ async function init(){
   rUebersicht();
 }
 init();
+
+// HOTFIX: Override old cached gcalUpsertEvent
+gcalUpsertEvent = async function(token,stableId,summary,startDate,endDate){
+  const h={'Authorization':'Bearer '+token,'Content-Type':'application/json'};
+  const calId=encodeURIComponent(GCAL_CALENDAR_ID);
+  try{
+    const res=await fetch('https://www.googleapis.com/calendar/v3/calendars/'+calId+'/events?timeMin='+startDate+'T00:00:00Z&timeMax='+endDate+'T23:59:59Z&singleEvents=true&maxResults=250',{headers:h});
+    const data=await res.json();
+    const ex=data.items&&data.items.find(e=>e.description&&e.description===stableId);
+    const body=JSON.stringify({summary,description:stableId,start:{date:startDate},end:{date:endDate}});
+    if(ex){
+      await fetch('https://www.googleapis.com/calendar/v3/calendars/'+calId+'/events/'+ex.id,{method:'PUT',headers:h,body});
+    }else{
+      await fetch('https://www.googleapis.com/calendar/v3/calendars/'+calId+'/events',{method:'POST',headers:h,body});
+    }
+  }catch(e){console.error('gcal',e);}
+};
 </script>
 </body>
 </html>
