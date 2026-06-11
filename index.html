@@ -167,8 +167,8 @@ border-radius:50%;background:var(--hint);display:inline-block;margin-left:6px;ve
     <span class="kw-tag" id="kw-badge"></span>
     <span id="sync-dot" class="sync-dot" title="Sync-Status"></span>
     <span id="sync-label" style="font-size:11px;color:var(--muted);margin-left:4px;transition:opacity .5s;opacity:0;"></span>
-    <button id="gcal-connect-btn" class="gcal-btn" onclick="kalConnect()" style="margin-left:8px;">📅 Google verbinden</button>
-    <button onclick="syncKalender()" style="margin-left:4px;background:#E8000F;color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;">↑ Sync</button>
+    <button id="gcal-connect-btn" class="gcal-btn" onclick="gcalConnect()" style="margin-left:8px;">📅 Google verbinden</button>
+    <button onclick="gcalSyncAll()" style="margin-left:4px;background:#E8000F;color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;">↑ Sync</button>
     <span id="gcal-status" style="font-size:11px;color:#1D9E75;margin-left:6px;opacity:0;transition:opacity .5s;"></span>
     <button onclick="exportData()" title="Daten sichern" style="margin-left:8px;background:none;border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer;color:var(--text);font-family:'DM Sans',sans-serif;">⬇ Backup</button>
     <button onclick="document.getElementById('import-input').click()" title="Backup einspielen" style="margin-left:4px;background:none;border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer;color:var(--text);font-family:'DM Sans',sans-serif;">⬆ Wiederherstellen</button>
@@ -2635,23 +2635,23 @@ const GCAL_CALENDAR_ID='c1e21630629f52e714382ce32f37c77faeb7073010850c372cf9f073
 const GCAL_REDIRECT=location.origin+location.pathname;
 const GCAL_SCOPE='https://www.googleapis.com/auth/calendar.events';
 
-function kalGetToken(){
+function gcalGetToken(){
   try{
-    const t=sessionStorage.getItem('gcal_token');
-    const e=parseInt(sessionStorage.getItem('gcal_expiry')||'0');
+    const t=localStorage.getItem('gcal_token');
+    const e=parseInt(localStorage.getItem('gcal_expiry')||'0');
     if(t&&e>Date.now()+30000)return t;
   }catch(e){}
   return null;
 }
-function kalSetToken(token,expiresIn){
+function gcalSetToken(token,expiresIn){
   try{
-    sessionStorage.setItem('gcal_token',token);
-    sessionStorage.setItem('gcal_expiry',String(Date.now()+(expiresIn-30)*1000));
+    localStorage.setItem('gcal_token',token);
+    localStorage.setItem('gcal_expiry',String(Date.now()+(expiresIn-30)*1000));
   }catch(e){}
 }
-function kalIsConnected(){return!!kalGetToken();}
+function gcalIsConnected(){return!!gcalGetToken();}
 
-function kalConnect(){
+function gcalConnect(){
   const state=Math.random().toString(36).slice(2);
   sessionStorage.setItem('gcal_state',state);
   const params=new URLSearchParams({
@@ -2665,7 +2665,7 @@ function kalConnect(){
   location.href='https://accounts.google.com/o/oauth2/v2/auth?'+params;
 }
 
-function kalHandleRedirect(){
+function gcalHandleRedirect(){
   const hash=location.hash.slice(1);
   if(!hash.includes('access_token'))return;
   const params=new URLSearchParams(hash);
@@ -2673,16 +2673,16 @@ function kalHandleRedirect(){
   const expiresIn=parseInt(params.get('expires_in')||'3600');
   const state=params.get('state');
   if(token&&state===sessionStorage.getItem('gcal_state')){
-    kalSetToken(token,expiresIn);
+    gcalSetToken(token,expiresIn);
     history.replaceState(null,'',location.pathname);
-    kalUpdateUI();
+    gcalUpdateUI();
   }
 }
 
-function kalUpdateUI(){
+function gcalUpdateUI(){
   const btn=document.getElementById('gcal-connect-btn');
   if(!btn)return;
-  if(kalIsConnected()){
+  if(gcalIsConnected()){
     btn.textContent='✓ Google verbunden';
     btn.className='gcal-btn connected';
   } else {
@@ -2691,14 +2691,14 @@ function kalUpdateUI(){
   }
 }
 
-function kalFmtDate(d){
+function gcalFmtDate(d){
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
 
-async function syncKalender(){
+async function gcalSyncAll(){
   if(typeof S==='undefined'||!S||!S.athleten){alert('Bitte warte bis die App geladen ist.');return;}
-  const token=kalGetToken();
-  if(!token){kalConnect();return;}
+  const token=gcalGetToken();
+  if(!token){gcalConnect();return;}
   const _nKW=KWN===maxKW(YRN)?1:KWN+1,_nYR=KWN===maxKW(YRN)?YRN+1:YRN;
   const _n2KW=_nKW===maxKW(_nYR)?1:_nKW+1,_n2YR=_nKW===maxKW(_nYR)?_nYR+1:_nYR;
   const weeks=[
@@ -2710,8 +2710,8 @@ async function syncKalender(){
   for(const{kw,yr}of weeks){
     const mon=kwToDate(kw,yr);
     const sun=new Date(mon);sun.setDate(mon.getDate()+6);
-    const startDate=kalFmtDate(mon);
-    const endDate=kalFmtDate(new Date(sun.getTime()+86400000));
+    const startDate=gcalFmtDate(mon);
+    const endDate=gcalFmtDate(new Date(sun.getTime()+86400000));
     // One event per athlete
     for(const a of sortA()){
       const key=kwKeyStr(kw,yr);
@@ -2720,20 +2720,20 @@ async function syncKalender(){
       const isUrlaub=isInPeriod(kw,yr,a.urlaub);
       const isTl=isInPeriod(kw,yr,a.tl);
       const parts=[];
-      if(notiz)parts.push(notiz);
+      if(notiz)parts.push(notiz.split('\n')[0]);
       if(isUrlaub)parts.push('Urlaub');
       if(isTl)parts.push('TL');
       if(!parts.length)continue;
-      const summary=a.name+' KW'+kw+': '+parts.join(', ');
+      const summary=a.name.split(' ')[0]+' '+a.name.split(' ')[1][0]+'. KW'+kw+': '+parts.join(', ');
       const stableId='ht-'+a.id+'-'+startDate.replace(/-/g,'')+'@herzogtraining';
-      await upsertKalEvent(token,stableId,summary,startDate,endDate);
+      await gcalUpsertEvent(token,stableId,summary,startDate,endDate);
       synced++;
     }
   }
-  kalShowStatus(synced>0?'✓ Kalender aktualisiert':'Keine Notizen');
+  gcalShowStatus(synced>0?'✓ Kalender aktualisiert':'Keine Notizen');
 }
 
-async function upsertKalEvent(token,stableId,summary,startDate,endDate){
+async function gcalUpsertEvent(token,stableId,summary,startDate,endDate){
   const h={'Authorization':'Bearer '+token,'Content-Type':'application/json'};
   const calId=encodeURIComponent(GCAL_CALENDAR_ID);
   try{
@@ -2749,7 +2749,7 @@ async function upsertKalEvent(token,stableId,summary,startDate,endDate){
   }catch(e){console.error('gcal',e);}
 }
 
-function kalShowStatus(msg){
+function gcalShowStatus(msg){
   const el=document.getElementById('gcal-status');
   if(!el)return;
   el.textContent=msg;el.style.opacity='1';
@@ -2758,8 +2758,8 @@ function kalShowStatus(msg){
 
 // Handle redirect on page load
 window.addEventListener('load',()=>{
-  kalHandleRedirect();
-  setTimeout(kalUpdateUI,200);
+  gcalHandleRedirect();
+  setTimeout(gcalUpdateUI,200);
 });
 
 function autoResize(ta){
