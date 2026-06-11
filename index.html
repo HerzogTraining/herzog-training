@@ -2919,7 +2919,9 @@ async function gcalSyncAll(){
       const u=k.urlaub[i];
       if(!u.vonDat||!u.bisDat)continue;
       const von=u.vonDat;
-      const bisNext=gcalFmtDate(new Date(new Date(u.bisDat).getTime()+86400000));
+      const bisParts=u.bisDat.split('-');
+      const bisDate=new Date(+bisParts[0],+bisParts[1]-1,+bisParts[2]+1);
+      const bisNext=gcalFmtDate(bisDate);
       const summary='🏖 '+nameShort+' PT-Ferien';
       const stableId='ht-pt-'+k.id+'-ferien-'+i+'@herzogtraining';
       await gcalUpsertEvent(token,stableId,summary,von,bisNext);
