@@ -2676,8 +2676,7 @@ function gcalHandleRedirect(){
     gcalSetToken(token,expiresIn);
     history.replaceState(null,'',location.pathname);
     gcalUpdateUI();
-    const _waitS=()=>{if(typeof S!=='undefined'&&S&&S.athleten)gcalSyncAll();else setTimeout(_waitS,300);};
-    setTimeout(_waitS,500);
+    gcalSyncAll();
   }
 }
 
@@ -2698,6 +2697,7 @@ function gcalFmtDate(d){
 }
 
 async function gcalSyncAll(){
+  if(typeof S==='undefined'||!S||!S.athleten){gcalShowStatus('App noch nicht geladen');return;}
   const token=gcalGetToken();
   if(!token){gcalConnect();return;}
   const _nKW=KWN===maxKW(YRN)?1:KWN+1,_nYR=KWN===maxKW(YRN)?YRN+1:YRN;
