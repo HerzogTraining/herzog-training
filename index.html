@@ -2676,7 +2676,9 @@ function gcalHandleRedirect(){
     gcalSetToken(token,expiresIn);
     history.replaceState(null,'',location.pathname);
     gcalUpdateUI();
-    gcalSyncAll();
+    // Wait for S to be initialized before syncing
+    const waitAndSync=()=>{if(typeof S!=='undefined'&&S.athleten)gcalSyncAll();else setTimeout(waitAndSync,200);};
+    setTimeout(waitAndSync,500);
   }
 }
 
@@ -2846,23 +2848,6 @@ async function init(){
   rUebersicht();
 }
 init();
-
-// HOTFIX: Override old cached gcalUpsertEvent
-gcalUpsertEvent = async function(token,stableId,summary,startDate,endDate){
-  const h={'Authorization':'Bearer '+token,'Content-Type':'application/json'};
-  const calId=encodeURIComponent(GCAL_CALENDAR_ID);
-  try{
-    const res=await fetch('https://www.googleapis.com/calendar/v3/calendars/'+calId+'/events?timeMin='+startDate+'T00:00:00Z&timeMax='+endDate+'T23:59:59Z&singleEvents=true&maxResults=250',{headers:h});
-    const data=await res.json();
-    const ex=data.items&&data.items.find(e=>e.description&&e.description===stableId);
-    const body=JSON.stringify({summary,description:stableId,start:{date:startDate},end:{date:endDate}});
-    if(ex){
-      await fetch('https://www.googleapis.com/calendar/v3/calendars/'+calId+'/events/'+ex.id,{method:'PUT',headers:h,body});
-    }else{
-      await fetch('https://www.googleapis.com/calendar/v3/calendars/'+calId+'/events',{method:'POST',headers:h,body});
-    }
-  }catch(e){console.error('gcal',e);}
-};
 </script>
 </body>
 </html>
