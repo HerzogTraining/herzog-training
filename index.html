@@ -2776,7 +2776,7 @@ function saveEinheit(aid,i,val){
     document.body.appendChild(div);
     _acDrop=div;
   }
-  function isPlanTA(el){return el.tagName==='TEXTAREA'&&/^plan[23]?-/.test(el.id);}
+  function isPlanTA(el){return el.tagName==='TEXTAREA'&&(/^plan[23]?-/.test(el.id)||/^pt[12]-/.test(el.id));}
   document.addEventListener('input',e=>{
     if(!isPlanTA(e.target))return;
     const wi=curWord(e.target);
