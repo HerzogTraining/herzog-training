@@ -2637,16 +2637,16 @@ const GCAL_SCOPE='https://www.googleapis.com/auth/calendar.events';
 
 function gcalGetToken(){
   try{
-    const t=localStorage.getItem('gcal_token');
-    const e=parseInt(localStorage.getItem('gcal_expiry')||'0');
+    const t=sessionStorage.getItem('gcal_token');
+    const e=parseInt(sessionStorage.getItem('gcal_expiry')||'0');
     if(t&&e>Date.now()+30000)return t;
   }catch(e){}
   return null;
 }
 function gcalSetToken(token,expiresIn){
   try{
-    localStorage.setItem('gcal_token',token);
-    localStorage.setItem('gcal_expiry',String(Date.now()+(expiresIn-30)*1000));
+    sessionStorage.setItem('gcal_token',token);
+    sessionStorage.setItem('gcal_expiry',String(Date.now()+(expiresIn-30)*1000));
   }catch(e){}
 }
 function gcalIsConnected(){return!!gcalGetToken();}
@@ -2741,11 +2741,13 @@ async function gcalUpsertEvent(token,stableId,summary,startDate,endDate){
     const data=await res.json();
     const ex=data.items&&data.items.find(e=>e.description&&e.description===stableId);
     const body=JSON.stringify({summary,description:stableId,start:{date:startDate},end:{date:endDate}});
+    let r2;
     if(ex){
-      await fetch('https://www.googleapis.com/calendar/v3/calendars/'+calId+'/events/'+ex.id,{method:'PUT',headers:h,body});
+      r2=await fetch('https://www.googleapis.com/calendar/v3/calendars/'+calId+'/events/'+ex.id,{method:'PUT',headers:h,body});
     }else{
-      await fetch('https://www.googleapis.com/calendar/v3/calendars/'+calId+'/events',{method:'POST',headers:h,body});
+      r2=await fetch('https://www.googleapis.com/calendar/v3/calendars/'+calId+'/events',{method:'POST',headers:h,body});
     }
+    if(!r2.ok){const t=await r2.text();alert('Google Fehler '+r2.status+': '+t.substring(0,200));return;}
   }catch(e){console.error('gcal',e);}
 }
 
