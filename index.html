@@ -2909,6 +2909,23 @@ async function gcalSyncAll(){
       synced++;
     }
   }
+  // PT-Kunden Ferien
+  for(const k of (S.personal||[])){
+    if(!k.urlaub||!k.urlaub.length)continue;
+    const firstName=k.name.split(' ')[0];
+    const lastName=k.name.split(' ')[1]||'';
+    const nameShort=lastName?firstName+' '+lastName[0]+'.':firstName;
+    for(let i=0;i<k.urlaub.length;i++){
+      const u=k.urlaub[i];
+      if(!u.vonDat||!u.bisDat)continue;
+      const von=u.vonDat;
+      const bisNext=gcalFmtDate(new Date(new Date(u.bisDat).getTime()+86400000));
+      const summary='🏖 '+nameShort+' PT-Ferien';
+      const stableId='ht-pt-'+k.id+'-ferien-'+i+'@herzogtraining';
+      await gcalUpsertEvent(token,stableId,summary,von,bisNext);
+      synced++;
+    }
+  }
   gcalShowStatus(synced>0?'✓ Kalender aktualisiert':'Keine Notizen');
 }
 
