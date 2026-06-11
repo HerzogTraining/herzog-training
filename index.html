@@ -2924,6 +2924,7 @@ async function gcalSyncAll(){
       const bisNext=gcalFmtDate(bisDate);
       const summary='🏖 '+nameShort+' PT-Ferien';
       const stableId='ht-pt-'+k.id+'-ferien-'+i+'@herzogtraining';
+      console.log('PT-Ferien sync:',k.name,'von=',von,'bisNext=',bisNext,'stableId=',stableId);
       await gcalUpsertEvent(token,stableId,summary,von,bisNext);
       synced++;
     }
