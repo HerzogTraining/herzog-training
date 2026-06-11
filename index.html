@@ -2838,54 +2838,69 @@ function rPersonal(){
     const isO=!!_ptOpen[k.id];
     const kwKey=kwKeyStr(vkw,vyr);
     const wo=(k.wochen&&k.wochen[kwKey])||{};
-    let exp='';
+    let inner='';
     if(isO){
       const plan1=wo.plan1||'';
       const plan2=wo.plan2||'';
       const notiz=wo.notiz||'';
-      exp='<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:10px;">'
-        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">'
-        +'<button onclick="navPTWeek(-1)" style="background:none;border:1px solid var(--border2);border-radius:6px;width:34px;height:34px;font-size:18px;cursor:pointer;">‹</button>'
-        +'<span style="font-size:13px;font-weight:700;color:'+(isCurrentWeek?'#E8000F':'var(--text)')+';">KW '+vkw+' / '+vyr+(isCurrentWeek?' · diese Woche':'')+'</span>'
-        +'<button onclick="navPTWeek(1)" '+(isCurrentWeek?'disabled style="opacity:0.3;"':'')+' style="background:none;border:1px solid var(--border2);border-radius:6px;width:34px;height:34px;font-size:18px;cursor:pointer;">›</button>'
-        +'</div>'
-        +'<div style="margin-bottom:10px;">'
-        +'<div style="font-size:10px;font-weight:600;color:#854F0B;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">⚠ Beachten</div>'
-        +'<textarea id="pt-beachten-'+k.id+'" rows="2" style="width:100%;font-size:13px;resize:none;border-radius:6px;border:1px solid #EF9F27;padding:7px 10px;font-family:'DM Sans',sans-serif;background:#FAEEDA;color:#633806;" placeholder="Verletzungen, Ziele, Besonderheiten…" oninput="autoSavePTBeachten('+k.id+')">'+(k.beachten||'')+'</textarea>'
-        +'</div>'
-        +['Training 1','Training 2'].map((lbl,i)=>{
-          const pid='pt'+(i+1);
-          const val=i===0?plan1:plan2;
-          return '<div style="margin-bottom:10px;">'
-            +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">'
-            +'<div style="font-size:10px;font-weight:700;color:#E8000F;text-transform:uppercase;">'+lbl+'</div>'
-            +'<button onclick="showUebungPicker('+k.id+',''+pid+'')" style="font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid #E8000F;background:#FFF5F5;color:#E8000F;cursor:pointer;">+ Übung</button>'
-            +'</div>'
-            +'<textarea id="'+pid+'-'+k.id+'" rows="4" style="width:100%;font-size:13px;resize:none;min-height:70px;border-radius:6px;border:1px solid var(--teal);padding:8px 10px;font-family:'DM Mono',monospace;background:var(--teal-bg);color:var(--text);white-space:pre-wrap;line-height:1.6;" placeholder="'+lbl+'…" oninput="autoResize(this);autoSavePT('+k.id+')">'+val+'</textarea>'
-            +'</div>';
-        }).join('')
-        +'<div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;margin:8px 0 3px;">Notizen</div>'
-        +'<textarea id="pt-notiz-'+k.id+'" rows="3" style="width:100%;font-size:13px;resize:none;border-radius:6px;border:1px solid var(--border2);padding:8px 10px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);" placeholder="Beobachtungen, Feedback…" oninput="autoSavePT('+k.id+')">'+(notiz)+'</textarea>'
-        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;">'
-        +'<span style="font-size:11px;color:var(--muted);">✓ Autosave</span>'
-        +'<button class="savebtn" style="width:auto;padding:8px 20px;" onclick="savePT('+k.id+')">Speichern</button>'
-        +'<div class="savedok" id="pt-sv-'+k.id+'">✓ Gespeichert</div>'
-        +'</div>'
-        +'<div style="margin-top:1rem;text-align:right;">'
-        +'<button onclick="confirmDeletePT('+k.id+')" style="font-size:12px;color:var(--red);background:none;border:none;cursor:pointer;text-decoration:underline;">Kunde löschen</button>'
-        +'</div>'
+      const beachten=k.beachten||'';
+      const navBtn='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">'
+        +'<button onclick="navPTWeek(-1)" style="background:none;border:1px solid #AAAAAA;border-radius:6px;width:34px;height:34px;font-size:18px;cursor:pointer;">&#8249;</button>'
+        +'<span style="font-size:13px;font-weight:700;color:'+(isCurrentWeek?'#E8000F':'#111111')+';">KW '+vkw+' / '+vyr+(isCurrentWeek?' &middot; diese Woche':'')+'</span>'
+        +'<button onclick="navPTWeek(1)" '+(isCurrentWeek?'disabled style="opacity:0.3;"':'')+' style="background:none;border:1px solid #AAAAAA;border-radius:6px;width:34px;height:34px;font-size:18px;cursor:pointer;">&#8250;</button>'
         +'</div>';
+      const beachtenBlock='<div style="margin-bottom:10px;">'
+        +'<div style="font-size:10px;font-weight:600;color:#854F0B;text-transform:uppercase;margin-bottom:3px;">&#9888; Beachten</div>'
+        +'<textarea id="pt-beachten-'+k.id+'" rows="2" style="width:100%;font-size:13px;resize:none;border-radius:6px;border:1px solid #EF9F27;padding:7px 10px;background:#FAEEDA;color:#633806;" placeholder="Verletzungen, Ziele..." oninput="autoSavePTBeachten('+k.id+')">'+beachten+'</textarea>'
+        +'</div>';
+      const t1Block='<div style="margin-bottom:10px;">'
+        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">'
+        +'<div style="font-size:10px;font-weight:700;color:#E8000F;text-transform:uppercase;">Training 1</div>'
+        +'<button onclick="showUebungPicker('+k.id+',\'pt1\')" style="font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid #E8000F;background:#FFF5F5;color:#E8000F;cursor:pointer;">+ &#220;bung</button>'
+        +'</div>'
+        +'<textarea id="pt1-'+k.id+'" rows="4" style="width:100%;font-size:13px;resize:none;min-height:70px;border-radius:6px;border:1px solid #E8000F;padding:8px 10px;background:#FFF0F0;color:#111111;white-space:pre-wrap;line-height:1.6;" placeholder="Training 1..." oninput="autoResize(this);autoSavePT('+k.id+')">'+plan1+'</textarea>'
+        +'</div>';
+      const t2Block='<div style="margin-bottom:10px;">'
+        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">'
+        +'<div style="font-size:10px;font-weight:700;color:#E8000F;text-transform:uppercase;">Training 2</div>'
+        +'<button onclick="showUebungPicker('+k.id+',\'pt2\')" style="font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid #E8000F;background:#FFF5F5;color:#E8000F;cursor:pointer;">+ &#220;bung</button>'
+        +'</div>'
+        +'<textarea id="pt2-'+k.id+'" rows="4" style="width:100%;font-size:13px;resize:none;min-height:70px;border-radius:6px;border:1px solid #E8000F;padding:8px 10px;background:#FFF0F0;color:#111111;white-space:pre-wrap;line-height:1.6;" placeholder="Training 2..." oninput="autoResize(this);autoSavePT('+k.id+')">'+plan2+'</textarea>'
+        +'</div>';
+      const notizBlock='<div style="font-size:11px;font-weight:600;color:#555555;text-transform:uppercase;margin:8px 0 3px;">Notizen</div>'
+        +'<textarea id="pt-notiz-'+k.id+'" rows="3" style="width:100%;font-size:13px;resize:none;border-radius:6px;border:1px solid #AAAAAA;padding:8px 10px;background:#E8E8E8;color:#111111;" placeholder="Beobachtungen, Feedback..." oninput="autoSavePT('+k.id+')">'+notiz+'</textarea>';
+      // Urlaub
+      let urlaubRows='<div style="font-size:12px;color:#555555;margin-bottom:6px;">Keine Ferien eingetragen.</div>';
+      if(k.urlaub&&k.urlaub.length){
+        urlaubRows=k.urlaub.map((u,i)=>'<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #D8D8D8;font-size:12px;">'
+          +'<span style="flex:1;">'+u.vonDat+' &ndash; '+u.bisDat+'</span>'
+          +'<button onclick="event.stopPropagation();delPTUrlaub('+k.id+','+i+')" style="background:none;border:none;font-size:14px;cursor:pointer;color:#888888;">&#215;</button>'
+          +'</div>').join('');
+      }
+      const urlaubBlock='<div style="margin-top:1rem;">'
+        +'<div style="font-size:10px;font-weight:600;color:#0C447C;text-transform:uppercase;margin-bottom:6px;">&#127958; Ferien</div>'
+        +urlaubRows
+        +'<button onclick="event.stopPropagation();showAddPTUrlaub('+k.id+')" style="font-size:12px;padding:4px 10px;border-radius:6px;border:1px solid #0C447C;background:#C8E6FA;color:#0C447C;cursor:pointer;margin-top:4px;">+ Ferien</button>'
+        +'</div>';
+      const saveBlock='<div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;">'
+        +'<span style="font-size:11px;color:#555555;">&#10003; Autosave</span>'
+        +'<button class="savebtn" style="width:auto;padding:8px 20px;" onclick="savePT('+k.id+')">Speichern</button>'
+        +'<div class="savedok" id="pt-sv-'+k.id+'">&#10003; Gespeichert</div>'
+        +'</div>';
+      const delBlock='<div style="margin-top:1rem;text-align:right;">'
+        +'<button onclick="confirmDeletePT('+k.id+')" style="font-size:12px;color:#C0392B;background:none;border:none;cursor:pointer;text-decoration:underline;">Kunde l&ouml;schen</button>'
+        +'</div>';
+      inner='<div style="border-top:1px solid #D8D8D8;margin-top:10px;padding-top:10px;">'+navBtn+beachtenBlock+t1Block+t2Block+notizBlock+urlaubBlock+saveBlock+delBlock+'</div>';
     }
+    const initials=k.name.split(' ').map(x=>x[0]).join('');
+    const beachtenPreview=k.beachten?'<div style="font-size:11px;color:#854F0B;">&#9888; '+k.beachten.split('\n')[0].substring(0,40)+'</div>':'';
     h+='<div style="background:#FFFFFF;border:2px solid '+(isO?'#E8000F':'#D0D0D0')+';border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer;" onclick="togPT('+k.id+')">'
       +'<div style="display:flex;align-items:center;gap:10px;">'
-      +'<div class="avatar" style="width:36px;height:36px;font-size:13px;flex-shrink:0;background:#EAF3DE;color:#3B6D11;">'+k.name.split(' ').map(x=>x[0]).join('')+'</div>'
-      +'<div style="flex:1;"><div style="font-size:14px;font-weight:500;">'+k.name+'</div>'
-      +(k.beachten?'<div style="font-size:11px;color:#854F0B;">⚠ '+k.beachten.split('\n')[0].substring(0,40)+'</div>':'')
+      +'<div class="avatar" style="width:36px;height:36px;font-size:13px;flex-shrink:0;background:#EAF3DE;color:#3B6D11;">'+initials+'</div>'
+      +'<div style="flex:1;"><div style="font-size:14px;font-weight:500;">'+k.name+'</div>'+beachtenPreview+'</div>'
+      +'<span style="font-size:18px;color:#555555;">'+(isO?'&#9650;':'&#9660;')+'</span>'
       +'</div>'
-      +'<span style="font-size:18px;color:var(--muted);">'+(isO?'▲':'▼')+'</span>'
-      +'</div>'
-      +exp
-      +'</div>';
+      +inner+'</div>';
   });
   el.innerHTML=h;
   setTimeout(()=>{document.querySelectorAll('#view-personal textarea').forEach(ta=>autoResize(ta));},0);
@@ -2901,11 +2916,11 @@ function confAddPTKunde(){
   if(!name){alert('Bitte Name eingeben.');return;}
   if(!S.personal)S.personal=[];
   const id=Date.now();
-  S.personal.push({id,name,beachten:'',wochen:{}});
+  S.personal.push({id,name,beachten:'',urlaub:[],wochen:{}});
   save();closeM();rPersonal();
 }
 function confirmDeletePT(id){
-  if(!confirm('Kunde löschen?'))return;
+  if(!confirm('Kunde l\u00f6schen?'))return;
   S.personal=S.personal.filter(k=>k.id!==id);
   save();rPersonal();
 }
@@ -2918,10 +2933,10 @@ function savePT(id){
   const p1=document.getElementById('pt1-'+id);
   const p2=document.getElementById('pt2-'+id);
   const n=document.getElementById('pt-notiz-'+id);
+  const bt=document.getElementById('pt-beachten-'+id);
   if(p1)k.wochen[key].plan1=p1.value;
   if(p2)k.wochen[key].plan2=p2.value;
   if(n)k.wochen[key].notiz=n.value;
-  const bt=document.getElementById('pt-beachten-'+id);
   if(bt)k.beachten=bt.value;
   save();
   const sv=document.getElementById('pt-sv-'+id);
@@ -2940,12 +2955,37 @@ function autoSavePTBeachten(id){
   _ptTimers['b'+id]=setTimeout(()=>save(),1500);
 }
 function navPTWeek(dir){
-  let kw=S.viewKW||KWN, yr=S.viewYR||YRN;
+  let kw=S.viewKW||KWN,yr=S.viewYR||YRN;
   kw+=dir;
   if(kw<1){yr--;kw=weeksInYear(yr);}
   else if(kw>weeksInYear(yr)){yr++;kw=1;}
   S.viewKW=kw;S.viewYR=yr;
   rPersonal();
+}
+function showAddPTUrlaub(id){
+  const now=new Date();
+  const fmt=d=>String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+d.getFullYear();
+  const bis=new Date(now);bis.setDate(bis.getDate()+13);
+  modal('<h3>Ferien hinzuf\u00fcgen</h3>'
+    +'<div class="frow"><label>Von</label><input type="text" id="m-ptvon" placeholder="TT.MM.JJJJ" value="'+fmt(now)+'"></div>'
+    +'<div class="frow"><label>Bis</label><input type="text" id="m-ptbis" placeholder="TT.MM.JJJJ" value="'+fmt(bis)+'"></div>'
+    +'<div class="mbtns"><button onclick="closeM()">Abbrechen</button><button class="primary" onclick="confAddPTUrlaub('+id+')">Speichern</button></div>');
+}
+function confAddPTUrlaub(id){
+  const von=document.getElementById('m-ptvon').value.trim();
+  const bis=document.getElementById('m-ptbis').value.trim();
+  if(!von||!bis)return;
+  const k=S.personal.find(x=>x.id===id);
+  if(!k)return;
+  if(!k.urlaub)k.urlaub=[];
+  k.urlaub.push({vonDat:von,bisDat:bis});
+  save();closeM();rPersonal();
+}
+function delPTUrlaub(id,idx){
+  const k=S.personal.find(x=>x.id===id);
+  if(!k||!k.urlaub)return;
+  k.urlaub.splice(idx,1);
+  save();rPersonal();
 }
 
 // ---- ASYNC INIT ----
