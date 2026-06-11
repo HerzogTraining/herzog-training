@@ -2726,14 +2726,14 @@ async function gcalSyncAll(){
       if(!parts.length)continue;
       const summary=a.name.split(' ')[0]+' '+a.name.split(' ')[1][0]+'. KW'+kw+': '+parts.join(', ');
       const stableId='ht-'+a.id+'-'+startDate.replace(/-/g,'')+'@herzogtraining';
-      await gcalUpsertEvent(token,stableId,summary,startDate,endDate);
+      await gcalUpsert2(token,stableId,summary,startDate,endDate);
       synced++;
     }
   }
   gcalShowStatus(synced>0?'✓ Kalender aktualisiert':'Keine Notizen');
 }
 
-async function gcalUpsertEvent(token,stableId,summary,startDate,endDate){
+async function gcalUpsert2(token,stableId,summary,startDate,endDate){
   const h={'Authorization':'Bearer '+token,'Content-Type':'application/json'};
   const calId=encodeURIComponent(GCAL_CALENDAR_ID);
   try{
