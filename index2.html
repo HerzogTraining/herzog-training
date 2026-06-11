@@ -2851,7 +2851,7 @@ function rPersonal(){
         +'</div>'
         +'<div style="margin-bottom:10px;">'
         +'<div style="font-size:10px;font-weight:600;color:#854F0B;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">⚠ Beachten</div>'
-        +'<textarea id="pt-beachten-'+k.id+'" rows="2" style="width:100%;font-size:13px;resize:none;border-radius:6px;border:1px solid #EF9F27;padding:7px 10px;font-family:'DM Sans',sans-serif;background:#FAEEDA;color:#633806;" placeholder="Verletzungen, Ziele, Besonderheiten…" oninput="autoSavePTBeachten('+k.id+')">'+(k.beachten||'')+'</textarea>'
+        +'<textarea id="pt-beachten-'+k.id+'" rows="2" style="width:100%;font-size:13px;resize:none;border-radius:6px;border:1px solid #EF9F27;padding:7px 10px;font-family:sans-serif;background:#FAEEDA;color:#633806;" placeholder="Verletzungen, Ziele, Besonderheiten…" oninput="autoSavePTBeachten('+k.id+')">'+(k.beachten||'')+'</textarea>'
         +'</div>'
         +['Training 1','Training 2'].map((lbl,i)=>{
           const pid='pt'+(i+1);
@@ -2861,11 +2861,11 @@ function rPersonal(){
             +'<div style="font-size:10px;font-weight:700;color:#E8000F;text-transform:uppercase;">'+lbl+'</div>'
             +'<button onclick="showUebungPicker('+k.id+',''+pid+'')" style="font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid #E8000F;background:#FFF5F5;color:#E8000F;cursor:pointer;">+ Übung</button>'
             +'</div>'
-            +'<textarea id="'+pid+'-'+k.id+'" rows="4" style="width:100%;font-size:13px;resize:none;min-height:70px;border-radius:6px;border:1px solid var(--teal);padding:8px 10px;font-family:'DM Mono',monospace;background:var(--teal-bg);color:var(--text);white-space:pre-wrap;line-height:1.6;" placeholder="'+lbl+'…" oninput="autoResize(this);autoSavePT('+k.id+')">'+val+'</textarea>'
+            +'<textarea id="'+pid+'-'+k.id+'" rows="4" style="width:100%;font-size:13px;resize:none;min-height:70px;border-radius:6px;border:1px solid var(--teal);padding:8px 10px;font-family:monospace;background:var(--teal-bg);color:var(--text);white-space:pre-wrap;line-height:1.6;" placeholder="'+lbl+'…" oninput="autoResize(this);autoSavePT('+k.id+')">'+val+'</textarea>'
             +'</div>';
         }).join('')
         +'<div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;margin:8px 0 3px;">Notizen</div>'
-        +'<textarea id="pt-notiz-'+k.id+'" rows="3" style="width:100%;font-size:13px;resize:none;border-radius:6px;border:1px solid var(--border2);padding:8px 10px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);" placeholder="Beobachtungen, Feedback…" oninput="autoSavePT('+k.id+')">'+(notiz)+'</textarea>'
+        +'<textarea id="pt-notiz-'+k.id+'" rows="3" style="width:100%;font-size:13px;resize:none;border-radius:6px;border:1px solid var(--border2);padding:8px 10px;font-family:sans-serif;background:var(--bg);color:var(--text);" placeholder="Beobachtungen, Feedback…" oninput="autoSavePT('+k.id+')">'+(notiz)+'</textarea>'
         +'<div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;">'
         +'<span style="font-size:11px;color:var(--muted);">✓ Autosave</span>'
         +'<button class="savebtn" style="width:auto;padding:8px 20px;" onclick="savePT('+k.id+')">Speichern</button>'
