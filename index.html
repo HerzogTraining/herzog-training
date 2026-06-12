@@ -1873,7 +1873,7 @@ function rUebersicht(){
             <button onclick="navWeek(-1);_dwOpen[${a.id}]=true;" style="background:none;border:1px solid var(--border2);border-radius:6px;width:34px;height:34px;font-size:18px;cursor:pointer;color:var(--text);">‹</button>
             <div style="text-align:center;">
               <div style="font-size:13px;font-weight:700;color:${vkw===KWN&&vyr===YRN?'#E8000F':'var(--text)'};">KW ${vkw} / ${vyr}${vkw===KWN&&vyr===YRN?' · diese Woche':''}</div>
-              <div style="display:inline-block;margin-top:3px;padding:2px 10px;border-radius:8px;background:${vwP.f};color:${vwP.t};font-size:11px;font-weight:600;">${vwLabel}</div>
+              <div style="display:inline-flex;align-items:center;gap:4px;margin-top:3px;"><span style="display:inline-block;padding:2px 10px;border-radius:8px;background:${vwP.f};color:${vwP.t};font-size:11px;font-weight:600;">${vwLabel}</span><button onclick="event.stopPropagation();editPhase(${a.id})" style="background:none;border:none;cursor:pointer;font-size:13px;padding:1px 3px;opacity:.5;line-height:1;" title="Phase bearbeiten">✏️</button></div>
               ${vwSchwerpunkte?'<div style="font-size:11px;color:var(--muted);margin-top:4px;white-space:pre-wrap;text-align:left;padding:0 4px;">'+vwSchwerpunkte+'</div>':''}
               ${vwWkHtml}
             </div>
@@ -1919,6 +1919,7 @@ function rUebersicht(){
           <div style="font-size:11px;color:var(--muted);">${a.sport}</div>
         </div>
         ${a.verletzt?`<span class="ppill" style="background:#FCEAEA;color:#C0392B;font-size:11px;font-weight:600;">🤕 Verletzt seit KW ${a.verletzt.kw}/${a.verletzt.yr}</span>`:`<span class="ppill" style="background:${p.f};color:${p.t};font-size:11px;">${phase} · ${ins}%</span>`}
+        ${!a.verletzt?`<button onclick="event.stopPropagation();editPhase(${a.id})" style="background:none;border:none;cursor:pointer;font-size:15px;padding:2px 4px;opacity:.6;line-height:1;" title="Phase bearbeiten">✏️</button>`:''}
         <span style="font-size:18px;color:var(--muted);">▲</span>
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">
@@ -2965,6 +2966,62 @@ window.addEventListener('load',()=>{
 function autoResize(ta){
   ta.style.height='auto';
   ta.style.height=(ta.scrollHeight+2)+'px';
+}
+function editPhase(id){
+  const a=S.athleten.find(x=>x.id===id);
+  if(!a)return;
+  const e=getEntry(a.plan,KWN,YRN);
+  if(!e){alert('Kein Planeintrag für diese Woche.');return;}
+  const pOpts=getPhasen().map(n=>`<option value="${n}"${n===e.phase?' selected':''}>${n}</option>`).join('');
+  const kwOpts=(yr,selKw)=>{let o='';for(let k=1;k<=weeksInYear(yr);k++)o+=`<option value="${k}"${k===selKw?' selected':''}>${k}</option>`;return o;};
+  const yrOpts=(selYr)=>{let o='';for(let y=YRN-2;y<=YRN+5;y++)o+=`<option value="${y}"${y===selYr?' selected':''}>${y}</option>`;return o;};
+  modal(`<h3>✏️ Phase bearbeiten — ${a.name}</h3>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:12px;font-weight:600;color:var(--muted);">Phase</label><br>
+      <select id="ep-phase" style="width:100%;padding:7px;border-radius:6px;border:1px solid var(--border2);margin-top:4px;font-size:14px;">${pOpts}</select>
+    </div>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:12px;font-weight:600;color:var(--muted);">Intensität (%)</label><br>
+      <input id="ep-int" type="number" min="0" max="100" value="${e.int}" style="width:100%;padding:7px;border-radius:6px;border:1px solid var(--border2);margin-top:4px;font-size:14px;">
+    </div>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:12px;font-weight:600;color:var(--muted);">Schwerpunkte</label><br>
+      <textarea id="ep-sw" rows="3" style="width:100%;padding:7px;border-radius:6px;border:1px solid var(--border2);margin-top:4px;font-size:13px;resize:none;font-family:'DM Sans',sans-serif;">${e.schwerpunkte||''}</textarea>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--muted);">Von KW / Jahr</label>
+        <div style="display:flex;gap:4px;margin-top:4px;">
+          <select id="ep-vonkw" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border2);font-size:13px;">${kwOpts(e.von.yr,e.von.kw)}</select>
+          <select id="ep-vonyr" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border2);font-size:13px;">${yrOpts(e.von.yr)}</select>
+        </div>
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--muted);">Bis KW / Jahr</label>
+        <div style="display:flex;gap:4px;margin-top:4px;">
+          <select id="ep-biskw" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border2);font-size:13px;">${kwOpts(e.bis.yr,e.bis.kw)}</select>
+          <select id="ep-bisyr" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border2);font-size:13px;">${yrOpts(e.bis.yr)}</select>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button onclick="closeM()" style="padding:8px 16px;border-radius:6px;border:1px solid var(--border2);background:none;cursor:pointer;">Abbrechen</button>
+      <button onclick="saveEditPhase(${id})" style="padding:8px 20px;border-radius:6px;background:#E8000F;color:#fff;border:none;font-weight:600;cursor:pointer;">Speichern</button>
+    </div>`);
+}
+function saveEditPhase(id){
+  const a=S.athleten.find(x=>x.id===id);
+  if(!a)return;
+  const e=getEntry(a.plan,KWN,YRN);
+  if(!e)return;
+  e.phase=document.getElementById('ep-phase').value;
+  e.int=parseInt(document.getElementById('ep-int').value)||0;
+  e.schwerpunkte=document.getElementById('ep-sw').value.trim()||undefined;
+  e.von={kw:parseInt(document.getElementById('ep-vonkw').value),yr:parseInt(document.getElementById('ep-vonyr').value)};
+  e.bis={kw:parseInt(document.getElementById('ep-biskw').value),yr:parseInt(document.getElementById('ep-bisyr').value)};
+  closeM();
+  saveData();
+  rUebersicht();
 }
 function saveN(id){
   const a=S.athleten.find(x=>x.id===id);
