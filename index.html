@@ -2970,10 +2970,11 @@ function autoResize(ta){
 function editPhase(id){
   const a=S.athleten.find(x=>x.id===id);
   if(!a)return;
-  let e=getEntry(a.plan,KWN,YRN);
+  const vkw=S.viewKW||KWN, vyr=S.viewYR||YRN;
+  let e=getEntry(a.plan,vkw,vyr);
   let isNew=false;
   if(!e){
-    e={phase:getPhasen()[0],int:75,von:{kw:KWN,yr:YRN},bis:{kw:KWN,yr:YRN}};
+    e={phase:getPhasen()[0],int:75,von:{kw:vkw,yr:vyr},bis:{kw:vkw,yr:vyr}};
     isNew=true;
   }
   const pOpts=getPhasen().map(n=>`<option value="${n}"${n===e.phase?' selected':''}>${n}</option>`).join('');
@@ -3016,7 +3017,8 @@ function editPhase(id){
 function saveEditPhase(id){
   const a=S.athleten.find(x=>x.id===id);
   if(!a)return;
-  let e=getEntry(a.plan,KWN,YRN);
+  const vkw=S.viewKW||KWN, vyr=S.viewYR||YRN;
+  let e=getEntry(a.plan,vkw,vyr);
   const creating=!e;
   if(creating)e={};
   e.phase=document.getElementById('ep-phase').value;
