@@ -2970,8 +2970,12 @@ function autoResize(ta){
 function editPhase(id){
   const a=S.athleten.find(x=>x.id===id);
   if(!a)return;
-  const e=getEntry(a.plan,KWN,YRN);
-  if(!e){alert('Kein Planeintrag für diese Woche.');return;}
+  let e=getEntry(a.plan,KWN,YRN);
+  let isNew=false;
+  if(!e){
+    e={phase:getPhasen()[0],int:75,von:{kw:KWN,yr:YRN},bis:{kw:KWN,yr:YRN}};
+    isNew=true;
+  }
   const pOpts=getPhasen().map(n=>`<option value="${n}"${n===e.phase?' selected':''}>${n}</option>`).join('');
   const kwOpts=(yr,selKw)=>{let o='';for(let k=1;k<=weeksInYear(yr);k++)o+=`<option value="${k}"${k===selKw?' selected':''}>${k}</option>`;return o;};
   const yrOpts=(selYr)=>{let o='';for(let y=YRN-2;y<=YRN+5;y++)o+=`<option value="${y}"${y===selYr?' selected':''}>${y}</option>`;return o;};
@@ -3012,13 +3016,16 @@ function editPhase(id){
 function saveEditPhase(id){
   const a=S.athleten.find(x=>x.id===id);
   if(!a)return;
-  const e=getEntry(a.plan,KWN,YRN);
-  if(!e)return;
+  let e=getEntry(a.plan,KWN,YRN);
+  const creating=!e;
+  if(creating)e={};
   e.phase=document.getElementById('ep-phase').value;
   e.int=parseInt(document.getElementById('ep-int').value)||0;
-  e.schwerpunkte=document.getElementById('ep-sw').value.trim()||undefined;
+  const sw=document.getElementById('ep-sw').value.trim();
+  if(sw)e.schwerpunkte=sw; else delete e.schwerpunkte;
   e.von={kw:parseInt(document.getElementById('ep-vonkw').value),yr:parseInt(document.getElementById('ep-vonyr').value)};
   e.bis={kw:parseInt(document.getElementById('ep-biskw').value),yr:parseInt(document.getElementById('ep-bisyr').value)};
+  if(creating)a.plan.push(e);
   closeM();
   saveData();
   rUebersicht();
