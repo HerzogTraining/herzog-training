@@ -2910,9 +2910,6 @@ async function gcalSyncAll(){
     }
   }
   // PT-Kunden Ferien
-  const token2=gcalGetToken();
-  const calId2=encodeURIComponent(GCAL_CALENDAR_ID);
-  const hdr={'Authorization':'Bearer '+token2,'Content-Type':'application/json'};
   for(const k of (S.personal||[])){
     if(!k.urlaub||!k.urlaub.length)continue;
     const firstName=k.name.split(' ')[0];
@@ -2928,14 +2925,9 @@ async function gcalSyncAll(){
       const bisNext=new Date(bisD);bisNext.setDate(bisNext.getDate()+1);
       const endDate=gcalFmtDate(bisNext);
       const summary='🏖 '+nameShort+' PT-Ferien';
-      console.log('PT sync:',summary,'start='+startDate,'end='+endDate);
-      try{
-        await fetch('https://www.googleapis.com/calendar/v3/calendars/'+calId2+'/events',{
-          method:'POST',headers:hdr,
-          body:JSON.stringify({summary:summary,start:{date:startDate},end:{date:endDate}})
-        });
-        synced++;
-      }catch(e){console.error('PT-Ferien gcal error',e);}
+      const stableId='ht-pt-'+k.id+'-ferien-'+i;
+      await gcalUpsertEvent(token,stableId,summary,startDate,endDate);
+      synced++;
     }
   }
   gcalShowStatus(synced>0?'✓ Kalender aktualisiert':'Keine Notizen');
