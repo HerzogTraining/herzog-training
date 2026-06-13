@@ -3025,11 +3025,16 @@ function saveEditPhase(id){
   e.int=parseInt(document.getElementById('ep-int').value)||0;
   const sw=document.getElementById('ep-sw').value.trim();
   if(sw)e.schwerpunkte=sw; else delete e.schwerpunkte;
-  if(creating){
-    e.von={kw:parseInt(document.getElementById('ep-vonkw').value),yr:parseInt(document.getElementById('ep-vonyr').value)};
-    e.bis={kw:parseInt(document.getElementById('ep-biskw').value),yr:parseInt(document.getElementById('ep-bisyr').value)};
-    a.plan.push(e);
+  const vonKw=parseInt(document.getElementById('ep-vonkw').value);
+  const vonYr=parseInt(document.getElementById('ep-vonyr').value);
+  const bisKw=parseInt(document.getElementById('ep-biskw').value);
+  const bisYr=parseInt(document.getElementById('ep-bisyr').value);
+  if(vonKw&&vonYr&&bisKw&&bisYr){
+    e.von={kw:vonKw,yr:vonYr};
+    e.bis={kw:bisKw,yr:bisYr};
   }
+  if(creating)a.plan.push(e);
+  console.log('saveEditPhase:',JSON.stringify(e));
   closeM();
   save();
   rUebersicht();
