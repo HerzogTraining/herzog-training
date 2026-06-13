@@ -3025,10 +3025,14 @@ function saveEditPhase(id){
   };
   const sw=document.getElementById('ep-sw').value.trim();
   if(sw)entry.schwerpunkte=sw;
+  console.log('BEFORE filter, plan:', JSON.stringify(a.plan));
+  console.log('NEW entry:', JSON.stringify(entry));
   a.plan=a.plan.filter(p=>!(toAbs(p.von.kw,p.von.yr)>=toAbs(entry.von.kw,entry.von.yr)&&toAbs(p.bis.kw,p.bis.yr)<=toAbs(entry.bis.kw,entry.bis.yr)));
   a.plan.push(entry);
+  console.log('AFTER push, plan:', JSON.stringify(a.plan));
   closeM();
   saveState().then(()=>{
+    console.log('SAVED to Supabase');
     rUebersicht();
   });
 }
