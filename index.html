@@ -3025,6 +3025,7 @@ function saveEditPhase(id){
   };
   const sw=document.getElementById('ep-sw').value.trim();
   if(sw)entry.schwerpunkte=sw;
+  a.plan=a.plan.filter(p=>!(toAbs(p.von.kw,p.von.yr)>=toAbs(entry.von.kw,entry.von.yr)&&toAbs(p.bis.kw,p.bis.yr)<=toAbs(entry.bis.kw,entry.bis.yr)));
   a.plan.push(entry);
   closeM();
   saveState().then(()=>{
