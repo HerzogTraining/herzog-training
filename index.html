@@ -3025,9 +3025,11 @@ function saveEditPhase(id){
   e.int=parseInt(document.getElementById('ep-int').value)||0;
   const sw=document.getElementById('ep-sw').value.trim();
   if(sw)e.schwerpunkte=sw; else delete e.schwerpunkte;
-  e.von={kw:parseInt(document.getElementById('ep-vonkw').value),yr:parseInt(document.getElementById('ep-vonyr').value)};
-  e.bis={kw:parseInt(document.getElementById('ep-biskw').value),yr:parseInt(document.getElementById('ep-bisyr').value)};
-  if(creating)a.plan.push(e);
+  if(creating){
+    e.von={kw:parseInt(document.getElementById('ep-vonkw').value),yr:parseInt(document.getElementById('ep-vonyr').value)};
+    e.bis={kw:parseInt(document.getElementById('ep-biskw').value),yr:parseInt(document.getElementById('ep-bisyr').value)};
+    a.plan.push(e);
+  }
   closeM();
   save();
   rUebersicht();
