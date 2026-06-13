@@ -303,6 +303,7 @@ function kwOfDate(d){
 }
 function maxKW(yr){const r=kwOfDate(new Date(yr,11,31));return r.yr===yr?r.kw:kwOfDate(new Date(yr,11,24)).kw;}
 function toAbs(kw,yr){return yr*100+kw;}
+function absToKwYr(abs){return{yr:Math.floor(abs/100),kw:abs%100};}
 function nextSlot(kw,yr){const m=maxKW(yr);return kw<m?{kw:kw+1,yr}:{kw:1,yr:yr+1};}
 const now=new Date();
 const{kw:KWN,yr:YRN}=kwOfDate(now);
@@ -3028,11 +3029,35 @@ function saveEditPhase(id){
   console.log('BEFORE filter, plan:', JSON.stringify(a.plan));
   console.log('NEW entry:', JSON.stringify(entry));
   a.plan=a.plan.filter(p=>!(toAbs(p.von.kw,p.von.yr)>=toAbs(entry.von.kw,entry.von.yr)&&toAbs(p.bis.kw,p.bis.yr)<=toAbs(entry.bis.kw,entry.bis.yr)));
+  // Überlappende Einträge kürzen
+  a.plan.forEach(p=>{
+    const pVon=toAbs(p.von.kw,p.von.yr), pBis=toAbs(p.bis.kw,p.bis.yr);
+    const eVon=toAbs(entry.von.kw,entry.von.yr), eBis=toAbs(entry.bis.kw,entry.bis.yr);
+    if(pVon<eVon&&pBis>=eVon&&pBis<=eBis){
+      // Phase endet innerhalb des neuen Eintrags -> Bis kürzen
+      const newBisAbs=eVon-1;
+      const newBisDate=absToKwYr(newBisAbs);
+      p.bis={kw:newBisDate.kw,yr:newBisDate.yr};
+    } else if(pVon>=eVon&&pVon<=eBis&&pBis>eBis){
+      // Phase beginnt innerhalb des neuen Eintrags -> Von kürzen
+      const newVonAbs=eBis+1;
+      const newVonDate=absToKwYr(newVonAbs);
+      p.von={kw:newVonDate.kw,yr:newVonDate.yr};
+    } else if(pVon<eVon&&pBis>eBis){
+      // Phase umschliesst neuen Eintrag -> aufteilen
+      const newBisAbs=eVon-1;
+      const newBisDate=absToKwYr(newBisAbs);
+      const newVonAbs=eBis+1;
+      const newVonDate=absToKwYr(newVonAbs);
+      const tail={...p,von:{kw:newVonDate.kw,yr:newVonDate.yr}};
+      p.bis={kw:newBisDate.kw,yr:newBisDate.yr};
+      a.plan.push(tail);
+    }
+  });
+  a.plan=a.plan.filter(p=>toAbs(p.von.kw,p.von.yr)<=toAbs(p.bis.kw,p.bis.yr));
   a.plan.push(entry);
-  console.log('AFTER push, plan:', JSON.stringify(a.plan));
   closeM();
   saveState().then(()=>{
-    console.log('SAVED to Supabase');
     rUebersicht();
   });
 }
