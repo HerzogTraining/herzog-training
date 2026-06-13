@@ -2971,41 +2971,35 @@ function editPhase(id){
   const a=S.athleten.find(x=>x.id===id);
   if(!a)return;
   const vkw=S.viewKW||KWN, vyr=S.viewYR||YRN;
-  let e=getEntry(a.plan,vkw,vyr);
-  let isNew=false;
-  if(!e){
-    e={phase:getPhasen()[0],int:75,von:{kw:vkw,yr:vyr},bis:{kw:vkw,yr:vyr}};
-    isNew=true;
-  }
-  const pOpts=getPhasen().map(n=>`<option value="${n}"${n===e.phase?' selected':''}>${n}</option>`).join('');
-  const kwOpts=(yr,selKw)=>{let o='';for(let k=1;k<=weeksInYear(yr);k++)o+=`<option value="${k}"${k===selKw?' selected':''}>${k}</option>`;return o;};
-  const yrOpts=(selYr)=>{let o='';for(let y=YRN-2;y<=YRN+5;y++)o+=`<option value="${y}"${y===selYr?' selected':''}>${y}</option>`;return o;};
-  modal(`<h3>✏️ Phase bearbeiten — ${a.name}</h3>
+  const pOpts=getPhasen().map(n=>`<option value="${n}">${n}</option>`).join('');
+  const kwOpts=(selKw,selYr)=>{let o='';for(let k=1;k<=weeksInYear(selYr);k++)o+=`<option value="${k}"${k===selKw?' selected':''}>${k}</option>`;return o;};
+  const yrOpts=(selYr)=>{let o='';for(let y=YRN-1;y<=YRN+5;y++)o+=`<option value="${y}"${y===selYr?' selected':''}>${y}</option>`;return o;};
+  modal(`<h3>✏️ Neue Phase — ${a.name}</h3>
     <div style="margin-bottom:12px;">
       <label style="font-size:12px;font-weight:600;color:var(--muted);">Phase</label><br>
       <select id="ep-phase" style="width:100%;padding:7px;border-radius:6px;border:1px solid var(--border2);margin-top:4px;font-size:14px;">${pOpts}</select>
     </div>
     <div style="margin-bottom:12px;">
       <label style="font-size:12px;font-weight:600;color:var(--muted);">Intensität (%)</label><br>
-      <input id="ep-int" type="number" min="0" max="100" value="${e.int}" style="width:100%;padding:7px;border-radius:6px;border:1px solid var(--border2);margin-top:4px;font-size:14px;">
+      <input id="ep-int" type="number" min="0" max="100" value="75" style="width:100%;padding:7px;border-radius:6px;border:1px solid var(--border2);margin-top:4px;font-size:14px;">
     </div>
     <div style="margin-bottom:12px;">
       <label style="font-size:12px;font-weight:600;color:var(--muted);">Schwerpunkte</label><br>
-      <textarea id="ep-sw" rows="3" style="width:100%;padding:7px;border-radius:6px;border:1px solid var(--border2);margin-top:4px;font-size:13px;resize:none;font-family:'DM Sans',sans-serif;">${e.schwerpunkte||''}</textarea>
+      <textarea id="ep-sw" rows="2" style="width:100%;padding:7px;border-radius:6px;border:1px solid var(--border2);margin-top:4px;font-size:13px;resize:none;font-family:'DM Sans',sans-serif;"></textarea>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
       <div>
         <label style="font-size:12px;font-weight:600;color:var(--muted);">Von KW / Jahr</label>
         <div style="display:flex;gap:4px;margin-top:4px;">
-          <select id="ep-vonkw" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border2);font-size:13px;">${kwOpts(e.von.yr,e.von.kw)}</select>
-          <select id="ep-vonyr" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border2);font-size:13px;">${yrOpts(e.von.yr)}</select>
+          <select id="ep-vonkw" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border2);font-size:13px;">${kwOpts(vkw,vyr)}</select>
+          <select id="ep-vonyr" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border2);font-size:13px;">${yrOpts(vyr)}</select>
         </div>
       </div>
       <div>
         <label style="font-size:12px;font-weight:600;color:var(--muted);">Bis KW / Jahr</label>
         <div style="display:flex;gap:4px;margin-top:4px;">
-          <select id="ep-biskw" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border2);font-size:13px;">${kwOpts(e.bis.yr,e.bis.kw)}</select>
-          <select id="ep-bisyr" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border2);font-size:13px;">${yrOpts(e.bis.yr)}</select>
+          <select id="ep-biskw" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border2);font-size:13px;">${kwOpts(vkw,vyr)}</select>
+          <select id="ep-bisyr" style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border2);font-size:13px;">${yrOpts(vyr)}</select>
         </div>
       </div>
     </div>
@@ -3017,28 +3011,27 @@ function editPhase(id){
 function saveEditPhase(id){
   const a=S.athleten.find(x=>x.id===id);
   if(!a)return;
-  const vkw=S.viewKW||KWN, vyr=S.viewYR||YRN;
-  let e=getEntry(a.plan,vkw,vyr);
-  const creating=!e;
-  if(creating)e={};
-  e.phase=document.getElementById('ep-phase').value;
-  e.int=parseInt(document.getElementById('ep-int').value)||0;
-  const sw=document.getElementById('ep-sw').value.trim();
-  if(sw)e.schwerpunkte=sw; else delete e.schwerpunkte;
   const vonKw=parseInt(document.getElementById('ep-vonkw').value);
   const vonYr=parseInt(document.getElementById('ep-vonyr').value);
   const bisKw=parseInt(document.getElementById('ep-biskw').value);
   const bisYr=parseInt(document.getElementById('ep-bisyr').value);
-  if(vonKw&&vonYr&&bisKw&&bisYr){
-    e.von={kw:vonKw,yr:vonYr};
-    e.bis={kw:bisKw,yr:bisYr};
-  }
-  if(creating)a.plan.push(e);
-  console.log('saveEditPhase:',JSON.stringify(e));
+  if(!vonKw||!vonYr||!bisKw||!bisYr){alert('Bitte Von/Bis ausfüllen.');return;}
+  if(toAbs(vonKw,vonYr)>toAbs(bisKw,bisYr)){alert('Von muss vor Bis liegen.');return;}
+  const entry={
+    phase:document.getElementById('ep-phase').value,
+    int:parseInt(document.getElementById('ep-int').value)||0,
+    von:{kw:vonKw,yr:vonYr},
+    bis:{kw:bisKw,yr:bisYr}
+  };
+  const sw=document.getElementById('ep-sw').value.trim();
+  if(sw)entry.schwerpunkte=sw;
+  a.plan.push(entry);
   closeM();
-  save();
-  rUebersicht();
+  saveState().then(()=>{
+    rUebersicht();
+  });
 }
+
 function saveN(id){
   const a=S.athleten.find(x=>x.id===id);
   if(a){
