@@ -641,6 +641,7 @@ function showBarPopup(txt,el){
 function barTap(e,el){
   e.stopPropagation();
   const pt=el.dataset.pt;
+  console.log('barTap pt=',pt,'kw=',el.dataset.kw,'yr=',el.dataset.yr,'aid=',el.dataset.aid);
   if(pt==='tl'||pt==='urlaub'){
     const aid=parseInt(el.dataset.aid);
     const kw=parseInt(el.dataset.kw);
