@@ -2954,15 +2954,48 @@ async function gcalSyncAll(){
       const notiz=wo&&wo.uNotiz&&wo.uNotiz.trim();
       const isUrlaub=isInPeriod(kw,yr,a.urlaub);
       const isTl=isInPeriod(kw,yr,a.tl);
+      // Für Urlaub/TL: genaue Tage der Woche berechnen
+      const perDaysRange=(periods)=>{
+        const found=(periods||[]).find(p=>isInPeriod(kw,yr,[p]));
+        if(!found)return{start:startDate,end:endDate};
+        const von=found.vonDat?parseDate(found.vonDat):(found.vonKW?kwToDate(found.vonKW,found.vonYr):null);
+        const bisRaw=found.bisDat?parseDate(found.bisDat):(found.bisKW?new Date(kwToDate(found.bisKW,found.bisYr).getTime()+6*86400000):null);
+        if(!von||!bisRaw)return{start:startDate,end:endDate};
+        const evStart=von>mon?von:mon;
+        const evEnd=bisRaw<sun?bisRaw:sun;
+        const evEndNext=new Date(evEnd.getTime()+86400000);
+        return{start:gcalFmtDate(evStart),end:gcalFmtDate(evEndNext)};
+      };
       const parts=[];
       if(notiz)parts.push(notiz.split('\n')[0]);
-      if(isUrlaub)parts.push('Urlaub');
-      if(isTl)parts.push('TL');
-      if(!parts.length)continue;
-      const summary=a.name.split(' ')[0]+' '+a.name.split(' ')[1][0]+'. KW'+kw+': '+parts.join(', ');
-      const stableId='ht-'+a.id+'-'+startDate.replace(/-/g,'')+'@herzogtraining';
-      await gcalUpsertEvent(token,stableId,summary,startDate,endDate);
-      synced++;
+      if(!isUrlaub&&!isTl){
+        if(!parts.length)continue;
+        const summary=a.name.split(' ')[0]+' '+a.name.split(' ')[1][0]+'. KW'+kw+': '+parts.join(', ');
+        const stableId='ht-'+a.id+'-'+startDate.replace(/-/g,'')+'@herzogtraining';
+        await gcalUpsertEvent(token,stableId,summary,startDate,endDate);
+        synced++;
+      } else {
+        if(notiz){
+          const summary=a.name.split(' ')[0]+' '+a.name.split(' ')[1][0]+'. KW'+kw+': '+parts.join(', ');
+          const stableId='ht-'+a.id+'-'+startDate.replace(/-/g,'')+'@herzogtraining';
+          await gcalUpsertEvent(token,stableId,summary,startDate,endDate);
+          synced++;
+        }
+        if(isUrlaub){
+          const{start:uStart,end:uEnd}=perDaysRange(a.urlaub);
+          const uSummary=a.name.split(' ')[0]+' '+a.name.split(' ')[1][0]+'. 🏖 Urlaub';
+          const uId='ht-urlaub-'+a.id+'-kw'+kw+'-'+yr+'@herzogtraining';
+          await gcalUpsertEvent(token,uId,uSummary,uStart,uEnd);
+          synced++;
+        }
+        if(isTl){
+          const{start:tStart,end:tEnd}=perDaysRange(a.tl);
+          const tSummary=a.name.split(' ')[0]+' '+a.name.split(' ')[1][0]+'. 🏋️ TL';
+          const tId='ht-tl-'+a.id+'-kw'+kw+'-'+yr+'@herzogtraining';
+          await gcalUpsertEvent(token,tId,tSummary,tStart,tEnd);
+          synced++;
+        }
+      }
     }
   }
   // PT-Kunden Ferien
