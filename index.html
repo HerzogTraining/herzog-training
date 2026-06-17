@@ -641,7 +641,6 @@ function showBarPopup(txt,el){
 function barTap(e,el){
   e.stopPropagation();
   const pt=el.dataset.pt;
-  console.log('barTap pt=',pt,'kw=',el.dataset.kw,'yr=',el.dataset.yr,'aid=',el.dataset.aid);
   if(pt==='tl'||pt==='urlaub'){
     const aid=parseInt(el.dataset.aid);
     const kw=parseInt(el.dataset.kw);
@@ -1760,8 +1759,25 @@ function rUebersicht(){
     const rows=[];
     sortA().forEach(a=>{
       const items=[];
-      if(isInPeriod(kw,yr,a.urlaub))items.push('🏖 Urlaub');
-      if(isInPeriod(kw,yr,a.tl))items.push('🏋️ TL');
+      const perDaysStr=(periods,emoji)=>{
+        const mon=kwToDate(kw,yr);
+        const days=['So','Mo','Di','Mi','Do','Fr','Sa'];
+        const found=(periods||[]).find(p=>isInPeriod(kw,yr,[p]));
+        if(!found)return null;
+        const von=found.vonDat?parseDate(found.vonDat):null;
+        const bis=found.bisDat?parseDate(found.bisDat):null;
+        if(!von||!bis)return emoji;
+        const dayParts=[];
+        for(let d=0;d<7;d++){
+          const day=new Date(mon);day.setDate(mon.getDate()+d);
+          if(day>=von&&day<=bis)dayParts.push(days[day.getDay()]+' '+String(day.getDate()).padStart(2,'0')+'.'+String(day.getMonth()+1).padStart(2,'0')+'.');
+        }
+        return dayParts.length?emoji+' '+dayParts.join(', '):emoji;
+      };
+      const urlaubStr=perDaysStr(a.urlaub,'🏖 Urlaub');
+      const tlStr=perDaysStr(a.tl,'🏋️ TL');
+      if(urlaubStr)items.push(urlaubStr);
+      if(tlStr)items.push(tlStr);
       const wKey=kwKeyStr(kw,yr);
       const wo=a.wochen&&a.wochen[wKey];
       if(wo&&wo.uNotiz&&wo.uNotiz.trim())items.push('📝 '+wo.uNotiz.trim());
