@@ -1033,15 +1033,17 @@ function rKatalog(){
   cats.forEach((cat,ci)=>{_katMap['k'+ci]=cat;});
   let h='<button class="addbtn" onclick="showAddKategorie()">+ Neue Kategorie</button>';
   cats.forEach((cat,ci)=>{
-    const ubs=[...(k[cat]||[])].sort((a,b)=>a.localeCompare(b,'de'));
+    const orig=k[cat]||[];
+    const ubs=[...orig].sort((a,b)=>a.localeCompare(b,'de'));
     let rows='';
     ubs.forEach((u,i)=>{
+      const origIdx=orig.indexOf(u);
       const bb=i===ubs.length-1?'border-bottom:none;':'';
       rows+='<div class="kat-row" style="display:flex;align-items:flex-start;gap:8px;padding:8px 12px;border-bottom:1px solid #E8E8E8;'+bb+'">'
         +'<div style="flex:1;font-size:13px;white-space:pre-wrap;">'+u.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</div>'
         +'<div style="display:flex;gap:4px;flex-shrink:0;">'
-        +'<button class="kat-edit" data-ci="'+ci+'" data-i="'+i+'" style="font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;padding:2px 4px;">✎</button>'
-        +'<button class="kat-del" data-ci="'+ci+'" data-i="'+i+'" style="font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;padding:2px 4px;">✕</button>'
+        +'<button class="kat-edit" data-ci="'+ci+'" data-i="'+origIdx+'" style="font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;padding:2px 4px;">✎</button>'
+        +'<button class="kat-del" data-ci="'+ci+'" data-i="'+origIdx+'" style="font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;padding:2px 4px;">✕</button>'
         +'</div></div>';
     });
     h+='<div style="margin-bottom:1.5rem;">'
@@ -1591,7 +1593,10 @@ function rUebersicht(){
             out+=`<div style="margin-bottom:10px;">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">
                 <div style="font-size:10px;font-weight:700;color:#E8000F;text-transform:uppercase;letter-spacing:.07em;">${lbl}</div>
-                <button onclick="showUebungPicker(${a.id},'${planIds[i]}')" style="font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid #E8000F;background:#FFF5F5;color:#E8000F;cursor:pointer;">+ Übung</button>
+                <div style="display:flex;gap:4px;">
+                  <button onclick="showUebungPicker(${a.id},'${planIds[i]}')" style="font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid #E8000F;background:#FFF5F5;color:#E8000F;cursor:pointer;">+ Übung</button>
+                  <button onclick="startVoiceInput(${a.id},'${planIds[i]}')" style="font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid #E8000F;background:#FFF5F5;color:#E8000F;cursor:pointer;" title="Spracheingabe">🎤</button>
+                </div>
               </div>
               <textarea id="${planIds[i]}-${a.id}" rows="4" style="width:100%;font-size:13px;resize:vertical;min-height:70px;border-radius:6px;border:1px solid var(--teal);padding:8px 10px;font-family:'DM Mono',monospace;background:var(--teal-bg);color:var(--text);white-space:pre-wrap;line-height:1.6;" placeholder="${lbl} – Übungen…">${plans[i]}</textarea>
             </div>`;
@@ -3060,6 +3065,87 @@ function saveEditPhase(id){
   saveState().then(()=>{
     rUebersicht();
   });
+}
+
+function startVoiceInput(aid, planField){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){alert('Spracherkennung nicht verfügbar in diesem Browser.');return;}
+  const ta=document.getElementById(planField+'-'+aid);
+  if(!ta)return;
+  const btn=event.target;
+  const origText=btn.textContent;
+  btn.textContent='🔴';
+  btn.disabled=true;
+  const recognition=new SR();
+  recognition.lang='de-CH';
+  recognition.interimResults=false;
+  recognition.maxAlternatives=1;
+  recognition.onresult=async(e)=>{
+    const transcript=e.results[0][0].transcript;
+    btn.textContent='⏳';
+    await voiceToTraining(aid,planField,transcript,btn,origText);
+  };
+  recognition.onerror=(e)=>{
+    btn.textContent=origText;
+    btn.disabled=false;
+    alert('Spracherkennung fehlgeschlagen: '+e.error);
+  };
+  recognition.onend=()=>{
+    if(btn.textContent==='🔴'){
+      btn.textContent=origText;
+      btn.disabled=false;
+    }
+  };
+  recognition.start();
+}
+
+async function voiceToTraining(aid,planField,transcript,btn,origText){
+  // Build katalog list for context
+  const k=getKatalog();
+  let katalogList='';
+  Object.keys(k).forEach(cat=>{
+    if(k[cat]&&k[cat].length){
+      katalogList+=cat+':\n';
+      k[cat].forEach(u=>katalogList+='  - '+u+'\n');
+    }
+  });
+  try{
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-6',
+        max_tokens:500,
+        messages:[{
+          role:'user',
+          content:`Du bist Assistent für einen Schweizer Athletik-Trainer. Der Trainer hat folgendes gesagt (Schweizerdeutsch möglich): "${transcript}"
+
+Hier ist sein Übungskatalog:
+${katalogList}
+
+Extrahiere die Übungen und matche sie so gut wie möglich auf den Katalog. Gib NUR den formatierten Trainingstext zurück, kein JSON, keine Erklärung. Format: eine Übung pro Zeile, z.B.:
+Kniebeugen 4x6 80%
+Kreuzheben 3x4 90%
+Schulterdrücken 3x8
+
+Nutze exakt die Namen aus dem Katalog wenn möglich. Nur die Übungsliste, sonst nichts.`
+        }]
+      })
+    });
+    const data=await resp.json();
+    const result=(data.content&&data.content[0]&&data.content[0].text)||'';
+    const ta=document.getElementById(planField+'-'+aid);
+    if(ta){
+      const existing=ta.value.trim();
+      ta.value=existing?(existing+'\n'+result.trim()):result.trim();
+      autoResize(ta);
+    }
+  }catch(e){
+    alert('Fehler bei der KI-Verarbeitung: '+e.message);
+  }finally{
+    btn.textContent=origText;
+    btn.disabled=false;
+  }
 }
 
 function saveN(id){
