@@ -697,8 +697,8 @@ function buildBar(a,big){
       ?'<div style="position:absolute;bottom:0;left:0;right:0;height:40%;background:'+bottomColor+';opacity:.85;pointer-events:none;"></div>'
       :'');
     const tipSafe=('KW '+s.kw+'/'+s.yr+(e?' · '+e.phase+' · '+e.int+'%':' · Ungeplant')+(e&&e.schwerpunkte?' · '+e.schwerpunkte:'')+(pt?' · '+(pt==='tl'?'TL':'Urlaub'):'')).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/`/g,'&#96;');
-    const touchAttr=big?` ontouchstart="barTap(event,this)" onclick="barTap(event,this)" data-tip="${tipSafe}" data-kw="${s.kw}" data-yr="${s.yr}" data-aid="${aid}" data-pt="${pt||''}"`:'';
-    segs+=`<div class="seg" style="background:${p.f};flex:1;position:relative;${nowStyle}" title="${tipSafe}"${touchAttr}>${innerHtml}</div>`;
+    const touchAttr=big?` data-tip="${tipSafe}" data-kw="${s.kw}" data-yr="${s.yr}" data-aid="${aid}" data-pt="${pt||''}"`:'';
+    segs+=`<div class="seg" style="background:${p.f};flex:1;position:relative;${nowStyle}${big?'cursor:pointer;':''}" title="${tipSafe}"${touchAttr}>${innerHtml}</div>`;
   });
   let yrMark='';
   if(yrIdx>0&&big){
@@ -2999,6 +2999,14 @@ function gcalShowStatus(msg){
 window.addEventListener('load',()=>{
   gcalHandleRedirect();
   setTimeout(gcalUpdateUI,200);
+});
+
+// Delegierter Klick auf Balken-Segmente
+document.addEventListener('click',e=>{
+  const seg=e.target.closest('.seg[data-tip]');
+  if(!seg)return;
+  e.stopPropagation();
+  barTap(e,seg);
 });
 
 function autoResize(ta){
