@@ -1847,10 +1847,7 @@ function rUebersicht(){
         trainingHtml+='<div style="margin-bottom:10px;">'
           +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">'
           +'<div style="font-size:10px;font-weight:700;color:#E8000F;text-transform:uppercase;">'+lbl+'</div>'
-          +'<div style="display:flex;gap:4px;">'
           +'<button onclick="showUebungPicker('+a.id+',\''+planIds[i]+'\')" style="font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid #E8000F;background:#FFF5F5;color:#E8000F;cursor:pointer;">+ Übung</button>'
-          +'<button onclick="startVoiceInput('+a.id+',\''+planIds[i]+'\')" style="font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid #E8000F;background:#FFF5F5;color:#E8000F;cursor:pointer;" title="Spracheingabe">🎤</button>'
-          +'</div>'
           +'</div>'
           +'<textarea id="'+planIds[i]+'-'+a.id+'" rows="4" style="width:100%;font-size:13px;resize:none;min-height:70px;border-radius:6px;border:1px solid var(--teal);padding:8px 10px;font-family:\'DM Mono\',monospace;background:var(--teal-bg);color:var(--text);white-space:pre-wrap;line-height:1.6;" placeholder="'+lbl+'…" oninput="autoResize(this);autoSaveN('+a.id+')">'+plans[i]+'</textarea>'
           +'</div>';
