@@ -3253,17 +3253,17 @@ function printPlan(id){
   const plan2=woche.plan2||'';
   const plan3=woche.plan3||'';
   const ktKeys=[
-    {key:'kniebeugen',label:'Kniebeugen'},
-    {key:'kreuzheben',label:'Kreuzheben'},
-    {key:'bankdruecken',label:'Bankdrücken'},
-    {key:'sprungh',label:'Sprunghöhe'},
-    {key:'bkz',label:'Bodenkontaktzeit'},
-    {key:'klimmzug',label:'Klimmzug'},
-    {key:'klimmzugL',label:'Klimmzug liegend'}
+    {key:'kniebeuge',label:'Kniebeugen',unit:'kg'},
+    {key:'kreuzheben',label:'Kreuzheben',unit:'kg'},
+    {key:'bankdruecken',label:'Bankdrücken',unit:'kg'},
+    {key:'sprunghoehe',label:'Sprunghöhe',unit:'cm'},
+    {key:'bodenkontakt',label:'Bodenkontakt',unit:'ms'},
+    {key:'klimmzuege',label:'Klimmzüge',unit:''},
+    {key:'klimmzuege_lieg',label:'Klimmzüge liegend',unit:''}
   ];
   const rmRows=ktKeys.filter(k=>{const c=getCurrent(a,k.key);return c&&c.val!==null;}).map(k=>{
     const c=getCurrent(a,k.key);
-    return '<tr><td style="padding:5px 10px;color:#666;font-size:12px;">'+k.label+'</td><td style="padding:5px 10px;font-weight:700;font-size:13px;">'+c.val+'</td><td style="padding:5px 10px;color:#888;font-size:11px;">'+(c.dat||'')+'</td></tr>';
+    return '<tr><td style="padding:5px 10px;color:#666;font-size:12px;">'+k.label+'</td><td style="padding:5px 10px;font-weight:700;font-size:13px;">'+c.val+(k.unit?' <span style="font-size:11px;font-weight:400;">'+k.unit+'</span>':'')+'</td><td style="padding:5px 10px;color:#888;font-size:11px;">'+(c.dat||'')+'</td></tr>';
   }).join('');
   const monD=kwToDate(vkw,vyr);
   const sunD=new Date(monD);sunD.setDate(monD.getDate()+6);
@@ -3303,7 +3303,7 @@ function printPlan(id){
     (!plan1&&!plan2&&!plan3?'<div style="color:#999;font-size:13px;margin-bottom:20px;">Kein Training eingetragen.</div>':'')+
     (rmRows?'<div style="margin-bottom:24px;"><div style="font-size:10px;color:#999;text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;">Aktuelle Testwerte</div><table style="width:100%;border-collapse:collapse;background:#f8f8f8;border-radius:6px;overflow:hidden;">'+rmRows+'</table></div>':'')+
     '<div style="margin-top:32px;padding-top:16px;border-top:1px solid #ddd;display:flex;justify-content:space-between;align-items:center;">'+
-      '<div><div style="font-size:13px;font-weight:700;color:#E8000F;">Tommy Herzog</div><div style="font-size:11px;color:#999;margin-top:2px;">info@herzog-training.ch · herzog-training.ch</div></div>'+
+      '<div><div style="font-size:13px;font-weight:700;color:#E8000F;">Tommy Herzog</div><div style="font-size:12px;color:#555;margin-top:1px;">Herzog Training GmbH</div><div style="font-size:11px;color:#999;margin-top:2px;">info@herzog-training.ch · herzog-training.ch</div></div>'+
       '<div style="font-size:10px;color:#ccc;">Erstellt '+fmtD(new Date())+'</div>'+
     '</div>'+
     '</body></html>';
