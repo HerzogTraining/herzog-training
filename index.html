@@ -3328,9 +3328,13 @@ function rIdeen(){
       entries.forEach(e=>{
         const d=new Date(e.ts);
         const dStr=String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+d.getFullYear();
+        const linkHtml=e.link?`<div style="margin-top:6px;"><a href="${e.link.replace(/"/g,'&quot;')}" target="_blank" rel="noopener" style="font-size:12px;color:#E8000F;text-decoration:none;word-break:break-all;">🔗 ${e.link.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</a></div>`:'';
         h+=`<div style="padding:10px 0;border-bottom:1px solid var(--border);">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
-            <div style="font-size:13px;line-height:1.5;white-space:pre-wrap;flex:1;">${(e.text||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+            <div style="flex:1;">
+              <div style="font-size:13px;line-height:1.5;white-space:pre-wrap;">${(e.text||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+              ${linkHtml}
+            </div>
             <div style="display:flex;gap:6px;flex-shrink:0;">
               <button onclick="editIdee('${sport}',${e.ts})" style="background:none;border:none;cursor:pointer;font-size:12px;opacity:.5;">✏️</button>
               <button onclick="delIdee('${sport}',${e.ts})" style="background:none;border:none;cursor:pointer;font-size:12px;opacity:.5;">✕</button>
@@ -3347,7 +3351,8 @@ function rIdeen(){
 }
 function addIdee(sport){
   modal(`<h3>💡 Neue Idee — ${sport}</h3>
-    <textarea id="idee-txt" rows="5" placeholder="z.B. mehr Schnellkraft im Frühling einbauen..." style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border2);font-size:14px;font-family:'DM Sans',sans-serif;resize:none;margin-bottom:16px;"></textarea>
+    <textarea id="idee-txt" rows="5" placeholder="z.B. mehr Schnellkraft im Frühling einbauen..." style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border2);font-size:14px;font-family:'DM Sans',sans-serif;resize:none;margin-bottom:10px;"></textarea>
+    <input id="idee-link" type="url" placeholder="Link (optional) – z.B. Instagram Post" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border2);font-size:13px;margin-bottom:16px;">
     <div style="display:flex;gap:8px;justify-content:flex-end;">
       <button onclick="closeM()" style="padding:8px 16px;border-radius:6px;border:1px solid var(--border2);background:none;cursor:pointer;">Abbrechen</button>
       <button onclick="saveIdee('${sport}')" style="padding:8px 20px;border-radius:6px;background:#E8000F;color:#fff;border:none;font-weight:600;cursor:pointer;">Speichern</button>
@@ -3356,10 +3361,11 @@ function addIdee(sport){
 }
 function saveIdee(sport){
   const txt=document.getElementById('idee-txt').value.trim();
-  if(!txt)return;
+  const link=document.getElementById('idee-link').value.trim();
+  if(!txt&&!link)return;
   if(!S.ideen)S.ideen={};
   if(!S.ideen[sport])S.ideen[sport]=[];
-  S.ideen[sport].push({ts:Date.now(),text:txt});
+  S.ideen[sport].push({ts:Date.now(),text:txt,link:link||undefined});
   closeM();
   save();
   rIdeen();
@@ -3368,7 +3374,8 @@ function editIdee(sport,ts){
   const entry=(S.ideen[sport]||[]).find(e=>e.ts===ts);
   if(!entry)return;
   modal(`<h3>✏️ Idee bearbeiten — ${sport}</h3>
-    <textarea id="idee-txt" rows="5" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border2);font-size:14px;font-family:'DM Sans',sans-serif;resize:none;margin-bottom:16px;">${entry.text.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>
+    <textarea id="idee-txt" rows="5" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border2);font-size:14px;font-family:'DM Sans',sans-serif;resize:none;margin-bottom:10px;">${(entry.text||'').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>
+    <input id="idee-link" type="url" placeholder="Link (optional) – z.B. Instagram Post" value="${(entry.link||'').replace(/"/g,'&quot;')}" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border2);font-size:13px;margin-bottom:16px;">
     <div style="display:flex;gap:8px;justify-content:flex-end;">
       <button onclick="closeM()" style="padding:8px 16px;border-radius:6px;border:1px solid var(--border2);background:none;cursor:pointer;">Abbrechen</button>
       <button onclick="saveEditIdee('${sport}',${ts})" style="padding:8px 20px;border-radius:6px;background:#E8000F;color:#fff;border:none;font-weight:600;cursor:pointer;">Speichern</button>
@@ -3376,9 +3383,10 @@ function editIdee(sport,ts){
 }
 function saveEditIdee(sport,ts){
   const txt=document.getElementById('idee-txt').value.trim();
-  if(!txt)return;
+  const link=document.getElementById('idee-link').value.trim();
+  if(!txt&&!link)return;
   const entry=(S.ideen[sport]||[]).find(e=>e.ts===ts);
-  if(entry)entry.text=txt;
+  if(entry){entry.text=txt;entry.link=link||undefined;}
   closeM();
   save();
   rIdeen();
