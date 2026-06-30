@@ -180,6 +180,7 @@ border-radius:50%;background:var(--hint);display:inline-block;margin-left:6px;ve
     <button class="tab" onclick="switchTab('vorlagen',this)">Vorlagen</button>
     <button class="tab" onclick="switchTab('katalog',this)">Übungen</button>
     <button class="tab" onclick="switchTab('personal',this)">Personal</button>
+    <button class="tab" onclick="switchTab('ideen',this)">Ideen</button>
   </div>
   <div id="view-uebersicht" class="view active"></div>
   <div id="view-training" class="view"></div>
@@ -187,6 +188,7 @@ border-radius:50%;background:var(--hint);display:inline-block;margin-left:6px;ve
   <div id="view-editor" class="view"></div>
   <div id="view-vorlagen" class="view"></div>
   <div id="view-personal" class="view"></div>
+  <div id="view-ideen" class="view"></div>
 </div>
 <div id="modal-wrap"></div>
 
@@ -454,7 +456,7 @@ async function sbFetch(method, body){
 }
 
 async function saveState(){
-  const data={athleten:S.athleten,nxtId:S.nxtId,vorlagen:S.vorlagen,nxtVId:S.nxtVId,katalog:S.katalog,trainingsVorlagen:S.trainingsVorlagen,phasen:S.phasen,personal:S.personal||[]};
+  const data={athleten:S.athleten,nxtId:S.nxtId,vorlagen:S.vorlagen,nxtVId:S.nxtVId,katalog:S.katalog,trainingsVorlagen:S.trainingsVorlagen,phasen:S.phasen,personal:S.personal||[],ideen:S.ideen||{}};
   try{localStorage.setItem(LS_KEY,JSON.stringify(data));}catch(e){}
   setSyncDot('busy');
   try{
@@ -3309,6 +3311,84 @@ function printPlan(id){
   setTimeout(()=>win.print(),600);
 }
 
+function rIdeen(){
+  if(!S.ideen)S.ideen={};
+  const el=document.getElementById('view-ideen');
+  let h='<div style="padding:1rem 0;"><h2 style="font-size:18px;font-weight:700;margin-bottom:4px;">💡 Ideen für die Saisonplanung</h2><p style="font-size:13px;color:var(--muted);margin-bottom:20px;">Sammle hier Gedanken pro Sportart für die nächste Saison — unabhängig von einzelnen Athleten.</p>';
+  SPORTARTEN.forEach(sport=>{
+    const entries=(S.ideen[sport]||[]).slice().sort((a,b)=>b.ts-a.ts);
+    h+=`<div style="margin-bottom:24px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);padding:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <h3 style="font-size:15px;font-weight:700;">${sport}</h3>
+        <button onclick="addIdee('${sport}')" style="font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid #E8000F;background:#FFF5F5;color:#E8000F;cursor:pointer;font-weight:600;">+ Idee</button>
+      </div>`;
+    if(!entries.length){
+      h+='<div style="font-size:12px;color:var(--muted);padding:8px 0;">Noch keine Ideen notiert.</div>';
+    } else {
+      entries.forEach(e=>{
+        const d=new Date(e.ts);
+        const dStr=String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+d.getFullYear();
+        h+=`<div style="padding:10px 0;border-bottom:1px solid var(--border);">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+            <div style="font-size:13px;line-height:1.5;white-space:pre-wrap;flex:1;">${(e.text||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+            <div style="display:flex;gap:6px;flex-shrink:0;">
+              <button onclick="editIdee('${sport}',${e.ts})" style="background:none;border:none;cursor:pointer;font-size:12px;opacity:.5;">✏️</button>
+              <button onclick="delIdee('${sport}',${e.ts})" style="background:none;border:none;cursor:pointer;font-size:12px;opacity:.5;">✕</button>
+            </div>
+          </div>
+          <div style="font-size:10px;color:var(--muted);margin-top:4px;">${dStr}</div>
+        </div>`;
+      });
+    }
+    h+='</div>';
+  });
+  h+='</div>';
+  el.innerHTML=h;
+}
+function addIdee(sport){
+  modal(`<h3>💡 Neue Idee — ${sport}</h3>
+    <textarea id="idee-txt" rows="5" placeholder="z.B. mehr Schnellkraft im Frühling einbauen..." style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border2);font-size:14px;font-family:'DM Sans',sans-serif;resize:none;margin-bottom:16px;"></textarea>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button onclick="closeM()" style="padding:8px 16px;border-radius:6px;border:1px solid var(--border2);background:none;cursor:pointer;">Abbrechen</button>
+      <button onclick="saveIdee('${sport}')" style="padding:8px 20px;border-radius:6px;background:#E8000F;color:#fff;border:none;font-weight:600;cursor:pointer;">Speichern</button>
+    </div>`);
+  setTimeout(()=>document.getElementById('idee-txt').focus(),50);
+}
+function saveIdee(sport){
+  const txt=document.getElementById('idee-txt').value.trim();
+  if(!txt)return;
+  if(!S.ideen)S.ideen={};
+  if(!S.ideen[sport])S.ideen[sport]=[];
+  S.ideen[sport].push({ts:Date.now(),text:txt});
+  closeM();
+  save();
+  rIdeen();
+}
+function editIdee(sport,ts){
+  const entry=(S.ideen[sport]||[]).find(e=>e.ts===ts);
+  if(!entry)return;
+  modal(`<h3>✏️ Idee bearbeiten — ${sport}</h3>
+    <textarea id="idee-txt" rows="5" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border2);font-size:14px;font-family:'DM Sans',sans-serif;resize:none;margin-bottom:16px;">${entry.text.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button onclick="closeM()" style="padding:8px 16px;border-radius:6px;border:1px solid var(--border2);background:none;cursor:pointer;">Abbrechen</button>
+      <button onclick="saveEditIdee('${sport}',${ts})" style="padding:8px 20px;border-radius:6px;background:#E8000F;color:#fff;border:none;font-weight:600;cursor:pointer;">Speichern</button>
+    </div>`);
+}
+function saveEditIdee(sport,ts){
+  const txt=document.getElementById('idee-txt').value.trim();
+  if(!txt)return;
+  const entry=(S.ideen[sport]||[]).find(e=>e.ts===ts);
+  if(entry)entry.text=txt;
+  closeM();
+  save();
+  rIdeen();
+}
+function delIdee(sport,ts){
+  if(!confirm('Idee löschen?'))return;
+  S.ideen[sport]=(S.ideen[sport]||[]).filter(e=>e.ts!==ts);
+  save();
+  rIdeen();
+}
 function saveN(id){
   const a=S.athleten.find(x=>x.id===id);
   if(a){
@@ -3357,6 +3437,7 @@ function switchTab(t,btn){
   else if(t==='vorlagen')rVorlagen();
   else if(t==='katalog')rKatalog();
   else if(t==='personal')rPersonal();
+  else if(t==='ideen')rIdeen();
 }
 
 // ---- ASYNC INIT ----
