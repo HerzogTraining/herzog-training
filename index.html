@@ -456,7 +456,7 @@ async function sbFetch(method, body){
 }
 
 async function saveState(){
-  const data={athleten:S.athleten,nxtId:S.nxtId,vorlagen:S.vorlagen,nxtVId:S.nxtVId,katalog:S.katalog,trainingsVorlagen:S.trainingsVorlagen,phasen:S.phasen,personal:S.personal||[],ideen:S.ideen||{}};
+  const data={athleten:S.athleten,nxtId:S.nxtId,vorlagen:S.vorlagen,nxtVId:S.nxtVId,katalog:S.katalog,trainingsVorlagen:S.trainingsVorlagen,phasen:S.phasen,personal:S.personal||[],ideen:S.ideen||{},katalogVideos:S.katalogVideos||{}};
   try{localStorage.setItem(LS_KEY,JSON.stringify(data));}catch(e){}
   setSyncDot('busy');
   try{
@@ -508,6 +508,7 @@ function importData(event){
       S.vorlagen=data.vorlagen||S.vorlagen;
       S.nxtVId=data.nxtVId||1;
       S.katalog=data.katalog||null;
+      S.katalogVideos=data.katalogVideos||{};
       S.trainingsVorlagen=data.trainingsVorlagen||[];
       save();rUebersicht();
       alert('Backup erfolgreich eingespielt.');
@@ -1072,8 +1073,13 @@ function rKatalog(){
     ubs.forEach((u,i)=>{
       const origIdx=orig.indexOf(u);
       const bb=i===ubs.length-1?'border-bottom:none;':'';
+      const vid=(S.katalogVideos||{})[u];
+      const vidHtml=vid?'<a href="'+vid+'" target="_blank" rel="noopener" style="font-size:11px;color:#E8000F;text-decoration:none;margin-top:2px;display:block;">▶ Video</a>':'';
       rows+='<div class="kat-row" style="display:flex;align-items:flex-start;gap:8px;padding:8px 12px;border-bottom:1px solid #E8E8E8;'+bb+'">'
-        +'<div style="flex:1;font-size:13px;white-space:pre-wrap;">'+u.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</div>'
+        +'<div style="flex:1;">'
+        +'<div style="font-size:13px;white-space:pre-wrap;">'+u.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</div>'
+        +vidHtml
+        +'</div>'
         +'<div style="display:flex;gap:4px;flex-shrink:0;">'
         +'<button class="kat-edit" data-ci="'+ci+'" data-i="'+origIdx+'" style="font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;padding:2px 4px;">✎</button>'
         +'<button class="kat-del" data-ci="'+ci+'" data-i="'+origIdx+'" style="font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;padding:2px 4px;">✕</button>'
@@ -1138,9 +1144,12 @@ function confAddUebung(){
   if(!cat)return;
   const val=document.getElementById('m-un').value.trim();
   if(!val)return;
+  const vid=(document.getElementById('m-uvid')||{}).value||'';
   S.katalog=getKatalog();
   if(!S.katalog[cat])S.katalog[cat]=[];
   S.katalog[cat].push(val);
+  if(!S.katalogVideos)S.katalogVideos={};
+  if(vid.trim())S.katalogVideos[val]=vid.trim();
   saveKatalog();closeM();
 }
 function showEditUebung(){
@@ -1149,9 +1158,12 @@ function showEditUebung(){
   const k=getKatalog();
   const raw=(k[cat]&&k[cat][idx])||'';
   const val=raw.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const vidVal=((S.katalogVideos||{})[raw]||'').replace(/"/g,'&quot;');
   modal('<h3>Übung bearbeiten \u2013 '+cat+'</h3>'
     +'<div class="frow"><label>Name / Beschreibung</label>'
     +'<textarea id="m-ue" rows="4" style="width:100%;font-size:13px;resize:vertical;border-radius:6px;border:1px solid var(--border2);padding:8px;">'+val+'</textarea></div>'
+    +'<div class="frow"><label>Video-Link (YouTube, optional)</label>'
+    +'<input id="m-uvid" type="url" placeholder="https://youtube.com/..." value="'+vidVal+'" style="width:100%;font-size:13px;border-radius:6px;border:1px solid var(--border2);padding:8px;"></div>'
     +'<div class="mbtns"><button onclick="closeM()">Abbrechen</button>'
     +'<button class="primary" onclick="confEditUebung()">Speichern</button>'
     +'<button onclick="delUebung();closeM();" style="color:var(--red);border-color:var(--red);">Löschen</button></div>');
@@ -1160,9 +1172,19 @@ function confEditUebung(){
   const cat=window._kPcat;
   const idx=window._kPidx;
   if(!cat)return;
+  const oldVal=S.katalog[cat][idx];
   const val=document.getElementById('m-ue').value.trim();
   if(!val)return;
+  const vid=(document.getElementById('m-uvid')||{}).value||'';
   S.katalog=getKatalog();
+  if(!S.katalogVideos)S.katalogVideos={};
+  // Rename key if name changed
+  if(oldVal&&oldVal!==val&&S.katalogVideos[oldVal]){
+    S.katalogVideos[val]=S.katalogVideos[oldVal];
+    delete S.katalogVideos[oldVal];
+  }
+  if(vid.trim())S.katalogVideos[val]=vid.trim();
+  else delete S.katalogVideos[val];
   S.katalog[cat][idx]=val;
   saveKatalog();closeM();
 }
