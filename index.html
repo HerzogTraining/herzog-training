@@ -340,7 +340,9 @@ function parseDate(s){
   if(!s)return null;
   const p=s.split('.');
   if(p.length<3)return null;
-  return new Date(+p[2],+p[1]-1,+p[0]);
+  const d=new Date(+p[2],+p[1]-1,+p[0]);
+  d.setHours(0,0,0,0);
+  return d;
 }
 function today(){const n=new Date();n.setHours(0,0,0,0);return n;}
 function dateToKwYr(d){
@@ -1790,11 +1792,12 @@ function rUebersicht(){
         if(!found)return null;
         const von=found.vonDat?parseDate(found.vonDat):(found.vonKW?kwToDate(found.vonKW,found.vonYr):null);
         const bisRaw=found.bisDat?parseDate(found.bisDat):(found.bisKW?kwToDate(found.bisKW,found.bisYr):null);
-        const bis=bisRaw?new Date(bisRaw.getFullYear(),bisRaw.getMonth(),bisRaw.getDate()+6):null;
+        // +6 nur bei KW-basierten Einträgen (bis = Montag der Woche), nicht bei exakten Daten
+        const bis=bisRaw?(found.bisDat?bisRaw:new Date(bisRaw.getFullYear(),bisRaw.getMonth(),bisRaw.getDate()+6)):null;
         if(!von||!bis)return emoji;
         const dayParts=[];
         for(let d=0;d<7;d++){
-          const day=new Date(mon);day.setDate(mon.getDate()+d);
+          const day=new Date(mon);day.setDate(mon.getDate()+d);day.setHours(0,0,0,0);
           if(day>=von&&day<=bis)dayParts.push(days[day.getDay()]+' '+String(day.getDate()).padStart(2,'0')+'.'+String(day.getMonth()+1).padStart(2,'0')+'.');
         }
         return dayParts.length?emoji+' '+dayParts.join(', '):emoji;
