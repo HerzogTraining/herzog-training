@@ -1739,7 +1739,7 @@ function pdHelper(p){
 }
 const _dwOpen={};
 const _dwDetails={};
-function togDW(aid){_dwOpen[aid]=!_dwOpen[aid];if(!_dwOpen[aid])_dwDetails[aid]=false;rUebersicht();}
+function togDW(aid){if(_pinned.has(aid)){_activePin=aid;rUebersicht();}else{_dwOpen[aid]=!_dwOpen[aid];if(!_dwOpen[aid])_dwDetails[aid]=false;rUebersicht();}}
 function togDWDetails(aid){_dwDetails[aid]=!_dwDetails[aid];rUebersicht();}
 const _uNotizTimers={};
 function saveUNotiz(aid,week){
@@ -1885,8 +1885,10 @@ function rUebersicht(){
   const unpinnedA=allA.filter(a=>!_pinned.has(a.id));
   const sortedA=[...pinnedA,...unpinnedA];
   sortedA.forEach(a=>{
-    // Aktiver gepinnter Athlet: immer aufgeklappt
-    if(_pinned.has(a.id)&&a.id===_activePin)_dwOpen[a.id]=true;
+    // Gepinnte: nur aktiver offen, alle anderen zu
+    if(_pinned.has(a.id)){
+      _dwOpen[a.id]=(a.id===_activePin);
+    }
     const avc=av(a.avIdx);
     const{phase,int:ins}=curPhase(a);
     const p=pd(phase,ins);
