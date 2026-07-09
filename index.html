@@ -1697,21 +1697,25 @@ function rUebersicht(){
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${tfBadge}${urlaubCard}${tlCard}${bdCard}${a.verletzt?`<span class="ppill" style="background:#FCEAEA;color:#C0392B;font-weight:600;">🤕 Verletzt seit KW ${a.verletzt.kw}/${a.verletzt.yr}</span>`:`<span class="ppill" style="background:${p.f};color:${p.t};">${phase} · ${ins}%</span>`}</div>
     </div>${exp}</div>`;
   });
-  // Build pinned bar
-  let pinBar='';
+  // Build pinned tab bar
   if(_pinned.size>0){
+    if(!_activePin||!_pinned.has(_activePin))_activePin=[..._pinned][0];
+    let pinBar='';
     _pinned.forEach(pid=>{
       const pa=S.athleten.find(x=>x.id===pid);
       if(!pa)return;
       const pc=curPhase(pa);
       const pp=pd(pc.phase,pc.int);
-      pinBar+=`<button class="pin-chip" onclick="scrollToAthlet(${pid})" style="background:${pp.f};color:${pp.t};">`
-        +`${ini(pa.name)} ${pa.name.split(' ')[0]}`
+      const isAct=pid===_activePin;
+      pinBar+=`<button class="pin-chip" onclick="setActivePin(${pid})" style="background:${pp.f};color:${pp.t};${isAct?'box-shadow:0 0 0 2px #111;transform:scale(1.05);':'opacity:.6;'}">`
+        +`${pa.name.split(' ')[0]} ${pa.name.split(' ')[1]?pa.name.split(' ')[1][0]+'.':''}`
         +`<span class="unpin" onclick="event.stopPropagation();togglePin(${pid})">✕</span>`
         +'</button>';
     });
+    h=`<div id="pinned-bar" class="has-pins">${pinBar}</div>`+h;
+  } else {
+    _activePin=null;
   }
-  h=`<div id="pinned-bar" class="${_pinned.size>0?'has-pins':''}">${pinBar}</div>`+h;
   document.getElementById('view-training').innerHTML=h;
 }
 
@@ -1733,6 +1737,7 @@ function pdHelper(p){
 }
 const _dwOpen={};
 const _pinned=new Set();
+let _activePin=null;
 const _dwDetails={};
 function togDW(aid){_dwOpen[aid]=!_dwOpen[aid];if(!_dwOpen[aid])_dwDetails[aid]=false;rUebersicht();}
 function togDWDetails(aid){_dwDetails[aid]=!_dwDetails[aid];rUebersicht();}
@@ -1874,7 +1879,14 @@ function rUebersicht(){
   </div>`;
   let lastSport='';
   let athletCards='';
-  sortA().forEach(a=>{
+  // Gepinnte Athleten zuerst, dann Rest
+  const allA=sortA();
+  const pinnedA=allA.filter(a=>_pinned.has(a.id));
+  const unpinnedA=allA.filter(a=>!_pinned.has(a.id));
+  const sortedA=[...pinnedA,...unpinnedA];
+  sortedA.forEach(a=>{
+    // For pinned athletes: only show the active one expanded, hide others from list
+    if(_pinned.has(a.id)&&a.id!==_activePin)return;
     const avc=av(a.avIdx);
     const{phase,int:ins}=curPhase(a);
     const p=pd(phase,ins);
@@ -1912,9 +1924,11 @@ function rUebersicht(){
     const hasNotiz=uNotiz.trim().length>0||uNotizNext.trim().length>0||uNotiz2.trim().length>0;
     const notizText=uNotiz||uNotizNext;
     const notizBadge=hasNotiz?`<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:#FFF3CD;color:#856404;font-weight:500;">📝 ${notizText.split('\n')[0].substring(0,30)}${notizText.length>30?'…':''}</span>`:'';
-    if(a.sport!==lastSport){
+    const isPinned=_pinned.has(a.id);
+    if(!isPinned&&a.sport!==lastSport){
       if(athletCards)h+=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:6px;">${athletCards}</div>`;
       athletCards='';
+      if(pinnedA.length>0&&!lastSport)h+='<div style="border-top:2px dashed var(--border2);margin:10px 0 8px;"></div>';
       h+=`<div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:${lastSport?'16px':'4px'} 0 6px;">${a.sport}</div>`;
       lastSport=a.sport;
     }
@@ -3452,18 +3466,18 @@ function delIdee(sport,ts){
   save();
   rIdeen();
 }
+function setActivePin(id){
+  _activePin=id;
+  _dwOpen[id]=true;
+  rUebersicht();
+}
 function togglePin(id){
   if(_pinned.has(id))_pinned.delete(id);
   else _pinned.add(id);
   rUebersicht();
 }
 function scrollToAthlet(id){
-  _dwOpen[id]=true;
-  rUebersicht();
-  setTimeout(()=>{
-    const el=document.getElementById('acard-'+id);
-    if(el)el.scrollIntoView({behavior:'smooth',block:'start'});
-  },50);
+  setActivePin(id);
 }
 function saveN(id){
   const a=S.athleten.find(x=>x.id===id);
