@@ -1585,6 +1585,8 @@ function exportIcal(){
   URL.revokeObjectURL(url);
 }
 
+const _pinned=new Set();
+let _activePin=null;
 function rUebersicht(){
   const q=(document.getElementById('srch')||{value:''}).value||'';
   const list=sortA(q?S.athleten.filter(a=>a.name.toLowerCase().includes(q.toLowerCase())||a.sport.toLowerCase().includes(q.toLowerCase())):S.athleten);
@@ -1736,8 +1738,6 @@ function pdHelper(p){
   return daysUntilPeriod(p);
 }
 const _dwOpen={};
-const _pinned=new Set();
-let _activePin=null;
 const _dwDetails={};
 function togDW(aid){_dwOpen[aid]=!_dwOpen[aid];if(!_dwOpen[aid])_dwDetails[aid]=false;rUebersicht();}
 function togDWDetails(aid){_dwDetails[aid]=!_dwDetails[aid];rUebersicht();}
