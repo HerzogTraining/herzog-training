@@ -1883,12 +1883,11 @@ function rUebersicht(){
   const allA=sortA();
   const pinnedA=allA.filter(a=>_pinned.has(a.id));
   const unpinnedA=allA.filter(a=>!_pinned.has(a.id));
-  const sortedA=[...pinnedA,...unpinnedA];
-  sortedA.forEach(a=>{
-    // Gepinnte: nur aktiver offen, alle anderen zu
-    if(_pinned.has(a.id)){
+  // Gepinnte Karten: separat rendern, immer oben, aktiver aufgeklappt
+  if(pinnedA.length>0){
+    h+='<div id="pinned-section">';
+    pinnedA.forEach(a=>{
       _dwOpen[a.id]=(a.id===_activePin);
-    }
     const avc=av(a.avIdx);
     const{phase,int:ins}=curPhase(a);
     const p=pd(phase,ins);
@@ -1926,11 +1925,10 @@ function rUebersicht(){
     const hasNotiz=uNotiz.trim().length>0||uNotizNext.trim().length>0||uNotiz2.trim().length>0;
     const notizText=uNotiz||uNotizNext;
     const notizBadge=hasNotiz?`<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:#FFF3CD;color:#856404;font-weight:500;">📝 ${notizText.split('\n')[0].substring(0,30)}${notizText.length>30?'…':''}</span>`:'';
-    const isPinned=_pinned.has(a.id);
-    if(!isPinned&&a.sport!==lastSport){
+    // Sport label (nur für nicht-gepinnte in Hauptloop)
+    if(a.sport!==lastSport){
       if(athletCards)h+=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:6px;">${athletCards}</div>`;
       athletCards='';
-      if(pinnedA.length>0&&!lastSport)h+='<div style="border-top:2px dashed var(--border2);margin:10px 0 8px;"></div>';
       h+=`<div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:${lastSport?'16px':'4px'} 0 6px;">${a.sport}</div>`;
       lastSport=a.sport;
     }
@@ -2065,6 +2063,28 @@ function rUebersicht(){
     </div>`;
   });
   if(athletCards)h+=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:6px;">${athletCards}</div>`;
+  // Close pinned section
+  if(pinnedA.length>0)h+='</div><div style="border-top:2px dashed var(--border2);margin:10px 0 8px;"></div>';
+  // Render unpinned athletes normally (full cards)
+  let lastSportU='';let athletCardsU='';
+  unpinnedA.forEach(a=>{
+    if(a.sport!==lastSportU){
+      if(athletCardsU)h+=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:6px;">${athletCardsU}</div>`;
+      athletCardsU='';
+      h+=`<div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:${lastSportU?'16px':'4px'} 0 6px;">${a.sport}</div>`;
+      lastSportU=a.sport;
+    }
+    const avc=av(a.avIdx);const{phase,int:ins}=curPhase(a);const p=pd(phase,ins);
+    const isODW=!!_dwOpen[a.id];
+    athletCardsU+=`<div id="acard-${a.id}" class="acard${isODW?' open':''}" onclick="togDW(${a.id})">
+      <div style="display:flex;align-items:center;gap:6px;min-width:0;">
+        <div style="width:28px;height:28px;border-radius:50%;background:${avc};color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${ini(a.name)}</div>
+        <div style="min-width:0;flex:1;"><div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${a.name}</div>
+        <div style="font-size:11px;color:${p.f};font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${phase} ${ins}%</div></div>
+      </div></div>`;
+  });
+  if(athletCardsU)h+=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:6px;">${athletCardsU}</div>`;
+
   document.getElementById('view-uebersicht').innerHTML=h;
   // Auto-resize all plan textareas to fit content
   setTimeout(()=>{
