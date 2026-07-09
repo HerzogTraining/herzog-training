@@ -1711,7 +1711,7 @@ function rUebersicht(){
       const pName=pa.name.split(' ');
       const pLabel=pName[0]+(pName[1]?' '+pName[1][0]+'.':'');
       const pClass='pin-chip'+(isAct?' active':'');
-      pinBar+='<button class="'+pClass+'" onclick="toggleActivePin('+pid+')" style="background:'+pp.f+';color:'+pp.t+';">'
+      pinBar+='<button class="'+pClass+'" data-pid="'+pid+'" onclick="toggleActivePin('+pid+')" style="background:'+pp.f+';color:'+pp.t+';">'
         +pLabel
         +'<span class="unpin" onclick="event.stopPropagation();togglePin('+pid+')">✕</span>'
         +'</button>';
@@ -1887,8 +1887,9 @@ function rUebersicht(){
   const unpinnedA=allA.filter(a=>!_pinned.has(a.id));
   // Aktiver Pin immer aufgeklappt, andere zu
   pinnedA.forEach(a=>{_dwOpen[a.id]=(a.id===_activePin);});
-  const sortedA=[...pinnedA,...unpinnedA];
-  sortedA.forEach(a=>{
+  // Render pinned in separate sticky section
+  if(pinnedA.length>0)h+='<div id="pinned-section" style="position:sticky;top:0;z-index:40;background:var(--bg);padding-bottom:4px;">';
+  pinnedA.forEach(a=>{
     const avc=av(a.avIdx);
     const{phase,int:ins}=curPhase(a);
     const p=pd(phase,ins);
@@ -1928,10 +1929,11 @@ function rUebersicht(){
     const notizBadge=hasNotiz?`<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:#FFF3CD;color:#856404;font-weight:500;">📝 ${notizText.split('\n')[0].substring(0,30)}${notizText.length>30?'…':''}</span>`:'';
     // Sport label (nur für nicht-gepinnte)
     const isPinned=_pinned.has(a.id);
-    if(!isPinned&&a.sport!==lastSport){
+    if(isPinned)return; // Skip - already rendered in pinned section
+    if(a.sport!==lastSport){
       if(athletCards)h+=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:6px;">${athletCards}</div>`;
       athletCards='';
-      if(pinnedA.length>0&&!lastSport)h+='<div style="border-top:2px dashed var(--border2);margin:10px 0 8px;"></div>';
+      if(pinnedA.length>0&&!lastSport){h+='</div>'; h+='<div style="border-top:2px dashed var(--border2);margin:10px 0 8px;"></div>';}
       h+=`<div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:${lastSport?'16px':'4px'} 0 6px;">${a.sport}</div>`;
       lastSport=a.sport;
     }
@@ -2017,7 +2019,7 @@ function rUebersicht(){
     }
     const cardBg=a.verletzt?'#FFF5F5':p.f+'22';
     const cardBorder=isODW?'#E8000F':a.verletzt?'#E8000F20':'#D0D0D0';
-    athletCards+=`<div onclick="togDW(${a.id})" style="background:${cardBg};border:2px solid ${cardBorder};border-radius:10px;padding:8px 10px;cursor:pointer;position:relative;">
+    athletCards+=`<div id="acard-${a.id}" data-aid="${a.id}" onclick="togDW(${a.id})" style="background:${cardBg};border:2px solid ${cardBorder};border-radius:10px;padding:8px 10px;cursor:pointer;position:relative;">
       <div style="display:flex;align-items:center;gap:6px;">
         <div class="avatar" style="width:26px;height:26px;font-size:10px;flex-shrink:0;background:${avc.bg};color:${avc.c};">${ini(a.name)}</div>
         <div style="flex:1;min-width:0;">
@@ -3473,19 +3475,23 @@ function delIdee(sport,ts){
   rIdeen();
 }
 function toggleActivePin(id){
-  if(_activePin===id){
-    // Click on active -> close it
-    _activePin=null;
-  } else {
-    _activePin=id;
-  }
-  rUebersicht();
-  if(_activePin){
-    setTimeout(()=>{
-      const el=document.getElementById('acard-'+id);
-      if(el)el.scrollIntoView({behavior:'smooth',block:'start'});
-    },50);
-  }
+  _activePin=(_activePin===id)?null:id;
+  // Update cards in pinned section - no rUebersicht needed
+  const sec=document.getElementById('pinned-section');
+  if(!sec)return;
+  sec.querySelectorAll('.acard').forEach(card=>{
+    const aid=parseInt(card.dataset.aid);
+    if(aid===_activePin){
+      card.classList.add('open');
+    } else {
+      card.classList.remove('open');
+    }
+  });
+  // Update chip active state
+  document.querySelectorAll('.pin-chip').forEach(btn=>{
+    const aid=parseInt(btn.dataset.pid);
+    btn.classList.toggle('active', aid===_activePin);
+  });
 }
 function togglePin(id){
   if(_pinned.has(id)){
