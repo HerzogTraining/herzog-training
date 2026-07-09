@@ -3474,8 +3474,14 @@ function setActivePin(id){
   rUebersicht();
 }
 function togglePin(id){
-  if(_pinned.has(id))_pinned.delete(id);
-  else _pinned.add(id);
+  if(_pinned.has(id)){
+    _pinned.delete(id);
+    if(_activePin===id)_activePin=_pinned.size>0?[..._pinned][0]:null;
+  } else {
+    _pinned.add(id);
+    _activePin=id;
+    _dwOpen[id]=true;
+  }
   rUebersicht();
 }
 function scrollToAthlet(id){
