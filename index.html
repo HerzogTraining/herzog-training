@@ -1885,10 +1885,11 @@ function rUebersicht(){
   const unpinnedA=allA.filter(a=>!_pinned.has(a.id));
   const sortedA=[...pinnedA,...unpinnedA];
   sortedA.forEach(a=>{
-    // Gepinnte die nicht aktiv sind: überspringen (erscheinen nur als Tab)
-    if(_pinned.has(a.id)&&a.id!==_activePin)return;
-    // Aktiver gepinnter Athlet: immer aufgeklappt
-    if(_pinned.has(a.id)&&a.id===_activePin)_dwOpen[a.id]=true;
+    // Aktiver gepinnter Athlet: aufgeklappt, Rest: zugeklappt aber sichtbar
+    if(_pinned.has(a.id)){
+      if(a.id===_activePin)_dwOpen[a.id]=true;
+      else _dwOpen[a.id]=false;
+    }
     const avc=av(a.avIdx);
     const{phase,int:ins}=curPhase(a);
     const p=pd(phase,ins);
