@@ -1586,8 +1586,6 @@ function exportIcal(){
 
 const _pinned=new Set();
 let _activePin=null;
-const _pinned=new Set();
-let _activePin=null;
 function rUebersicht(){
   const q=(document.getElementById('srch')||{value:''}).value||'';
   const list=sortA(q?S.athleten.filter(a=>a.name.toLowerCase().includes(q.toLowerCase())||a.sport.toLowerCase().includes(q.toLowerCase())):S.athleten);
@@ -1710,9 +1708,12 @@ function rUebersicht(){
       const pc=curPhase(pa);
       const pp=pd(pc.phase,pc.int);
       const isAct=pid===_activePin;
-      pinBar+=`<button class="pin-chip${isAct?' active':''}" onclick="toggleActivePin(${pid})" style="background:${pp.f};color:${pp.t};">`
-        +`${pa.name.split(' ')[0]} ${pa.name.split(' ')[1]?pa.name.split(' ')[1][0]+'.':''}`
-        +`<span class="unpin" onclick="event.stopPropagation();togglePin(${pid})">✕</span>`
+      const pName=pa.name.split(' ');
+      const pLabel=pName[0]+(pName[1]?' '+pName[1][0]+'.':'');
+      const pClass='pin-chip'+(isAct?' active':'');
+      pinBar+='<button class="'+pClass+'" onclick="toggleActivePin('+pid+')" style="background:'+pp.f+';color:'+pp.t+';">'
+        +pLabel
+        +'<span class="unpin" onclick="event.stopPropagation();togglePin('+pid+')">✕</span>'
         +'</button>';
     });
     h=`<div class="pin-bar">${pinBar}</div>`+h;
