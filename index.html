@@ -1741,7 +1741,7 @@ function pdHelper(p){
 }
 const _dwOpen={};
 const _dwDetails={};
-function togDW(aid){if(_pinned.has(aid)){toggleActivePin(aid);}else{_dwOpen[aid]=!_dwOpen[aid];if(!_dwOpen[aid])_dwDetails[aid]=false;rUebersicht();}}
+function togDW(aid){_dwOpen[aid]=!_dwOpen[aid];if(!_dwOpen[aid])_dwDetails[aid]=false;if(_pinned.has(aid))_activePin=_dwOpen[aid]?aid:null;rUebersicht();}
 function togDWDetails(aid){_dwDetails[aid]=!_dwDetails[aid];rUebersicht();}
 const _uNotizTimers={};
 function saveUNotiz(aid,week){
