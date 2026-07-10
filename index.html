@@ -1885,14 +1885,13 @@ function rUebersicht(){
   const allA=sortA();
   const pinnedA=allA.filter(a=>_pinned.has(a.id));
   const unpinnedA=allA.filter(a=>!_pinned.has(a.id));
-  // Aktiver Pin immer aufgeklappt, andere zu
-  pinnedA.forEach(a=>{_dwOpen[a.id]=(a.id===_activePin);});
-  // Render pinned in separate sticky section
-  if(pinnedA.length>0)h+='<div id="pinned-section" style="position:sticky;top:0;z-index:40;background:var(--bg);padding-bottom:4px;">';
-  // Close pinned section
-  if(pinnedA.length>0)h+='</div><div style="border-top:2px dashed var(--border2);margin:10px 0 8px;"></div>';
-  // Render unpinned athletes
-  unpinnedA.forEach(a=>{
+  // Gepinnte zuerst, aktiver aufgeklappt
+  if(_pinned.size>0){
+    if(!_activePin||!_pinned.has(_activePin))_activePin=[..._pinned][0];
+    pinnedA.forEach(a=>{_dwOpen[a.id]=(a.id===_activePin);});
+  }
+  const sortedA=[...pinnedA,...unpinnedA];
+  sortedA.forEach(a=>{
     const avc=av(a.avIdx);
     const{phase,int:ins}=curPhase(a);
     const p=pd(phase,ins);
@@ -1930,10 +1929,11 @@ function rUebersicht(){
     const hasNotiz=uNotiz.trim().length>0||uNotizNext.trim().length>0||uNotiz2.trim().length>0;
     const notizText=uNotiz||uNotizNext;
     const notizBadge=hasNotiz?`<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:#FFF3CD;color:#856404;font-weight:500;">📝 ${notizText.split('\n')[0].substring(0,30)}${notizText.length>30?'…':''}</span>`:'';
-    if(a.sport!==lastSport){
+    const isPinned=_pinned.has(a.id);
+    if(!isPinned&&a.sport!==lastSport){
       if(athletCards)h+=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:6px;">${athletCards}</div>`;
       athletCards='';
-      if(pinnedA.length>0&&!lastSport){h+='</div>'; h+='<div style="border-top:2px dashed var(--border2);margin:10px 0 8px;"></div>';}
+      if(pinnedA.length>0&&!lastSport)h+='<div style="border-top:2px dashed var(--border2);margin:10px 0 8px;"></div>';
       h+=`<div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:${lastSport?'16px':'4px'} 0 6px;">${a.sport}</div>`;
       lastSport=a.sport;
     }
