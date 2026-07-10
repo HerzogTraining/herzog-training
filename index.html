@@ -1889,7 +1889,10 @@ function rUebersicht(){
   pinnedA.forEach(a=>{_dwOpen[a.id]=(a.id===_activePin);});
   // Render pinned in separate sticky section
   if(pinnedA.length>0)h+='<div id="pinned-section" style="position:sticky;top:0;z-index:40;background:var(--bg);padding-bottom:4px;">';
-  pinnedA.forEach(a=>{
+  // Close pinned section
+  if(pinnedA.length>0)h+='</div><div style="border-top:2px dashed var(--border2);margin:10px 0 8px;"></div>';
+  // Render unpinned athletes
+  unpinnedA.forEach(a=>{
     const avc=av(a.avIdx);
     const{phase,int:ins}=curPhase(a);
     const p=pd(phase,ins);
@@ -1927,9 +1930,6 @@ function rUebersicht(){
     const hasNotiz=uNotiz.trim().length>0||uNotizNext.trim().length>0||uNotiz2.trim().length>0;
     const notizText=uNotiz||uNotizNext;
     const notizBadge=hasNotiz?`<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:#FFF3CD;color:#856404;font-weight:500;">📝 ${notizText.split('\n')[0].substring(0,30)}${notizText.length>30?'…':''}</span>`:'';
-    // Sport label (nur für nicht-gepinnte)
-    const isPinned=_pinned.has(a.id);
-    if(isPinned)return; // Skip - already rendered in pinned section
     if(a.sport!==lastSport){
       if(athletCards)h+=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:6px;">${athletCards}</div>`;
       athletCards='';
@@ -2068,9 +2068,6 @@ function rUebersicht(){
     </div>`;
   });
   if(athletCards)h+=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:6px;">${athletCards}</div>`;
-  // Close pinned section
-
-
   document.getElementById('view-uebersicht').innerHTML=h;
   // Auto-resize all plan textareas to fit content
   setTimeout(()=>{
