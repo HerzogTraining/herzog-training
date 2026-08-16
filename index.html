@@ -1061,6 +1061,29 @@ function saveKatalog(){
   save();
   rKatalog();
 }
+
+const HARDCORE_SEED={"Mobilität": [["HWS Flexion/Extension/Lateralflexion/Rotation (Hard Core)", "https://hov.to/16b9938b"], ["BWS/LWS Extension im Vierfüssler (Hard Core)", null], ["BWS/LWS Flexion im Vierfüssler (Hard Core)", null], ["BWS/LWS Rotation im Ausfallschritt an Wand (Hard Core)", null], ["LWS/BWS Rotation liegend mit KH-Fixierung (Hard Core)", null], ["BWS Extension liegend mit Foam Roller, Becken absenken (Hard Core)", null], ["LWS/BWS Rotation kniend mit KH am Kopf (Hard Core)", null], ["BWS/LWS Übergang an Langhantel im Rack (Hard Core)", null], ["Hüftbeuger-Dehnung Leg Extension Startposition, flekt. Standbein (Hard Core)", "https://hov.to/d4c2dbdc"], ["Tiefe Hocke mit erhöhten Fersen (Hard Core)", null], ["Sitzende Hocke mit Knie-Aussendruck (Hard Core)", null], ["Partnerstretch Hüftstreckung (Hard Core)", null], ["Gesäss-Dehnung Flexion (Hard Core)", null], ["Gesäss-Dehnung Flexion + Abduktion (Hard Core)", null], ["Gesäss-Dehnung Flexion + Aussenrotation (Hard Core)", null], ["Gesäss-Dehnung mit Widerstandsband (Hard Core)", null], ["Samson Stretch Hüftbeuger kniend (Hard Core)", null], ["Hüftbeuger-Dehnung mit Handtuch liegend (Hard Core)", null], ["Hüftbeuger-Dehnung im Ausfallschritt mit Stuhl (Hard Core)", null], ["Z-Press im Langsitz (Hard Core)", "https://hov.to/cfddf125"], ["Schulter-Hang an Stange oder Tür (Hard Core)", null], ["Schulterdehnung an vertikaler Stange (Hard Core)", null], ["Partnerstretch Schulter mit Langhantel als Drehpunkt (Hard Core)", null], ["Partnerstretch Schulter kniend mit PNF-Methode (Hard Core)", null]], "Rumpf": [["Iliopsoas Plank einbeinig auf Bank (Hard Core Zirkel)", "https://hov.to/67f0d9d4"], ["Elevated Leg Spine Flexion mit KH (Hard Core Zirkel)", null], ["One Leg Sit-Ups auf Bank (Hard Core Zirkel)", null], ["Diving Push Ups Downward-Dog zu Cobra (Hard Core Zirkel)", null]]};
+function migrateHardCoreUebungen(){
+  if(!S.katalog)S.katalog=JSON.parse(JSON.stringify(UEBUNGEN_KATALOG));
+  if(!S.katalogVideos)S.katalogVideos={};
+  if(S.hcMigrated)return;
+  let changed=false;
+  Object.keys(HARDCORE_SEED).forEach(cat=>{
+    if(!S.katalog[cat])S.katalog[cat]=[];
+    HARDCORE_SEED[cat].forEach(([name,vid])=>{
+      if(S.katalog[cat].indexOf(name)===-1){
+        S.katalog[cat].push(name);
+        changed=true;
+      }
+      if(vid&&!S.katalogVideos[name]){
+        S.katalogVideos[name]=vid;
+        changed=true;
+      }
+    });
+  });
+  S.hcMigrated=true;
+  if(changed)saveKatalog();
+}
 // Global map for safe category access from onclick handlers
 const _katMap={};
 function setKat(key,val){_katMap[key]=val;return key;}
@@ -3586,6 +3609,7 @@ async function init(){
   }
   S={...base,openId:null,edId:null,edVId:null};
   if(!S.katalog)S.katalog=JSON.parse(JSON.stringify(UEBUNGEN_KATALOG));
+  migrateHardCoreUebungen();
   if(!S.trainingsVorlagen)S.trainingsVorlagen=[];
   if(!S.phasen)S.phasen=[...PNAMES];
   S.phasen.forEach(p=>{if(!PD[p])PD[p]={f:'#E8E8E8',t:'#333333'};});
