@@ -1095,6 +1095,23 @@ function migrateEsvWettkaempfe2027B3(){
   S.esvWk2027B3Migrated=true;
   if(changed)save();
 }
+const ESV_KRANZFESTE_A=["Aargauer Kantonales Schwingfest", "Solothurner Kantonalschwingfest", "Baselstädtischer Schwingertag", "Basellandschaftliches Kantonalschwingfest", "Nordwestschweizer Schwingfest (NWS)", "Innerschweizer Schwing- und Älplerfest (ISV)", "Urner Kantonales Schwingfest", "Schwyzer Kantonales Schwing- und Älplerfest", "Luzerner Kantonales Schwingfest", "Zürcher Kantonalschwingfest", "Stoos-Schwinget", "Brünig-Schwinget", "Rigi-Schwinget", "Schwägalp-Schwinget", "Weissenstein-Schwinget", "122. Ob- und Nidwaldner Kantonalschwingfest", "Oberaargauisches Schwingfest", "Emmentalisches Schwingfest", "Mittelländisches Schwingfest", "Seeländisches Schwingfest"];
+const ESV_HALLEN_C=["Hallenschwinget Lenzburg", "Hallenschwinget Sarnen", "Hallenschwinget Büren", "Hallenschwinget Oberdiessbach", "42. Worblentaler Hallenschwinget", "56. Hallenschwinget Thörigen (Lueg-Cup)"];
+function fixEsvWettkaempfePrio(){
+  if(!S.vorlagen)return;
+  const v=S.vorlagen.find(x=>x.name==='Schwingen');
+  if(!v||!v.wettkaempfe)return;
+  let changed=false;
+  v.wettkaempfe.forEach(w=>{
+    let want=null;
+    if(ESV_KRANZFESTE_A.indexOf(w.name)!==-1)want='A';
+    else if(ESV_HALLEN_C.indexOf(w.name)!==-1)want='C';
+    else if(w.name&&w.name.indexOf('Hallenschwinget')!==-1)want='C';
+    else if(w.prio==='B'||w.prio==='C'||w.prio==='A')want=want||'B';
+    if(want&&w.prio!==want){w.prio=want;changed=true;}
+  });
+  if(changed)save();
+}
 function fixEsvWettkaempfe2027(){
   if(!S.vorlagen)return;
   const v=S.vorlagen.find(x=>x.name==='Schwingen');
@@ -3841,6 +3858,7 @@ async function init(){
   migrateEsvWettkaempfe2027B2();
   migrateEsvWettkaempfe2027B3();
   fixEsvWettkaempfe2027();
+  fixEsvWettkaempfePrio();
   fixHardCoreS128Video();
   if(!S.trainingsVorlagen)S.trainingsVorlagen=[];
   if(!S.phasen)S.phasen=[...PNAMES];
