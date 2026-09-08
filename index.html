@@ -1712,6 +1712,7 @@ function rUebersicht(){
           <button onclick="navWeek(-1)" style="background:none;border:1px solid var(--border);border-radius:6px;width:32px;height:32px;font-size:16px;cursor:pointer;color:var(--text);">‹</button>
           <span style="font-size:13px;font-weight:600;color:${isCurrentWeek?'var(--teal)':'var(--text)'};">KW ${vkw} / ${vyr}${isCurrentWeek?' · diese Woche':''}</span>
           <button onclick="navWeek(1)" ${isCurrentWeek?'disabled style="opacity:0.3;cursor:default;"':''} style="background:none;border:1px solid var(--border);border-radius:6px;width:32px;height:32px;font-size:16px;cursor:pointer;color:var(--text);">›</button>
+          <button onclick="showJumpDate(${a.id})" title="Zu Datum springen" style="background:none;border:1px solid var(--border);border-radius:6px;width:32px;height:32px;font-size:14px;cursor:pointer;color:var(--text);margin-left:4px;">📅</button>
         </div>
         <div class="srow">
           <button class="sbtn ${woche.zustand==='gut'?'gut':''}" onclick="setZ(${a.id},'gut')">Gut</button>
@@ -2077,6 +2078,7 @@ function rUebersicht(){
               ${vwWkHtml}
             </div>
             <button onclick="navWeek(1);_dwOpen[${a.id}]=true;" style="background:none;border:1px solid var(--border2);border-radius:6px;width:34px;height:34px;font-size:18px;cursor:pointer;color:var(--text);">›</button>
+            <button onclick="showJumpDate(${a.id})" title="Zu Datum springen" style="background:none;border:1px solid var(--border2);border-radius:6px;width:34px;height:34px;font-size:15px;cursor:pointer;color:var(--text);margin-left:4px;">📅</button>
           </div>
           <button onclick="togDWDetails(${a.id})" style="font-size:11px;padding:3px 12px;border-radius:6px;border:1px solid var(--border2);background:none;color:var(--muted);cursor:pointer;margin-bottom:8px;width:100%;text-align:left;">
             ${isDetails?'▲ Jahresplan, Wettkämpfe & Krafttests ausblenden':'▼ Jahresplan, Wettkämpfe & Krafttests'}
@@ -2358,6 +2360,7 @@ function rVorlagen(){
         <div class="vorlage-actions">
           <button class="vbtn" onclick="showAddVPhase(${v.id})">+ Phase</button>
           <button class="vbtn" onclick="showAddVWk(${v.id})" style="color:#185FA5;">+ Wettkampf</button>
+          <button class="vbtn" onclick="showArchiveSaison(${v.id})" style="color:#6B4FA0;">📦 Saison archivieren</button>
           <button class="vbtn" onclick="delVorlage(${v.id})" style="color:var(--hint);">Löschen</button>
         </div>
       </div>
@@ -2370,6 +2373,7 @@ function rVorlagen(){
         <div style="font-size:10px;color:var(--hint);font-weight:500;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Wettkämpfe</div>
         ${wkItems}
       </div>
+      ${buildArchivList(v.name)}
     </div>`;
   });
   // Trainingsvorlagen
@@ -2408,6 +2412,79 @@ function confAddVorlage(){
   if(!name){alert('Bitte Name eingeben.');return;}
   S.vorlagen.push({id:S.nxtVId++,name,phasen:[]});
   save();closeM();rVorlagen();
+}
+let archivOpen={};
+function toggleArchiv(name){archivOpen[name]=!archivOpen[name];rVorlagen();}
+function buildArchivList(sourceName){
+  const items=(S.archivSaisons||[]).filter(a=>a.sourceName===sourceName).sort((a,b)=>new Date(b.archivedAt)-new Date(a.archivedAt));
+  if(!items.length)return '';
+  const open=!!archivOpen[sourceName];
+  const rows=items.map(a=>{
+    const phRows=(a.phasen&&a.phasen.length)?[...a.phasen].sort((x,y)=>x.vonW-y.vonW).map(p=>{
+      const pi=pd(p.phase,p.int);
+      return `<div class="pitem" style="margin-bottom:4px;">
+        <div class="pdot" style="background:${pi.f};border:1px solid ${pi.t}30;"></div>
+        <span class="ptxt">Woche ${p.vonW+1}\u2013${p.bisW+1} \u00b7 ${p.phase} \u00b7 ${p.int}%</span>
+      </div>`;
+    }).join(''):`<div class="vorlage-empty">Keine Phasen.</div>`;
+    const wkRows=(a.wettkaempfe&&a.wettkaempfe.length)?[...a.wettkaempfe].sort((x,y)=>x.yr*100+x.kw-(y.yr*100+y.kw)).map(w=>{
+      const pc=wkPriColor(w.prio||'C');
+      return `<div class="pitem" style="margin-bottom:4px;">
+        <div style="width:18px;height:18px;background:${pc.bg};border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:500;color:${pc.c};flex-shrink:0;">${w.prio||'C'}</div>
+        <span class="ptxt">${w.name}${w.ort?' \u00b7 '+w.ort:''} \u00b7 ${w.dat||'KW '+w.kw+'/'+w.yr}</span>
+      </div>`;
+    }).join(''):`<div class="vorlage-empty">Keine Wettk\u00e4mpfe.</div>`;
+    return `<div style="border:1px solid var(--border2);border-radius:8px;padding:10px 12px;margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <span style="font-weight:600;font-size:13px;">${a.label}</span>
+        <button class="pdel" onclick="delArchivSaison(${a.id})">\u00d7</button>
+      </div>
+      <div style="font-size:10px;color:var(--hint);font-weight:500;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">Phasen</div>
+      ${phRows}
+      <div style="font-size:10px;color:var(--hint);font-weight:500;text-transform:uppercase;letter-spacing:.08em;margin:6px 0 4px;">Wettk\u00e4mpfe</div>
+      ${wkRows}
+    </div>`;
+  }).join('');
+  const safeName=sourceName.replace(/'/g,"\\'");
+  return `<div style="margin-top:10px;">
+    <div onclick="toggleArchiv('${safeName}')" style="cursor:pointer;font-size:10px;color:var(--hint);font-weight:500;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">\ud83d\udce6 Archiv (${items.length}) ${open?'\u25b2':'\u25bc'}</div>
+    ${open?rows:''}
+  </div>`;
+}
+function showArchiveSaison(vid){
+  const v=S.vorlagen.find(x=>x.id===vid);
+  if(!v)return;
+  const wkCount=(v.wettkaempfe||[]).length;
+  const phCount=(v.phasen||[]).length;
+  const yr=new Date().getFullYear();
+  modal(`<h3>${v.name} \u2013 Saison archivieren</h3>
+    <div class="info-banner" style="font-size:12px;">Sichert die aktuellen ${phCount} Phasen und ${wkCount} Wettk\u00e4mpfe als Archiv-Schnappschuss zum Nachschauen. Die Vorlage selbst bleibt danach unver\u00e4ndert \u2013 du kannst direkt darauf aufbauen und einzelne Eintr\u00e4ge anpassen, l\u00f6schen oder erg\u00e4nzen.</div>
+    <div class="frow"><label>Bezeichnung</label><input type="text" id="m-asl" value="Saison ${yr}"></div>
+    <button class="mbtn" onclick="confArchiveSaison(${vid})">Archivieren</button>`);
+}
+function confArchiveSaison(vid){
+  const v=S.vorlagen.find(x=>x.id===vid);
+  if(!v)return;
+  const label=document.getElementById('m-asl').value.trim()||('Saison '+new Date().getFullYear());
+  if(!S.archivSaisons)S.archivSaisons=[];
+  if(!S.nxtArchivId)S.nxtArchivId=1;
+  S.archivSaisons.push({
+    id:S.nxtArchivId++,
+    sourceName:v.name,
+    label,
+    phasen:JSON.parse(JSON.stringify(v.phasen||[])),
+    wettkaempfe:JSON.parse(JSON.stringify(v.wettkaempfe||[])),
+    archivedAt:new Date().toISOString()
+  });
+  save();
+  closeM();
+  rVorlagen();
+}
+function delArchivSaison(id){
+  if(!confirm('Archiv-Eintrag endg\u00fcltig l\u00f6schen?'))return;
+  S.archivSaisons=(S.archivSaisons||[]).filter(a=>a.id!==id);
+  save();
+  rVorlagen();
 }
 function delVorlage(vid){
   if(confirm('Vorlage löschen?')){S.vorlagen=S.vorlagen.filter(v=>v.id!==vid);save();rVorlagen();}
@@ -2889,6 +2966,22 @@ function navWeek(dir){
   if(kw<1){yr--;kw=weeksInYear(yr);}
   else if(kw>weeksInYear(yr)){yr++;kw=1;}
   S.viewKW=kw;S.viewYR=yr;
+  rUebersicht();
+}
+function showJumpDate(aid){
+  modal(`<h3>Zu Datum springen</h3>
+    <div class="frow"><label>Datum</label><input type="date" id="m-jmpd"></div>
+    <button class="mbtn" onclick="confJumpDate(${aid})">Springen</button>`);
+}
+function confJumpDate(aid){
+  const val=document.getElementById('m-jmpd').value;
+  if(!val){alert('Bitte Datum wählen.');return;}
+  const parts=val.split('-').map(Number);
+  const d=new Date(parts[0],parts[1]-1,parts[2]);
+  const r=kwOfDate(d);
+  S.viewKW=r.kw;S.viewYR=r.yr;
+  if(aid){S.openId=aid;_dwOpen[aid]=true;}
+  closeM();
   rUebersicht();
 }
 
