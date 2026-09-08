@@ -1073,6 +1073,84 @@ function fixHardCoreS128Video(){
     saveKatalog();
   }
 }
+const ESV_WETTKAEMPFE_2027=[["Aargauer Kantonales Schwingfest", "Hausen AG", "06.06.2027"], ["Solothurner Kantonalschwingfest", "Breitenbach", "23.05.2027"], ["Baselstädtischer Schwingertag", "Basel", "06.05.2027"], ["Basellandschaftliches Kantonalschwingfest", "Liestal", "22.08.2027"], ["Nordwestschweizer Schwingfest (NWS)", "Sissach", "03.07.2027"], ["Innerschweizer Schwing- und Älplerfest (ISV)", "Giswil", "04.07.2027"], ["Urner Kantonales Schwingfest", "Bürglen", "23.05.2027"], ["Schwyzer Kantonales Schwing- und Älplerfest", "Muotathal", "02.05.2027"]];
+const ESV_WETTKAEMPFE_2027_B2=[["Luzerner Kantonales Schwingfest", "Horw (Stadion FC Luzern)", "06.06.2027"], ["Zürcher Kantonalschwingfest", "Wehntal", "15.05.2027"], ["Stoos-Schwinget", "Stoos SZ", "13.06.2027"], ["Brünig-Schwinget", "Brünigpass", "25.07.2027"], ["Rigi-Schwinget", "Rigi Staffel", "11.07.2027"], ["Schwägalp-Schwinget", "Schwägalp AR", "15.08.2027"], ["Weissenstein-Schwinget", "Weissenstein ob Solothurn", "17.07.2027"], ["Hallenschwinget Lenzburg", "Lenzburg", "04.04.2027"], ["Hallenschwinget Sarnen", "Sarnen", "13.03.2027"]];
+const ESV_WETTKAEMPFE_2027_B3=[["Hallenschwinget Büren", "Büren an der Aare", "27.02.2027"], ["Hallenschwinget Oberdiessbach", "Reithalle Heimenschwand", "07.03.2027"], ["4. Abendschwinget Langenthal", "Langenthal", "13.03.2027"], ["42. Worblentaler Hallenschwinget", "Bolligen", "20.03.2027"], ["Frühjahrsschwinget Ibach", "Ibach", "29.03.2027"], ["Frühlingsschwinget Vinelz", "Vinelz", "03.04.2027"], ["56. Hallenschwinget Thörigen (Lueg-Cup)", "Thörigen", "10.04.2027"], ["Surentaler Frühjahrsschwinget", "Sursee", "10.04.2027"], ["Rangschwinget Thal-Gäu", "Niederbuchsiten", "10.04.2027"], ["Wislisauschwinget", "Rüschegg-Graben", "18.04.2027"], ["Badschwinget Wolhusen", "Wolhusen", "18.04.2027"], ["Guggibad-Schwinget", "Buttwil", "18.04.2027"], ["Oberbühlschwinget (Lueg-Cup)", "Huttwil", "24.04.2027"], ["Abendschwinget Frutigen", "Frutigen", "24.04.2027"], ["Abendschwinget Küssnacht", "Küssnacht am Rigi", "24.04.2027"], ["10. Seetaler Schwinget", "Hochdorf", "25.04.2027"], ["Nichtkranzer Schwingfest", "Hergiswil NW", "25.04.2027"], ["Schwinget im Zurzibiet", "Villigen", "25.04.2027"], ["Frühjahrschwinget Suhr", "Suhr", "01.05.2027"], ["Frühjahrsschwinget Oberdorf", "Oberdorf", "01.05.2027"], ["Schybischwinget", "Escholzmatt", "06.05.2027"], ["Seeländisches Schwingfest", "Safnern", "09.05.2027"], ["122. Ob- und Nidwaldner Kantonalschwingfest", "Beckenried", "09.05.2027"], ["Roteborger Schwinget", "Rothenburg", "09.05.2027"], ["Oberaargauisches Schwingfest", "Langenthal", "15.05.2027"], ["Rottal-Schwinget", "Ruswil", "15.05.2027"], ["67. Morgartenschwinget", "Morgartendenkmal", "15.05.2027"], ["Mittelländisches Schwingfest", "Wichtrach", "22.05.2027"], ["Emmentalisches Schwingfest", "Röthenbach i.E.", "06.06.2027"], ["9. Abe-Schwinget am Gotthelfmärit (Lueg Cup)", "Sumiswald", "11.06.2027"], ["Michaelskreuzschwinget", "Michaelskreuz ob Root", "19.06.2027"], ["43. Haldiberg-Schwinget", "Haldi ob Schattdorf", "19.06.2027"], ["Munimatt-Schwinget", "Obergösgen", "26.06.2027"], ["39. Niklaus-Thut Schwinget", "Zofingen", "15.08.2027"], ["Abendschwinget Cham/Hagendorn", "Hagendorn", "14.08.2027"]];
+function migrateEsvWettkaempfe2027B3(){
+  if(!S.vorlagen)return;
+  const v=S.vorlagen.find(x=>x.name==='Schwingen');
+  if(!v)return;
+  if(!v.wettkaempfe)v.wettkaempfe=[];
+  if(S.esvWk2027B3Migrated)return;
+  let changed=false;
+  ESV_WETTKAEMPFE_2027_B3.forEach(([name,ort,dat])=>{
+    const exists=v.wettkaempfe.some(w=>w.name===name&&w.dat===dat);
+    if(!exists){
+      const d=parseDate(dat);
+      const kwy=d?dateToKwYr(d):{kw:1,yr:2027};
+      v.wettkaempfe.push({name,dat,ort,kw:kwy.kw,yr:kwy.yr,prio:'C'});
+      changed=true;
+    }
+  });
+  S.esvWk2027B3Migrated=true;
+  if(changed)save();
+}
+function fixEsvWettkaempfe2027(){
+  if(!S.vorlagen)return;
+  const v=S.vorlagen.find(x=>x.name==='Schwingen');
+  if(!v||!v.wettkaempfe)return;
+  let changed=false;
+  v.wettkaempfe.forEach(w=>{
+    if(w.name==='Solothurner Kantonalschwingfest'&&w.dat==='23.05.2027'&&w.ort==='Breitenbach'){
+      w.ort='Büsserach';changed=true;
+    }
+    if(w.name==='Aargauer Kantonales Schwingfest'&&w.dat==='06.06.2027'){
+      w.dat='05.06.2027';
+      const kwy=dateToKwYr(parseDate('05.06.2027'));
+      w.kw=kwy.kw;w.yr=kwy.yr;
+      changed=true;
+    }
+  });
+  if(changed)save();
+}
+function migrateEsvWettkaempfe2027B2(){
+  if(!S.vorlagen)return;
+  const v=S.vorlagen.find(x=>x.name==='Schwingen');
+  if(!v)return;
+  if(!v.wettkaempfe)v.wettkaempfe=[];
+  if(S.esvWk2027B2Migrated)return;
+  let changed=false;
+  ESV_WETTKAEMPFE_2027_B2.forEach(([name,ort,dat])=>{
+    const exists=v.wettkaempfe.some(w=>w.name===name&&w.dat===dat);
+    if(!exists){
+      const d=parseDate(dat);
+      const kwy=d?dateToKwYr(d):{kw:1,yr:2027};
+      v.wettkaempfe.push({name,dat,ort,kw:kwy.kw,yr:kwy.yr,prio:'B'});
+      changed=true;
+    }
+  });
+  S.esvWk2027B2Migrated=true;
+  if(changed)save();
+}
+function migrateEsvWettkaempfe2027(){
+  if(!S.vorlagen)return;
+  const v=S.vorlagen.find(x=>x.name==='Schwingen');
+  if(!v)return;
+  if(!v.wettkaempfe)v.wettkaempfe=[];
+  if(S.esvWk2027Migrated)return;
+  let changed=false;
+  ESV_WETTKAEMPFE_2027.forEach(([name,ort,dat])=>{
+    const exists=v.wettkaempfe.some(w=>w.name===name&&w.dat===dat);
+    if(!exists){
+      const d=parseDate(dat);
+      const kwy=d?dateToKwYr(d):{kw:1,yr:2027};
+      v.wettkaempfe.push({name,dat,ort,kw:kwy.kw,yr:kwy.yr,prio:'B'});
+      changed=true;
+    }
+  });
+  S.esvWk2027Migrated=true;
+  if(changed)save();
+}
 function migrateHardCoreUebungenV3(){
   if(!S.katalog)S.katalog=JSON.parse(JSON.stringify(UEBUNGEN_KATALOG));
   if(!S.katalogVideos)S.katalogVideos={};
@@ -3759,6 +3837,10 @@ async function init(){
   migrateHardCoreUebungen();
   migrateHardCoreUebungenV2();
   migrateHardCoreUebungenV3();
+  migrateEsvWettkaempfe2027();
+  migrateEsvWettkaempfe2027B2();
+  migrateEsvWettkaempfe2027B3();
+  fixEsvWettkaempfe2027();
   fixHardCoreS128Video();
   if(!S.trainingsVorlagen)S.trainingsVorlagen=[];
   if(!S.phasen)S.phasen=[...PNAMES];
