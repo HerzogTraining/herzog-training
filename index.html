@@ -2183,7 +2183,10 @@ function rUebersicht(){
           ${detailsContent}
           <div style="display:flex;align-items:center;justify-content:space-between;margin:4px 0 6px;">
             <div class="slabel" style="margin:0;">Training KW ${vkw} / ${vyr}</div>
+            <div>
             <button onclick="showLoadTrainingsVorlage(${a.id})" style="font-size:11px;padding:4px 12px;border-radius:6px;border:1px solid #E8000F;background:#FFF5F5;color:#E8000F;cursor:pointer;font-weight:600;">📋 Vorlage laden</button>
+            <button onclick="showCopyToSport(${a.id})" style="font-size:11px;padding:4px 12px;border-radius:6px;border:1px solid #185FA5;background:#F0F6FC;color:#185FA5;cursor:pointer;font-weight:600;margin-left:6px;">👥 An Sportart kopieren</button>
+            </div>
           </div>
           ${trainingHtml}
           <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;">
