@@ -1817,6 +1817,7 @@ function rUebersicht(){
         <div style="display:flex;align-items:center;justify-content:space-between;margin:12px 0 6px;">
           <div class="slabel" style="margin:0;">Training KW ${vkw} / ${vyr}</div>
           <button onclick="showLoadTrainingsVorlage(${a.id})" style="font-size:11px;padding:4px 12px;border-radius:6px;border:1px solid #E8000F;background:#FFF5F5;color:#E8000F;cursor:pointer;font-weight:600;">📋 Vorlage laden</button>
+          <button onclick="showCopyToSport(${a.id})" style="font-size:11px;padding:4px 12px;border-radius:6px;border:1px solid #185FA5;background:#F0F6FC;color:#185FA5;cursor:pointer;font-weight:600;margin-left:6px;">👥 An Sportart kopieren</button>
         </div>
         ${(()=>{
           const link=(woche.einheiten&&woche.einheiten[1])||'';
@@ -3785,6 +3786,38 @@ function togglePin(id){
   rUebersicht();
 }
 
+function showCopyToSport(aid){
+  const a=S.athleten.find(x=>x.id===aid);
+  if(!a)return;
+  saveN(aid);
+  const vkw=S.viewKW||KWN,vyr=S.viewYR||YRN;
+  const targets=S.athleten.filter(x=>x.id!==aid&&x.sport===a.sport);
+  if(!targets.length){alert('Keine weiteren Athleten mit Sportart '+a.sport+'.');return;}
+  const rows=targets.map(t=>`<label style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border2);font-size:13px;"><input type="checkbox" class="cpy-chk" value="${t.id}" checked> ${t.name}</label>`).join('');
+  modal(`<h3>Training an ${a.sport}-Athleten kopieren</h3>
+    <div class="info-banner" style="font-size:12px;">Überträgt Training 1–3 von ${a.name} (KW ${vkw}/${vyr}) auf die ausgewählten Athleten. Bestehende Trainingseinträge dieser Woche werden überschrieben — Zustand, Notizen und individuelle Links bleiben unberührt.</div>
+    <div style="max-height:260px;overflow-y:auto;margin:10px 0;">${rows}</div>
+    <button class="mbtn" onclick="confCopyToSport(${aid})">Auf ausgewählte kopieren</button>`);
+}
+function confCopyToSport(aid){
+  const a=S.athleten.find(x=>x.id===aid);
+  if(!a)return;
+  const key=kwKeyStr(S.viewKW||KWN,S.viewYR||YRN);
+  const src=(a.wochen&&a.wochen[key])||{};
+  const ids=[...document.querySelectorAll('.cpy-chk:checked')].map(x=>parseInt(x.value));
+  ids.forEach(tid=>{
+    const t=S.athleten.find(x=>x.id===tid);
+    if(!t)return;
+    if(!t.wochen)t.wochen={};
+    if(!t.wochen[key])t.wochen[key]={zustand:null,einheiten:{},notiz:'',plan:''};
+    t.wochen[key].plan=src.plan||'';
+    t.wochen[key].plan2=src.plan2||'';
+    t.wochen[key].plan3=src.plan3||'';
+  });
+  save();
+  closeM();
+  rUebersicht();
+}
 function saveN(id){
   const a=S.athleten.find(x=>x.id===id);
   if(a){
