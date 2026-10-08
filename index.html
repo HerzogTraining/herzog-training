@@ -1095,8 +1095,22 @@ function migrateEsvWettkaempfe2027B3(){
   S.esvWk2027B3Migrated=true;
   if(changed)save();
 }
-const ESV_KRANZFESTE_A=["Aargauer Kantonales Schwingfest", "Solothurner Kantonalschwingfest", "Baselstädtischer Schwingertag", "Basellandschaftliches Kantonalschwingfest", "Nordwestschweizer Schwingfest (NWS)", "Innerschweizer Schwing- und Älplerfest (ISV)", "Urner Kantonales Schwingfest", "Schwyzer Kantonales Schwing- und Älplerfest", "Luzerner Kantonales Schwingfest", "Zürcher Kantonalschwingfest", "Stoos-Schwinget", "Brünig-Schwinget", "Rigi-Schwinget", "Schwägalp-Schwinget", "Weissenstein-Schwinget", "122. Ob- und Nidwaldner Kantonalschwingfest", "Oberaargauisches Schwingfest", "Emmentalisches Schwingfest", "Mittelländisches Schwingfest", "Seeländisches Schwingfest"];
+const ESV_KRANZFESTE_A=["Aargauer Kantonales Schwingfest", "Solothurner Kantonalschwingfest", "Baselstädtischer Schwingertag", "Basellandschaftliches Kantonalschwingfest", "Nordwestschweizer Schwingfest (NWS)", "Innerschweizer Schwing- und Älplerfest (ISV)", "Urner Kantonales Schwingfest", "Schwyzer Kantonales Schwing- und Älplerfest", "Luzerner Kantonales Schwingfest", "Zürcher Kantonalschwingfest", "Stoos-Schwinget", "Brünig-Schwinget", "Rigi-Schwinget", "Schwägalp-Schwinget", "Weissenstein-Schwinget", "122. Ob- und Nidwaldner Kantonalschwingfest", "Oberaargauisches Schwingfest", "Emmentalisches Schwingfest", "Mittelländisches Schwingfest", "Seeländisches Schwingfest", "107. Zuger Kantonales Schwingfest"];
 const ESV_HALLEN_C=["Hallenschwinget Lenzburg", "Hallenschwinget Sarnen", "Hallenschwinget Büren", "Hallenschwinget Oberdiessbach", "42. Worblentaler Hallenschwinget", "56. Hallenschwinget Thörigen (Lueg-Cup)"];
+function migrateEsvWettkaempfe2027B4(){
+  if(!S.vorlagen)return;
+  const v=S.vorlagen.find(x=>x.name==='Schwingen');
+  if(!v)return;
+  if(!v.wettkaempfe)v.wettkaempfe=[];
+  const name='107. Zuger Kantonales Schwingfest',ort='Zug',dat='22.08.2027';
+  const exists=v.wettkaempfe.some(w=>w.name===name&&w.dat===dat);
+  if(!exists){
+    const d=parseDate(dat);
+    const kwy=d?dateToKwYr(d):{kw:1,yr:2027};
+    v.wettkaempfe.push({name,dat,ort,kw:kwy.kw,yr:kwy.yr,prio:'A'});
+    save();
+  }
+}
 function fixEsvWettkaempfePrio(){
   if(!S.vorlagen)return;
   const v=S.vorlagen.find(x=>x.name==='Schwingen');
@@ -1946,6 +1960,9 @@ function rUebersicht(){
   const next2KW=nextKW===maxKW(nextYR)?1:nextKW+1;
   const next2YR=nextKW===maxKW(nextYR)?nextYR+1:nextYR;
   const next2KwKey=kwKeyStr(next2KW,next2YR);
+  const prevKW=KWN===1?maxKW(YRN-1):KWN-1;
+  const prevYR=KWN===1?YRN-1:YRN;
+  const prevKwKey=kwKeyStr(prevKW,prevYR);
 
   // Mini calendar with month navigation
   if(!window._calOffset)window._calOffset=0;
@@ -2104,6 +2121,9 @@ function rUebersicht(){
     const hasNotiz=uNotiz.trim().length>0||uNotizNext.trim().length>0||uNotiz2.trim().length>0;
     const notizText=uNotiz||uNotizNext;
     const notizBadge=hasNotiz?`<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:#FFF3CD;color:#856404;font-weight:500;">📝 ${notizText.split('\n')[0].substring(0,30)}${notizText.length>30?'…':''}</span>`:'';
+    const uNotizPrev=(a.wochen&&a.wochen[prevKwKey]&&a.wochen[prevKwKey].uNotiz)||'';
+    const hasPrev=uNotizPrev.trim().length>0;
+    const prevBox=hasPrev?('<div onclick="event.stopPropagation();this.style.webkitLineClamp=(this.style.webkitLineClamp===\'2\'?\'unset\':\'2\');" title="Antippen zum Aufklappen" style="cursor:pointer;margin-bottom:6px;padding:6px 10px;border-radius:6px;background:#FFF3CD;border:1px solid #F0D98A;color:#664D03;font-size:12px;line-height:1.35;white-space:pre-wrap;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;"><strong>\u21a9 Letzte Woche (KW '+prevKW+'):</strong> '+uNotizPrev.trim().replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</div>'):'';
     const isPinned=_pinned.has(a.id);
     if(!isPinned&&a.sport!==lastSport){
       if(athletCards)h+=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:6px;">${athletCards}</div>`;
@@ -2206,8 +2226,8 @@ function rUebersicht(){
           <div style="font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:${p.t};">${a.verletzt?'🤕 Verletzt':phase+' <strong>'+ins+'%</strong>'}</div>
         </div>
       </div>
-      ${notizBadge?`<div style="position:absolute;top:3px;right:5px;font-size:9px;">📝</div>`:''}
-      ${isODW?`<div style="position:absolute;top:3px;right:${notizBadge?'18':'5'}px;font-size:9px;color:var(--muted);">▲</div>`:''}
+      ${(notizBadge||hasPrev)?`<div style="position:absolute;top:3px;right:5px;font-size:9px;" title="${hasPrev?'Notiz letzte Woche vorhanden':'Notiz vorhanden'}">${hasPrev?'\u21a9':''}📝</div>`:''}
+      ${isODW?`<div style="position:absolute;top:3px;right:${hasPrev?'28':(notizBadge?'18':'5')}px;font-size:9px;color:var(--muted);">▲</div>`:''}
     </div>`;
     if(!isODW)return;
     h+=athletCards.length>0?`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:6px;">${athletCards}</div>`:'';
@@ -2228,6 +2248,7 @@ function rUebersicht(){
       <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">
         ${wkBadge}${periodBadge}${bdBadge}${notizBadge}
       </div>
+      ${prevBox}
       <div style="position:relative;margin-top:8px;margin-bottom:6px;" onclick="event.stopPropagation()">
         <div style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">KW ${KWN} / ${YRN}</div>
         <textarea id="un-${a.id}" rows="2" style="width:100%;font-size:13px;resize:none;border-radius:6px;border:1px solid var(--border2);padding:7px 10px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);" placeholder="Notiz diese Woche…" oninput="saveUNotiz(${a.id},'current')">${uNotiz}</textarea>
@@ -3895,6 +3916,7 @@ async function init(){
   migrateEsvWettkaempfe2027B2();
   migrateEsvWettkaempfe2027B3();
   fixEsvWettkaempfe2027();
+  migrateEsvWettkaempfe2027B4();
   fixEsvWettkaempfePrio();
   fixHardCoreS128Video();
   if(!S.trainingsVorlagen)S.trainingsVorlagen=[];
