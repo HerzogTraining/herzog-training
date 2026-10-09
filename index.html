@@ -2121,7 +2121,11 @@ function rUebersicht(){
     const hasNotiz=uNotiz.trim().length>0||uNotizNext.trim().length>0||uNotiz2.trim().length>0;
     const notizText=uNotiz||uNotizNext;
     const notizBadge=hasNotiz?`<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:#FFF3CD;color:#856404;font-weight:500;">📝 ${notizText.split('\n')[0].substring(0,30)}${notizText.length>30?'…':''}</span>`:'';
-    const uNotizPrev=(a.wochen&&a.wochen[prevKwKey]&&a.wochen[prevKwKey].uNotiz)||'';
+    const woPrev=(a.wochen&&a.wochen[prevKwKey])||{};
+    const prevParts=[];
+    if((woPrev.notiz||'').trim())prevParts.push(woPrev.notiz.trim());
+    if((woPrev.uNotiz||'').trim())prevParts.push(woPrev.uNotiz.trim());
+    const uNotizPrev=prevParts.join('\n');
     const hasPrev=uNotizPrev.trim().length>0;
     const prevBox=hasPrev?('<div onclick="event.stopPropagation();this.style.webkitLineClamp=(this.style.webkitLineClamp===\'2\'?\'unset\':\'2\');" title="Antippen zum Aufklappen" style="cursor:pointer;margin-bottom:6px;padding:6px 10px;border-radius:6px;background:#FFF3CD;border:1px solid #F0D98A;color:#664D03;font-size:12px;line-height:1.35;white-space:pre-wrap;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;"><strong>\u21a9 Letzte Woche (KW '+prevKW+'):</strong> '+uNotizPrev.trim().replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</div>'):'';
     const isPinned=_pinned.has(a.id);
