@@ -1328,6 +1328,8 @@ function showAddUebung(){
   modal('<h3>Übung hinzufügen \u2013 '+cat+'</h3>'
     +'<div class="frow"><label>Name / Beschreibung</label>'
     +'<textarea id="m-un" rows="4" style="width:100%;font-size:13px;resize:vertical;border-radius:6px;border:1px solid var(--border2);padding:8px;"></textarea></div>'
+    +'<div class="frow"><label>Video-Link (YouTube / Instagram, optional)</label>'
+    +'<input id="m-uvid" type="url" placeholder="https://..." style="width:100%;font-size:13px;border-radius:6px;border:1px solid var(--border2);padding:8px;"></div>'
     +'<div class="mbtns"><button onclick="closeM()">Abbrechen</button>'
     +'<button class="primary" onclick="confAddUebung()">Speichern</button></div>');
 }
@@ -1354,8 +1356,8 @@ function showEditUebung(){
   modal('<h3>Übung bearbeiten \u2013 '+cat+'</h3>'
     +'<div class="frow"><label>Name / Beschreibung</label>'
     +'<textarea id="m-ue" rows="4" style="width:100%;font-size:13px;resize:vertical;border-radius:6px;border:1px solid var(--border2);padding:8px;">'+val+'</textarea></div>'
-    +'<div class="frow"><label>Video-Link (YouTube, optional)</label>'
-    +'<input id="m-uvid" type="url" placeholder="https://youtube.com/..." value="'+vidVal+'" style="width:100%;font-size:13px;border-radius:6px;border:1px solid var(--border2);padding:8px;"></div>'
+    +'<div class="frow"><label>Video-Link (YouTube / Instagram, optional)</label>'
+    +'<input id="m-uvid" type="url" placeholder="https://..." value="'+vidVal+'" style="width:100%;font-size:13px;border-radius:6px;border:1px solid var(--border2);padding:8px;"></div>'
     +'<div class="mbtns"><button onclick="closeM()">Abbrechen</button>'
     +'<button class="primary" onclick="confEditUebung()">Speichern</button>'
     +'<button onclick="delUebung();closeM();" style="color:var(--red);border-color:var(--red);">Löschen</button></div>');
