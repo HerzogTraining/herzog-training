@@ -1289,6 +1289,23 @@ const _katMap={};
 function setKat(key,val){_katMap[key]=val;return key;}
 function getKatByKey(key){return _katMap[key];}
 
+function videoForLine(line){
+  const vids=S.katalogVideos||{};
+  const l=line.toLowerCase();
+  if(l.length<4)return null;
+  let best=null,bestLen=0;
+  Object.keys(vids).forEach(name=>{
+    const full=name.toLowerCase();
+    const cands=[full];
+    const m=name.match(/^(.*?)\s*\((.*)\)\s*$/);
+    if(m){cands.push(m[1].toLowerCase());cands.push(m[2].toLowerCase());}
+    cands.forEach(c=>{
+      c=c.trim();
+      if(c.length>=4&&c.length>bestLen&&l.includes(c)){best=name;bestLen=c.length;}
+    });
+  });
+  return best?vids[best]:null;
+}
 function updateKatSelBar(){
   const bar=document.getElementById('kat-selbar');
   if(!bar)return;
@@ -1311,8 +1328,18 @@ function buildSendText(){
   const bem=(document.getElementById('send-bem')||{}).value||'';
   let t='Hoi, hier deine Übung'+(names.length===1?'':'en')+':\n\n';
   names.forEach((n,i)=>{
-    t+=(names.length>1?(i+1)+'. ':'')+n.trim()+'\n';
-    if(vids[n])t+='▶ '+vids[n]+'\n';
+    const lines=n.trim().split('\n').map(x=>x.trim()).filter(Boolean);
+    if(lines.length<=1){
+      t+=(names.length>1?(i+1)+'. ':'')+n.trim()+'\n';
+      if(vids[n])t+='▶ '+vids[n]+'\n';
+    }else{
+      t+=(names.length>1?(i+1)+'. ':'')+lines[0]+'\n';
+      lines.slice(1).forEach(ln=>{
+        t+=ln+'\n';
+        const u=ln.length<=80?videoForLine(ln):null;
+        if(u)t+='▶ '+u+'\n';
+      });
+    }
     t+='\n';
   });
   if(bem.trim())t+=bem.trim()+'\n\n';
@@ -3779,9 +3806,8 @@ function printPlan(id){
   const videos=S.katalogVideos||{};
   const enrichLine=(l)=>{
     // Check if any katalog entry with a video appears in this line
-    const matched=Object.keys(videos).find(name=>l.toLowerCase().includes(name.toLowerCase()));
-    if(!matched)return'<span>'+l+'</span>';
-    const url=videos[matched];
+    const url=videoForLine(l);
+    if(!url)return'<span>'+l+'</span>';
     return'<span>'+l+'</span> <a href="'+url+'" style="font-size:10px;color:#E8000F;font-weight:600;text-decoration:none;white-space:nowrap;" target="_blank">▶ Video</a>';
   };
   const trainBlock=(title,txt)=>{
