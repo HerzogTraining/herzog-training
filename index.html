@@ -462,7 +462,7 @@ async function sbFetch(method, body){
 }
 
 async function saveState(){
-  const data={athleten:S.athleten,nxtId:S.nxtId,vorlagen:S.vorlagen,nxtVId:S.nxtVId,katalog:S.katalog,trainingsVorlagen:S.trainingsVorlagen,phasen:S.phasen,personal:S.personal||[],ideen:S.ideen||{},katalogVideos:S.katalogVideos||{},tcMigratedV1:!!S.tcMigratedV1,zirkelSeedV1:!!S.zirkelSeedV1};
+  const data={athleten:S.athleten,nxtId:S.nxtId,vorlagen:S.vorlagen,nxtVId:S.nxtVId,katalog:S.katalog,trainingsVorlagen:S.trainingsVorlagen,phasen:S.phasen,personal:S.personal||[],ideen:S.ideen||{},katalogVideos:S.katalogVideos||{},tcMigratedV1:!!S.tcMigratedV1,zirkelSeedV1:!!S.zirkelSeedV1,extraSeedV2:!!S.extraSeedV2,extraSeedV3:!!S.extraSeedV3};
   try{localStorage.setItem(LS_KEY,JSON.stringify(data));}catch(e){}
   setSyncDot('busy');
   try{
@@ -1102,6 +1102,49 @@ function migrateZirkelSeedV1(){
   S.zirkelSeedV1=true;
   if(changed)save();
 }
+const EXTRA_SEED_V2=[
+ ["Hüftdominant","Husafell Carry (Husafell Bag Carry – Sack hochkant vor der Brust umarmen, gehen)","https://www.youtube.com/watch?v=W0Qjk6gPBZo"],
+ ["Hüftdominant","Husafell Pick-up (Husafell Bag Pick-up – vom Boden aufnehmen und absetzen)","https://www.youtube.com/watch?v=9k0I5V2IDgc"],
+ ["Kniebeuge","Husafell Squat (Husafell Bag Squat – Sack vor der Brust)","https://www.youtube.com/watch?v=oT_Nin52nJk"],
+ ["Hüftdominant","Sandbag auf Schulter (Sandbag to Shoulder – Seite wechseln)","https://www.youtube.com/watch?v=r-4fKCC3RiU"],
+ ["Hüftdominant","Sandbag über Schulter (Sandbag Over the Shoulder)","https://www.youtube.com/watch?v=yqaHrWsgEj4"]
+];
+function migrateExtraSeedV2(){
+  if(!S.katalog)S.katalog=JSON.parse(JSON.stringify(UEBUNGEN_KATALOG));
+  if(!S.katalogVideos)S.katalogVideos={};
+  if(S.extraSeedV2)return;
+  let changed=false;
+  EXTRA_SEED_V2.forEach(([cat,nm,vid])=>{
+    if(!S.katalog[cat])S.katalog[cat]=[];
+    if(S.katalog[cat].indexOf(nm)===-1){S.katalog[cat].push(nm);changed=true;}
+    if(vid&&!S.katalogVideos[nm]){S.katalogVideos[nm]=vid;changed=true;}
+  });
+  S.extraSeedV2=true;
+  if(changed)save();
+}
+const EXTRA_SEED_V3=[
+ ["Rumpf","Bulgarian Bag Spin (Bulgarian Bag Spin – Ivan Ivanov Tutorial)","https://www.youtube.com/watch?v=lRAeV_ClHH0"],
+ ["Rumpf","Bulgarian Bag Arm Throw (Bulgarian Bag Arm Throw)","https://www.youtube.com/watch?v=hhN-6KcxOOQ"],
+ ["Gewichtheben","Bulgarian Bag Snatch (Bulgarian Bag Snatch)","https://www.youtube.com/watch?v=Btyl0wnVhBM"],
+ ["Hüftdominant","Bulgarian Bag Swing (Bulgarian Bag Clean, Snatch, Swing + Squat)","https://www.youtube.com/watch?v=44U5lFHeb0E"],
+ ["Schnelligkeit/Wendigkeit","Bulgarian Bag Reaktion (Bulgarian Bag Reaction Training for Wrestlers)","https://www.youtube.com/watch?v=gPQb_mvKSAk"],
+ ["Rumpf","Isometrisches Abdrehen am Rack (Overcoming Isometric with Strap – Gurt auf Hüfthöhe fix, Schwingerstand, 5 Sek. maximal drehend ziehen)","https://www.youtube.com/watch?v=FIBAiz3cR2A"],
+ ["Rumpf","Landmine Rotation stehend (Landmine Rotation – Hüfte zu Hüfte, Füsse bleiben)","https://www.youtube.com/watch?v=MswsBPLGhE8"],
+ ["Zirkel","Rumpf 10 Stand Schwinger – nach jeder Maxkraft-Einheit, solo, ca. 100 Sek. pro Station, maximale Qualität statt Uhr\n4x5 Sek je Seite Isometrisches Abdrehen am Rack – Schwingerstand, Hüfte frontal\n6x je Seite Bulgarian Bag Spin – am Rücken hart abbremsen, Füsse fest\n6x je Seite Landmine Rotation stehend – schwer, Kraft aus den Beinen\n2x20 m Chaos Farmers Walk – Kettlebells an Bändern, Schultern waagrecht\n2x20 m Husafell Carry in Vorlage – 20° vorgebeugt wie im Griff\n8x je Seite Bulgarian Bag Arm Throw – explosiv, Hüfte dreht mit\nScore notieren: Scheiben Landmine, KB-Gewicht Chaos Walk, Sackgewicht. Progression: alle 4 Wochen Lasten hoch und Vorlage tiefer.",null]
+];
+function migrateExtraSeedV3(){
+  if(!S.katalog)S.katalog=JSON.parse(JSON.stringify(UEBUNGEN_KATALOG));
+  if(!S.katalogVideos)S.katalogVideos={};
+  if(S.extraSeedV3)return;
+  let changed=false;
+  EXTRA_SEED_V3.forEach(([cat,nm,vid])=>{
+    if(!S.katalog[cat])S.katalog[cat]=[];
+    if(S.katalog[cat].indexOf(nm)===-1){S.katalog[cat].push(nm);changed=true;}
+    if(vid&&!S.katalogVideos[nm]){S.katalogVideos[nm]=vid;changed=true;}
+  });
+  S.extraSeedV3=true;
+  if(changed)save();
+}
 function fixHardCoreS128Video(){
   if(!S.katalogVideos)S.katalogVideos={};
   const name='Isoliertes Aufrollen der Wirbelsäule (Hard Core, S.128)';
@@ -1310,7 +1353,7 @@ function planVidsHtml(txt){
   if(!txt||!txt.trim())return '';
   const seen=new Set();let h='';
   txt.split('\n').map(x=>x.trim()).filter(Boolean).forEach(ln=>{
-    if(ln.length>80)return;
+    if(ln.length>100)return;
     const u=videoForLine(ln);
     if(!u||seen.has(u))return;
     seen.add(u);
@@ -1360,7 +1403,7 @@ function buildSendText(){
       t+=(names.length>1?(i+1)+'. ':'')+lines[0]+'\n';
       lines.slice(1).forEach(ln=>{
         t+=ln+'\n';
-        const u=ln.length<=80?videoForLine(ln):null;
+        const u=ln.length<=100?videoForLine(ln):null;
         if(u)t+='▶ '+u+'\n';
       });
     }
@@ -1381,7 +1424,7 @@ function showSendUebungen(){
       html=n.replace(/</g,'&lt;')+(vids[n]?' <span style="color:#E8000F;font-size:11px;">▶ Video</span>':' <span style="color:var(--muted);font-size:11px;">(kein Video)</span>');
     }else{
       html=lines.map((ln,i)=>{
-        const u=(i>0&&ln.length<=80)?videoForLine(ln):null;
+        const u=(i>0&&ln.length<=100)?videoForLine(ln):null;
         return ln.replace(/</g,'&lt;')+(u?' <span style="color:#E8000F;font-size:11px;">▶ Video</span>':'');
       }).join('<br>');
     }
@@ -4124,6 +4167,8 @@ async function init(){
   migrateHardCoreUebungenV3();
   migrateTrueCoachUebungen();
   migrateZirkelSeedV1();
+  migrateExtraSeedV2();
+  migrateExtraSeedV3();
   migrateEsvWettkaempfe2027();
   migrateEsvWettkaempfe2027B2();
   migrateEsvWettkaempfe2027B3();
