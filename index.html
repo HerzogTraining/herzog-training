@@ -462,7 +462,7 @@ async function sbFetch(method, body){
 }
 
 async function saveState(){
-  const data={athleten:S.athleten,nxtId:S.nxtId,vorlagen:S.vorlagen,nxtVId:S.nxtVId,katalog:S.katalog,trainingsVorlagen:S.trainingsVorlagen,phasen:S.phasen,personal:S.personal||[],ideen:S.ideen||{},katalogVideos:S.katalogVideos||{},tcMigratedV1:!!S.tcMigratedV1};
+  const data={athleten:S.athleten,nxtId:S.nxtId,vorlagen:S.vorlagen,nxtVId:S.nxtVId,katalog:S.katalog,trainingsVorlagen:S.trainingsVorlagen,phasen:S.phasen,personal:S.personal||[],ideen:S.ideen||{},katalogVideos:S.katalogVideos||{},tcMigratedV1:!!S.tcMigratedV1,zirkelSeedV1:!!S.zirkelSeedV1};
   try{localStorage.setItem(LS_KEY,JSON.stringify(data));}catch(e){}
   setSyncDot('busy');
   try{
@@ -1088,6 +1088,18 @@ function migrateTrueCoachUebungen(){
     });
   });
   S.tcMigratedV1=true;
+  if(changed)save();
+}
+const ZIRKEL_SEED_V1=[["Zirkel","20 Min AMRAP Schwinger\n15x Kettlebell-Swing 24–32 kg\n6x Sandbag Stossen (Clean and Jerk), schwerer Sack\n6x Klimmzug (Griff pro Runde wechseln)\n10 Schritte Doppelt Kettlebell Frontrack Ausfallschritt gehend\n6 je Seite Seitlich Medizinball Slam 9–10 kg\n20 m Sandbag Zercher-Tragen\n8x Burpee\nZiel 4–6 Runden. Pause nur beim Absetzen. Varianten: Zercher → Farmers Walk, Klimmzug → Kipping Klimmzug, Burpee → Sprawl Kastensprung."]];
+function migrateZirkelSeedV1(){
+  if(!S.katalog)S.katalog=JSON.parse(JSON.stringify(UEBUNGEN_KATALOG));
+  if(S.zirkelSeedV1)return;
+  let changed=false;
+  ZIRKEL_SEED_V1.forEach(([cat,nm])=>{
+    if(!S.katalog[cat])S.katalog[cat]=[];
+    if(S.katalog[cat].indexOf(nm)===-1){S.katalog[cat].push(nm);changed=true;}
+  });
+  S.zirkelSeedV1=true;
   if(changed)save();
 }
 function fixHardCoreS128Video(){
@@ -4043,6 +4055,7 @@ async function init(){
   migrateHardCoreUebungenV2();
   migrateHardCoreUebungenV3();
   migrateTrueCoachUebungen();
+  migrateZirkelSeedV1();
   migrateEsvWettkaempfe2027();
   migrateEsvWettkaempfe2027B2();
   migrateEsvWettkaempfe2027B3();
