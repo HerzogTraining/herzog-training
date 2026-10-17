@@ -1299,7 +1299,7 @@ function buildSendText(){
   const bem=(document.getElementById('send-bem')||{}).value||'';
   let t='Hoi, hier deine Übung'+(names.length===1?'':'en')+':\n\n';
   names.forEach((n,i)=>{
-    t+=(names.length>1?(i+1)+'. ':'')+n+'\n';
+    t+=(names.length>1?(i+1)+'. ':'')+n.trim()+'\n';
     if(vids[n])t+='▶ '+vids[n]+'\n';
     t+='\n';
   });
@@ -1311,7 +1311,7 @@ function showSendUebungen(){
   const names=[...window._kSel];
   if(!names.length)return;
   const vids=S.katalogVideos||{};
-  const list=names.map(n=>'<div style="padding:5px 0;border-bottom:1px solid var(--border2);font-size:13px;">'+n.replace(/</g,'&lt;')+(vids[n]?' <span style="color:#E8000F;font-size:11px;">▶</span>':' <span style="color:var(--muted);font-size:11px;">(kein Video)</span>')+'</div>').join('');
+  const list=names.map(n=>'<div style="padding:6px 0;border-bottom:1px solid var(--border2);font-size:13px;white-space:pre-wrap;line-height:1.4;">'+n.replace(/</g,'&lt;')+(vids[n]?' <span style="color:#E8000F;font-size:11px;">▶</span>':' <span style="color:var(--muted);font-size:11px;">(kein Video)</span>')+'</div>').join('');
   const canShare=!!navigator.share;
   modal('<h3>Übungen senden</h3>'
     +'<div style="max-height:200px;overflow-y:auto;margin:6px 0 10px;">'+list+'</div>'
