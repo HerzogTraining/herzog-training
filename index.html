@@ -1277,6 +1277,68 @@ const _katMap={};
 function setKat(key,val){_katMap[key]=val;return key;}
 function getKatByKey(key){return _katMap[key];}
 
+function updateKatSelBar(){
+  const bar=document.getElementById('kat-selbar');
+  if(!bar)return;
+  const n=window._kSel?window._kSel.size:0;
+  if(!n){bar.innerHTML='';return;}
+  bar.innerHTML='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#FFF5F5;border:1.5px solid #E8000F;border-radius:10px;padding:8px 12px;margin-bottom:12px;font-size:13px;">'
+    +'<b>'+n+' Übung'+(n===1?'':'en')+' ausgewählt</b>'
+    +'<button class="primary" onclick="showSendUebungen()" style="font-size:12px;padding:5px 14px;border-radius:6px;cursor:pointer;">📤 Senden</button>'
+    +'<button onclick="clearKatSel()" style="font-size:12px;padding:5px 10px;border-radius:6px;border:1px solid var(--border2);background:none;color:var(--muted);cursor:pointer;">Auswahl leeren</button>'
+    +'</div>';
+}
+function clearKatSel(){
+  window._kSel=new Set();
+  document.querySelectorAll('.kat-sel').forEach(c=>{c.checked=false;});
+  updateKatSelBar();
+}
+function buildSendText(){
+  const vids=S.katalogVideos||{};
+  const names=[...window._kSel];
+  const bem=(document.getElementById('send-bem')||{}).value||'';
+  let t='Hoi, hier deine Übung'+(names.length===1?'':'en')+':\n\n';
+  names.forEach((n,i)=>{
+    t+=(names.length>1?(i+1)+'. ':'')+n+'\n';
+    if(vids[n])t+='▶ '+vids[n]+'\n';
+    t+='\n';
+  });
+  if(bem.trim())t+=bem.trim()+'\n\n';
+  t+='Gruss Tommy';
+  return t;
+}
+function showSendUebungen(){
+  const names=[...window._kSel];
+  if(!names.length)return;
+  const vids=S.katalogVideos||{};
+  const list=names.map(n=>'<div style="padding:5px 0;border-bottom:1px solid var(--border2);font-size:13px;">'+n.replace(/</g,'&lt;')+(vids[n]?' <span style="color:#E8000F;font-size:11px;">▶</span>':' <span style="color:var(--muted);font-size:11px;">(kein Video)</span>')+'</div>').join('');
+  const canShare=!!navigator.share;
+  modal('<h3>Übungen senden</h3>'
+    +'<div style="max-height:200px;overflow-y:auto;margin:6px 0 10px;">'+list+'</div>'
+    +'<div class="frow"><label>Bemerkung (optional, z.B. 3x10, 2x pro Woche)</label><textarea id="send-bem" rows="3" style="width:100%;font-size:13px;"></textarea></div>'
+    +'<div class="mbtns" style="flex-wrap:wrap;">'
+    +'<button onclick="closeM()">Abbrechen</button>'
+    +'<button onclick="sendUebungenWA()" style="border-color:#25D366;color:#128C7E;">WhatsApp</button>'
+    +'<button onclick="sendUebungenCopy()">Kopieren</button>'
+    +(canShare?'<button class="primary" onclick="sendUebungenShare()">Teilen…</button>':'<button class="primary" onclick="sendUebungenMail()">Mail</button>')
+    +'</div>');
+}
+function sendUebungenWA(){
+  window.open('https://wa.me/?text='+encodeURIComponent(buildSendText()),'_blank');
+}
+function sendUebungenMail(){
+  location.href='mailto:?subject='+encodeURIComponent('Übungen')+'&body='+encodeURIComponent(buildSendText());
+}
+function sendUebungenCopy(){
+  const t=buildSendText();
+  const done=()=>{alert('Text kopiert – in WhatsApp/Mail einfügen.');};
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(done).catch(()=>{prompt('Text kopieren:',t);});}
+  else prompt('Text kopieren:',t);
+}
+function sendUebungenShare(){
+  const t=buildSendText();
+  navigator.share({text:t}).then(()=>{closeM();clearKatSel();}).catch(e=>{if(e&&e.name!=='AbortError')sendUebungenCopy();});
+}
 function kSearch(v){
   window._kQuery=v;
   rKatalog();
@@ -1290,10 +1352,12 @@ function rKatalog(){
   cats.forEach((cat,ci)=>{_katMap['k'+ci]=cat;});
   const q=(window._kQuery||'').trim().toLowerCase();
   if(!window._kOpen)window._kOpen={};
+  if(!window._kSel)window._kSel=new Set();
   const total=cats.reduce((n,c)=>n+(k[c]||[]).length,0);
   let h='<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">'
     +'<input id="kat-search" type="search" placeholder="Übung suchen… ('+total+' Übungen)" value="'+(window._kQuery||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;')+'" oninput="kSearch(this.value)" style="flex:1;min-width:200px;font-size:13px;padding:7px 10px;border:1.5px solid #D0D0D0;border-radius:8px;">'
-    +'<button class="addbtn" onclick="showAddKategorie()" style="margin:0;">+ Neue Kategorie</button></div>';
+    +'<button class="addbtn" onclick="showAddKategorie()" style="margin:0;">+ Neue Kategorie</button></div>'
+    +'<div id="kat-selbar"></div>';
   cats.forEach((cat,ci)=>{
     const orig=k[cat]||[];
     let ubs=[...orig].sort((a,b)=>a.localeCompare(b,'de'));
@@ -1306,7 +1370,9 @@ function rKatalog(){
       const bb=i===ubs.length-1?'border-bottom:none;':'';
       const vid=(S.katalogVideos||{})[u];
       const vidHtml=vid?'<a href="'+vid+'" target="_blank" rel="noopener" style="font-size:11px;color:#E8000F;text-decoration:none;margin-top:2px;display:block;">▶ Video</a>':'';
+      const esc=u.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
       rows+='<div class="kat-row" style="display:flex;align-items:flex-start;gap:8px;padding:8px 12px;border-bottom:1px solid #E8E8E8;'+bb+'">'
+        +'<input type="checkbox" class="kat-sel" data-name="'+esc+'" '+(window._kSel.has(u)?'checked':'')+' title="Zum Senden auswählen" style="margin-top:2px;width:16px;height:16px;flex-shrink:0;cursor:pointer;">'
         +'<div style="flex:1;">'
         +'<div style="font-size:13px;white-space:pre-wrap;">'+u.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</div>'
         +vidHtml
@@ -1330,9 +1396,15 @@ function rKatalog(){
   const el=document.getElementById('view-katalog');
   el.innerHTML=h;
   window._kCats=cats;
+  updateKatSelBar();
   if(!el._kl){
     el._kl=true;
     el.addEventListener('click',function(e){
+      if(e.target.classList&&e.target.classList.contains('kat-sel')){
+        const nm=e.target.dataset.name;
+        if(e.target.checked)window._kSel.add(nm);else window._kSel.delete(nm);
+        updateKatSelBar();return;
+      }
       const tg=e.target.closest('.kat-toggle');
       if(tg){const c=window._kCats[parseInt(tg.dataset.cat)];window._kOpen[c]=!window._kOpen[c];rKatalog();return;}
       const btn=e.target.closest('button[data-ci]');
