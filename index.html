@@ -140,6 +140,16 @@ input:focus,select:focus,textarea:focus{border-color:var(--border2);}
 .sync-banner{position:fixed;top:0;left:0;right:0;background:#E24B4A;color:#fff;font-size:13px;line-height:1.5;padding:calc(10px + env(safe-area-inset-top,0px)) 16px 10px;text-align:center;z-index:300;display:none;box-shadow:0 2px 8px rgba(0,0,0,.2);}
 .sync-banner-btn{margin:4px 0 0 6px;background:#fff;color:#E24B4A;border:none;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;}
 .sync-banner-btn.sec{background:transparent;color:#fff;border:1px solid #fff;}
+.login-overlay{position:fixed;inset:0;background:var(--bg);display:none;align-items:center;justify-content:center;z-index:400;padding:20px;padding-top:calc(20px + env(safe-area-inset-top,0px));}
+.login-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px 24px;width:100%;max-width:340px;box-shadow:0 8px 30px rgba(0,0,0,.08);font-family:'DM Sans',sans-serif;}
+.login-card h2{font-size:18px;font-weight:700;margin:0 0 4px;color:var(--text);}
+.login-card .sub{font-size:12px;color:var(--muted);margin:0 0 18px;border-bottom:2px solid #E8000F;padding-bottom:12px;}
+.login-card label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px;}
+.login-card input{width:100%;box-sizing:border-box;font-size:16px;padding:10px 12px;border:1px solid var(--border2);border-radius:8px;background:var(--surface);color:var(--text);font-family:inherit;}
+.login-card input:focus{outline:none;border-color:#E8000F;}
+.login-card button{width:100%;margin-top:18px;padding:11px;border:none;border-radius:8px;background:#E8000F;color:#fff;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;}
+.login-card button:disabled{opacity:.6;cursor:default;}
+.login-error{min-height:18px;font-size:13px;color:#E24B4A;margin-top:10px;}
 .hist-row{display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;}
 .hist-kw{font-size:11px;color:var(--muted);width:70px;flex-shrink:0;}
 .hist-z{width:20px;text-align:center;flex-shrink:0;}
@@ -167,6 +177,19 @@ input:focus,select:focus,textarea:focus{border-color:var(--border2);}
 <body>
 <div id="config-banner" class="config-banner">⚠️ Supabase noch nicht konfiguriert – Daten werden nur lokal gespeichert. <a href="#" onclick="document.getElementById('config-banner').style.display='none'">×</a></div>
 <div id="sync-banner" class="sync-banner"></div>
+<div id="login-overlay" class="login-overlay">
+  <form class="login-card" onsubmit="return doLogin(event)" autocomplete="on">
+    <h2>Herzog Training</h2>
+    <p class="sub">Bitte anmelden</p>
+    <label for="login-email">E-Mail</label>
+    <input id="login-email" name="email" type="email" autocomplete="username" inputmode="email" autocapitalize="none" spellcheck="false">
+    <label for="login-pw">Passwort</label>
+    <input id="login-pw" name="password" type="password" autocomplete="current-password">
+    <button id="login-btn" type="submit">Anmelden</button>
+    <div id="login-error" class="login-error"></div>
+  </form>
+</div>
+
 <div id="loading-overlay" class="loading-overlay">Lade Daten…</div>
 <div class="wrap">
   <div class="topbar">
@@ -179,6 +202,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--border2);}
     <span id="gcal-status" style="font-size:11px;color:#1D9E75;margin-left:6px;opacity:0;transition:opacity .5s;"></span>
     <button onclick="exportData()" title="Daten sichern" style="margin-left:8px;background:none;border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer;color:var(--text);font-family:'DM Sans',sans-serif;">⬇ Backup</button>
     <button onclick="document.getElementById('import-input').click()" title="Backup einspielen" style="margin-left:4px;background:none;border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer;color:var(--text);font-family:'DM Sans',sans-serif;">⬆ Wiederherstellen</button>
+    <button id="logout-btn" onclick="logout()" title="Abmelden" style="display:none;margin-left:4px;background:none;border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer;color:var(--text);font-family:'DM Sans',sans-serif;">⎋ Abmelden</button>
     <input type="file" id="import-input" accept=".json" style="display:none" onchange="importData(event)">
   </div>
   <div class="tabs">
@@ -486,17 +510,131 @@ function forceOverwrite(){
   saveState(true);
 }
 
-async function sbFetch(method, body, query){
+// ---- LOGIN (Supabase Auth) ----
+const AUTH_KEY='ht_auth_v1';
+let AUTH=null;            // {access_token, refresh_token, expires_at, email}
+let refreshPromise=null;
+let loginWaiters=[];
+
+function loadAuth(){try{const r=localStorage.getItem(AUTH_KEY);AUTH=r?JSON.parse(r):null;}catch(e){AUTH=null;}}
+function storeAuth(j){
+  AUTH={access_token:j.access_token,refresh_token:j.refresh_token,
+        expires_at:Date.now()+((j.expires_in||3600)-60)*1000,
+        email:(j.user&&j.user.email)||(AUTH&&AUTH.email)||''};
+  try{localStorage.setItem(AUTH_KEY,JSON.stringify(AUTH));}catch(e){}
+  updateAuthUi();
+}
+function clearAuth(){AUTH=null;try{localStorage.removeItem(AUTH_KEY);}catch(e){}updateAuthUi();}
+function updateAuthUi(){
+  const b=document.getElementById('logout-btn');
+  if(b){b.style.display=AUTH?'':'none';b.title=AUTH&&AUTH.email?('Angemeldet als '+AUTH.email):'Abmelden';}
+}
+
+async function authToken(grant,payload){
+  return fetch(SUPABASE_URL+'/auth/v1/token?grant_type='+grant,{
+    method:'POST',
+    headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON_KEY},
+    body:JSON.stringify(payload)
+  });
+}
+
+// true = erneuert, false = Sitzung ungültig, null = Netzwerkproblem
+function refreshAuth(){
+  if(!AUTH||!AUTH.refresh_token)return Promise.resolve(false);
+  if(refreshPromise)return refreshPromise;
+  refreshPromise=(async()=>{
+    try{
+      const res=await authToken('refresh_token',{refresh_token:AUTH.refresh_token});
+      if(!res.ok)return false;
+      storeAuth(await res.json());return true;
+    }catch(e){return null;}
+    finally{refreshPromise=null;}
+  })();
+  return refreshPromise;
+}
+
+async function getToken(){
+  if(!AUTH)return null;
+  if(Date.now()>=AUTH.expires_at){
+    const ok=await refreshAuth();
+    if(ok===false){clearAuth();return null;}
+  }
+  return AUTH?AUTH.access_token:null;
+}
+
+// Zeigt den Login und wartet, bis die Anmeldung geklappt hat
+function requireLogin(msg){
+  return new Promise(resolve=>{
+    loginWaiters.push(resolve);
+    const o=document.getElementById('login-overlay');
+    const e=document.getElementById('login-error');
+    if(e){e.textContent=msg||'';}
+    if(o&&o.style.display!=='flex'){
+      o.style.display='flex';
+      const em=document.getElementById('login-email');
+      if(em){if(!em.value&&AUTH&&AUTH.email)em.value=AUTH.email;setTimeout(()=>{(em.value?document.getElementById('login-pw'):em).focus();},50);}
+    }
+  });
+}
+
+async function doLogin(ev){
+  if(ev)ev.preventDefault();
+  const em=document.getElementById('login-email').value.trim();
+  const pw=document.getElementById('login-pw').value;
+  const err=document.getElementById('login-error');
+  const btn=document.getElementById('login-btn');
+  if(!em||!pw){err.textContent='Bitte E-Mail und Passwort eingeben.';return false;}
+  btn.disabled=true;btn.textContent='Anmelden…';err.textContent='';
+  try{
+    const res=await authToken('password',{email:em,password:pw});
+    if(res.ok){
+      storeAuth(await res.json());
+      document.getElementById('login-pw').value='';
+      document.getElementById('login-overlay').style.display='none';
+      const w=loginWaiters;loginWaiters=[];w.forEach(f=>f());
+    }else if(res.status===400||res.status===401){
+      err.textContent='E-Mail oder Passwort falsch.';
+    }else if(res.status===429){
+      err.textContent='Zu viele Versuche – bitte kurz warten.';
+    }else{
+      err.textContent='Anmeldung fehlgeschlagen (Fehler '+res.status+').';
+    }
+  }catch(e){
+    err.textContent='Keine Verbindung – bitte Internet prüfen.';
+  }finally{
+    btn.disabled=false;btn.textContent='Anmelden';
+  }
+  return false;
+}
+
+function logout(){
+  if(!confirm('Abmelden?'))return;
+  const rt=AUTH&&AUTH.access_token;
+  if(rt){try{fetch(SUPABASE_URL+'/auth/v1/logout',{method:'POST',headers:{'apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+rt}});}catch(e){}}
+  clearAuth();
+  setTimeout(()=>location.reload(),300);
+}
+
+async function sbFetch(method, body, query, _retry){
+  let token=await getToken();
+  if(!token){await requireLogin();token=await getToken();}
   const headers={
     'Content-Type':'application/json',
     'apikey': SUPABASE_ANON_KEY,
-    'Authorization': 'Bearer '+SUPABASE_ANON_KEY,
+    'Authorization': 'Bearer '+(token||SUPABASE_ANON_KEY),
     'Prefer': method==='POST'?'resolution=merge-duplicates,return=minimal':'return=minimal'
   };
   const url=SUPABASE_URL+'/rest/v1/trainer_state';
   const opts={method, headers, cache:'no-store'};
   if(body) opts.body=JSON.stringify(body);
-  return fetch(url+(method==='GET'?'?id=eq.main&select='+(query||'data,updated_at'):''), opts);
+  const res=await fetch(url+(method==='GET'?'?id=eq.main&select='+(query||'data,updated_at'):''), opts);
+  if(res.status===401&&!_retry){
+    // Token abgelaufen/ungültig: erneuern, sonst neu anmelden, dann einmal wiederholen
+    const ok=await refreshAuth();
+    if(ok!==true){clearAuth();await requireLogin('Bitte erneut anmelden.');}
+    return sbFetch(method, body, query, true);
+  }
+  return res;
 }
 
 function tsOf(v){
@@ -4268,6 +4406,8 @@ function switchTab(t,btn){
 let S;
 async function init(){
   if(!sbConfigured){} // always configured
+  loadAuth();updateAuthUi();
+  if(!AUTH){document.getElementById('loading-overlay').style.display='none';await requireLogin();document.getElementById('loading-overlay').style.display='flex';}
   const saved=await loadState();
   const base=saved?{...saved}:{
     athleten:[],nxtId:1,
