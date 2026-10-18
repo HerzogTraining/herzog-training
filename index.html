@@ -137,6 +137,9 @@ input:focus,select:focus,textarea:focus{border-color:var(--border2);}
 .empty{text-align:center;padding:2rem;color:var(--hint);font-size:14px;}
 .config-banner{position:fixed;top:0;left:0;right:0;background:#E24B4A;color:#fff;font-size:13px;padding:10px 16px;text-align:center;z-index:200;display:none;}
 .config-banner a{color:#fff;font-weight:600;}
+.sync-banner{position:fixed;top:0;left:0;right:0;background:#E24B4A;color:#fff;font-size:13px;line-height:1.5;padding:calc(10px + env(safe-area-inset-top,0px)) 16px 10px;text-align:center;z-index:300;display:none;box-shadow:0 2px 8px rgba(0,0,0,.2);}
+.sync-banner-btn{margin:4px 0 0 6px;background:#fff;color:#E24B4A;border:none;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.sync-banner-btn.sec{background:transparent;color:#fff;border:1px solid #fff;}
 .hist-row{display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;}
 .hist-kw{font-size:11px;color:var(--muted);width:70px;flex-shrink:0;}
 .hist-z{width:20px;text-align:center;flex-shrink:0;}
@@ -164,6 +167,7 @@ border-radius:50%;background:var(--hint);display:inline-block;margin-left:6px;ve
 </head>
 <body>
 <div id="config-banner" class="config-banner">⚠️ Supabase noch nicht konfiguriert – Daten werden nur lokal gespeichert. <a href="#" onclick="document.getElementById('config-banner').style.display='none'">×</a></div>
+<div id="sync-banner" class="sync-banner"></div>
 <div id="loading-overlay" class="loading-overlay">Lade Daten…</div>
 <div class="wrap">
   <div class="topbar">
@@ -436,19 +440,54 @@ const SUPABASE_ANON_KEY = 'sb_publishable_qekE287JJlFOWfw8Ahmxbw_I8Nyw_Ef';
 const LS_KEY='athletik_trainer_v2';
 const sbConfigured = true;
 
+// ---- SYNC-SCHUTZ ----
+// cloudOk: nur true, wenn der Stand beim Start sauber aus der Cloud geladen wurde.
+// Ist er false, wird NIE in die Cloud geschrieben (verhindert Überschreiben mit altem/leerem Stand).
+let cloudOk=false;
+let lastCloudTs=null;      // Zeitstempel (ms) des Cloud-Stands, auf dem wir arbeiten
+let saveBusy=false, savePending=false, conflictOpen=false;
+
 function setSyncDot(state){
   const d=document.getElementById('sync-dot');
   const l=document.getElementById('sync-label');
   if(d){d.className='sync-dot'+(state?' '+state:'');}
   if(l){
     if(state==='ok'){l.textContent='✓ Gespeichert';l.style.color='#1D9E75';l.style.opacity='1';setTimeout(()=>{l.style.opacity='0';},2000);}
-    else if(state==='err'){l.textContent='⚠ Fehler';l.style.color='#E24B4A';l.style.opacity='1';}
+    else if(state==='err'){l.textContent='⚠ Nicht gespeichert';l.style.color='#E24B4A';l.style.opacity='1';}
     else if(state==='busy'){l.textContent='Speichert…';l.style.color='var(--muted)';l.style.opacity='1';}
     else{l.style.opacity='0';}
   }
 }
 
-async function sbFetch(method, body){
+function showSyncBanner(html){
+  const b=document.getElementById('sync-banner');
+  if(!b)return;
+  b.innerHTML=html;
+  b.style.display='block';
+}
+function hideSyncBanner(){
+  const b=document.getElementById('sync-banner');
+  if(b)b.style.display='none';
+}
+function bannerOffline(grund){
+  showSyncBanner('⚠️ '+grund+' Änderungen werden <b>nicht</b> in der Cloud gespeichert – bitte nichts bearbeiten. '+
+    '<button class="sync-banner-btn" onclick="location.reload()">Neu laden</button>');
+}
+function bannerConflict(remoteTs){
+  conflictOpen=true;
+  const zeit=remoteTs?new Date(remoteTs).toLocaleString('de-CH'):'unbekannt';
+  showSyncBanner('⚠️ Auf einem anderen Gerät wurde inzwischen gespeichert ('+zeit+'). Deine letzte Änderung hier ist <b>nicht</b> gespeichert. '+
+    '<button class="sync-banner-btn" onclick="location.reload()">Neu laden (empfohlen)</button> '+
+    '<button class="sync-banner-btn sec" onclick="forceOverwrite()">Trotzdem überschreiben</button>');
+}
+function forceOverwrite(){
+  if(!confirm('Wirklich überschreiben?\n\nDie Änderungen vom anderen Gerät gehen dabei verloren.'))return;
+  conflictOpen=false;
+  hideSyncBanner();
+  saveState(true);
+}
+
+async function sbFetch(method, body, query){
   const headers={
     'Content-Type':'application/json',
     'apikey': SUPABASE_ANON_KEY,
@@ -456,43 +495,116 @@ async function sbFetch(method, body){
     'Prefer': method==='POST'?'resolution=merge-duplicates,return=minimal':'return=minimal'
   };
   const url=SUPABASE_URL+'/rest/v1/trainer_state';
-  const opts={method, headers};
+  const opts={method, headers, cache:'no-store'};
   if(body) opts.body=JSON.stringify(body);
-  return fetch(url+(method==='GET'?'?id=eq.main&select=data':''), opts);
+  return fetch(url+(method==='GET'?'?id=eq.main&select='+(query||'data,updated_at'):''), opts);
 }
 
-async function saveState(){
-  const data={athleten:S.athleten,nxtId:S.nxtId,vorlagen:S.vorlagen,nxtVId:S.nxtVId,katalog:S.katalog,trainingsVorlagen:S.trainingsVorlagen,phasen:S.phasen,personal:S.personal||[],ideen:S.ideen||{},katalogVideos:S.katalogVideos||{},tcMigratedV1:!!S.tcMigratedV1,zirkelSeedV1:!!S.zirkelSeedV1,extraSeedV2:!!S.extraSeedV2,extraSeedV3:!!S.extraSeedV3};
+function tsOf(v){
+  if(!v)return null;
+  let t=String(v).trim().replace(' ','T');
+  if(!/(Z|[+-]\d{2}(:?\d{2})?)$/.test(t))t+='Z'; // Spalte ohne Zeitzone -> als UTC lesen
+  t=t.replace(/([+-]\d{2})$/,'$1:00'); // '+00' -> '+00:00'
+  const m=t.match(/^(.*\.\d{3})\d+(.*)$/);if(m)t=m[1]+m[2]; // Mikrosekunden kürzen (Safari)
+  const n=Date.parse(t);return isNaN(n)?null:n;
+}
+
+async function getRemoteTs(){
+  const res=await sbFetch('GET',null,'updated_at');
+  if(!res.ok)throw new Error('HTTP '+res.status);
+  const arr=await res.json();
+  return (arr&&arr.length)?tsOf(arr[0].updated_at):null;
+}
+
+function collectState(){
+  return {athleten:S.athleten,nxtId:S.nxtId,vorlagen:S.vorlagen,nxtVId:S.nxtVId,katalog:S.katalog,trainingsVorlagen:S.trainingsVorlagen,phasen:S.phasen,personal:S.personal||[],ideen:S.ideen||{},katalogVideos:S.katalogVideos||{},tcMigratedV1:!!S.tcMigratedV1,zirkelSeedV1:!!S.zirkelSeedV1,extraSeedV2:!!S.extraSeedV2,extraSeedV3:!!S.extraSeedV3};
+}
+
+// Speichern: lokal immer, Cloud nur wenn sicher. Läuft seriell (nie zwei gleichzeitig).
+async function saveState(force){
+  const data=collectState();
   try{localStorage.setItem(LS_KEY,JSON.stringify(data));}catch(e){}
+  if(!cloudOk){setSyncDot('err');return;}
+  if(conflictOpen&&!force){setSyncDot('err');return;}
+  if(saveBusy){savePending=true;return;}
+  saveBusy=true;
   setSyncDot('busy');
   try{
-    const res=await sbFetch('POST',{id:'main',data,updated_at:new Date().toISOString()});
+    // Konfliktschutz: hat ein anderes Gerät inzwischen gespeichert?
+    if(!force){
+      const remoteTs=await getRemoteTs();
+      if(remoteTs!==null&&lastCloudTs!==null&&remoteTs!==lastCloudTs){
+        setSyncDot('err');bannerConflict(remoteTs);
+        savePending=false;return;
+      }
+    }
+    const sentIso=new Date().toISOString();
+    const res=await sbFetch('POST',{id:'main',data:collectState(),updated_at:sentIso});
     if(!res.ok){
       const txt=await res.text();
       console.error('Supabase save error:',res.status,txt);
-      alert('Sync-Fehler '+res.status+': '+txt);
+      setSyncDot('err');
+      showSyncBanner('⚠️ Sync-Fehler '+res.status+' – letzte Änderung nicht in der Cloud. <button class="sync-banner-btn" onclick="hideSyncBanner();save()">Nochmals versuchen</button>');
+    }else{
+      lastCloudTs=tsOf(sentIso);
+      setSyncDot('ok');
+      if(!conflictOpen)hideSyncBanner();
     }
-    setSyncDot(res.ok?'ok':'err');
-  }catch(e){setSyncDot('err');alert('Netzwerk-Fehler: '+e.message);console.error('Supabase error:',e);}
+  }catch(e){
+    console.error('Supabase error:',e);
+    setSyncDot('err');
+    showSyncBanner('⚠️ Netzwerk-Fehler – letzte Änderung nicht in der Cloud. <button class="sync-banner-btn" onclick="hideSyncBanner();save()">Nochmals versuchen</button>');
+  }finally{
+    saveBusy=false;
+    if(savePending&&!conflictOpen){savePending=false;saveState();}
+  }
 }
 
 async function loadState(){
   setSyncDot('busy');
+  let local=null;
+  try{const raw=localStorage.getItem(LS_KEY);if(raw)local=JSON.parse(raw);}catch(e){}
   try{
     const res=await sbFetch('GET');
     if(res.ok){
       const arr=await res.json();
-      if(arr&&arr.length&&arr[0].data){setSyncDot('ok');return arr[0].data;}
-    }else{console.error('Supabase load error:',res.status);}
-  }catch(e){console.error('Supabase error:',e);}
+      if(arr&&arr.length&&arr[0].data){
+        cloudOk=true;lastCloudTs=tsOf(arr[0].updated_at);
+        setSyncDot('ok');return arr[0].data;
+      }
+      // Cloud erreichbar, aber leer
+      if(!local){cloudOk=true;lastCloudTs=null;setSyncDot('ok');return null;} // echte Ersteinrichtung
+      bannerOffline('Die Cloud hat keine Daten geliefert (evtl. Zugriffsregeln geändert). Es wird die lokale Kopie angezeigt.');
+      setSyncDot('err');return local;
+    }
+    console.error('Supabase load error:',res.status);
+    bannerOffline('Cloud nicht erreichbar (Fehler '+res.status+', evtl. Supabase pausiert).'+(local?' Es wird die lokale Kopie angezeigt.':''));
+  }catch(e){
+    console.error('Supabase error:',e);
+    bannerOffline('Keine Verbindung zur Cloud.'+(local?' Es wird die lokale Kopie angezeigt.':''));
+  }
   setSyncDot('err');
-  // Fallback localStorage
-  try{const raw=localStorage.getItem(LS_KEY);if(raw)return JSON.parse(raw);}catch(e){}
-  return null;
+  return local;
 }
 
+// Beim Zurückkehren zur App (z.B. vom Mac aufs iPad): prüfen, ob woanders neuer gespeichert wurde
+async function checkRemoteOnFocus(){
+  if(!cloudOk||conflictOpen||saveBusy)return;
+  try{
+    const remoteTs=await getRemoteTs();
+    if(remoteTs!==null&&lastCloudTs!==null&&remoteTs!==lastCloudTs){
+      conflictOpen=true;
+      showSyncBanner('ℹ️ Auf einem anderen Gerät wurde neuer gespeichert ('+new Date(remoteTs).toLocaleString('de-CH')+'). '+
+        '<button class="sync-banner-btn" onclick="location.reload()">Neu laden</button>');
+    }
+  }catch(e){}
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkRemoteOnFocus();});
+
 function exportData(){
-  const data={athleten:S.athleten,nxtId:S.nxtId,vorlagen:S.vorlagen,nxtVId:S.nxtVId,katalog:S.katalog,trainingsVorlagen:S.trainingsVorlagen,exportDatum:new Date().toLocaleDateString('de-CH')};
+  const data=collectState();
+  data.exportDatum=new Date().toLocaleDateString('de-CH');
+  data.backupVersion=2;
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
@@ -508,16 +620,23 @@ function importData(event){
     try{
       const data=JSON.parse(e.target.result);
       if(!data.athleten){alert('Ungültige Backup-Datei.');return;}
-      if(!confirm('Backup einspielen? Alle aktuellen Daten werden überschrieben.'))return;
+      const fehlt=['personal','ideen','phasen','katalogVideos'].filter(k=>!(k in data));
+      let msg='Backup einspielen? Die aktuellen Daten werden überschrieben.';
+      if(fehlt.length)msg+='\n\nHinweis: Dieses Backup enthält nicht: '+fehlt.join(', ')+'. Diese Bereiche bleiben wie sie jetzt sind.';
+      if(!confirm(msg))return;
       S.athleten=data.athleten;
       S.nxtId=data.nxtId||1;
-      S.vorlagen=data.vorlagen||S.vorlagen;
-      S.nxtVId=data.nxtVId||1;
-      S.katalog=data.katalog||null;
-      S.katalogVideos=data.katalogVideos||{};
-      S.trainingsVorlagen=data.trainingsVorlagen||[];
+      if(data.vorlagen)S.vorlagen=data.vorlagen;
+      S.nxtVId=data.nxtVId||S.nxtVId||1;
+      if(data.katalog)S.katalog=data.katalog;
+      if(data.trainingsVorlagen)S.trainingsVorlagen=data.trainingsVorlagen;
+      if(data.phasen)S.phasen=data.phasen;
+      if(data.personal)S.personal=data.personal;
+      if(data.ideen)S.ideen=data.ideen;
+      if(data.katalogVideos)S.katalogVideos=data.katalogVideos;
+      ['tcMigratedV1','zirkelSeedV1','extraSeedV2','extraSeedV3'].forEach(k=>{if(k in data)S[k]=!!data[k];});
       save();rUebersicht();
-      alert('Backup erfolgreich eingespielt.');
+      alert('Backup eingespielt.');
     }catch(err){alert('Fehler beim Lesen der Datei.');}
   };
   reader.readAsText(file);
