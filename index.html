@@ -653,8 +653,21 @@ async function getRemoteTs(){
   return (arr&&arr.length)?tsOf(arr[0].updated_at):null;
 }
 
+// Nur reine Bildschirm-Zustände werden NICHT gespeichert, alles andere schon
+// (inkl. Saison-Archiv und Migrations-Merker, sonst laufen Migrationen bei jedem Start erneut).
+const TRANSIENT_KEYS=['openId','edId','edVId','viewKW','viewYR'];
 function collectState(){
-  return {athleten:S.athleten,nxtId:S.nxtId,vorlagen:S.vorlagen,nxtVId:S.nxtVId,katalog:S.katalog,trainingsVorlagen:S.trainingsVorlagen,phasen:S.phasen,personal:S.personal||[],ideen:S.ideen||{},katalogVideos:S.katalogVideos||{},tcMigratedV1:!!S.tcMigratedV1,zirkelSeedV1:!!S.zirkelSeedV1,extraSeedV2:!!S.extraSeedV2,extraSeedV3:!!S.extraSeedV3};
+  const d={};
+  Object.keys(S).forEach(k=>{
+    if(TRANSIENT_KEYS.indexOf(k)!==-1)return;
+    const v=S[k];
+    if(v===undefined||typeof v==='function')return;
+    d[k]=v;
+  });
+  d.personal=S.personal||[];
+  d.ideen=S.ideen||{};
+  d.katalogVideos=S.katalogVideos||{};
+  return d;
 }
 
 // Speichern: lokal immer, Cloud nur wenn sicher. Läuft seriell (nie zwei gleichzeitig).
@@ -761,17 +774,13 @@ function importData(event){
       let msg='Backup einspielen? Die aktuellen Daten werden überschrieben.';
       if(fehlt.length)msg+='\n\nHinweis: Dieses Backup enthält nicht: '+fehlt.join(', ')+'. Diese Bereiche bleiben wie sie jetzt sind.';
       if(!confirm(msg))return;
-      S.athleten=data.athleten;
-      S.nxtId=data.nxtId||1;
-      if(data.vorlagen)S.vorlagen=data.vorlagen;
-      S.nxtVId=data.nxtVId||S.nxtVId||1;
-      if(data.katalog)S.katalog=data.katalog;
-      if(data.trainingsVorlagen)S.trainingsVorlagen=data.trainingsVorlagen;
-      if(data.phasen)S.phasen=data.phasen;
-      if(data.personal)S.personal=data.personal;
-      if(data.ideen)S.ideen=data.ideen;
-      if(data.katalogVideos)S.katalogVideos=data.katalogVideos;
-      ['tcMigratedV1','zirkelSeedV1','extraSeedV2','extraSeedV3'].forEach(k=>{if(k in data)S[k]=!!data[k];});
+      Object.keys(data).forEach(k=>{
+        if(k==='exportDatum'||k==='backupVersion'||TRANSIENT_KEYS.indexOf(k)!==-1)return;
+        if(data[k]===null||data[k]===undefined)return;
+        S[k]=data[k];
+      });
+      if(!S.nxtId)S.nxtId=1;
+      dedupeWettkaempfe();
       save();rUebersicht();
       alert('Backup eingespielt.');
     }catch(err){alert('Fehler beim Lesen der Datei.');}
@@ -1447,6 +1456,21 @@ function migrateEsvWettkaempfe2027B4(){
     save();
   }
 }
+function dedupeWettkaempfe(){
+  let removed=0;
+  const clean=list=>{
+    if(!Array.isArray(list))return list;
+    const seen=new Set();
+    return list.filter(w=>{
+      const key=(w&&w.name||'')+'|'+(w&&w.dat||'');
+      if(seen.has(key)){removed++;return false;}
+      seen.add(key);return true;
+    });
+  };
+  (S.vorlagen||[]).forEach(v=>{if(v.wettkaempfe)v.wettkaempfe=clean(v.wettkaempfe);});
+  (S.athleten||[]).forEach(a=>{if(a.wettkaempfe)a.wettkaempfe=clean(a.wettkaempfe);});
+  return removed;
+}
 function fixEsvWettkaempfePrio(){
   if(!S.vorlagen)return;
   const v=S.vorlagen.find(x=>x.name==='Schwingen');
@@ -1507,7 +1531,7 @@ function migrateEsvWettkaempfe2027(){
   if(S.esvWk2027Migrated)return;
   let changed=false;
   ESV_WETTKAEMPFE_2027.forEach(([name,ort,dat])=>{
-    const exists=v.wettkaempfe.some(w=>w.name===name&&w.dat===dat);
+    const exists=v.wettkaempfe.some(w=>w.name===name&&(w.dat===dat||(name==='Aargauer Kantonales Schwingfest'&&w.dat==='05.06.2027')));
     if(!exists){
       const d=parseDate(dat);
       const kwy=d?dateToKwYr(d):{kw:1,yr:2027};
@@ -4434,6 +4458,7 @@ async function init(){
   migrateEsvWettkaempfe2027B4();
   fixEsvWettkaempfePrio();
   fixHardCoreS128Video();
+  if(dedupeWettkaempfe()>0)save();
   if(!S.trainingsVorlagen)S.trainingsVorlagen=[];
   if(!S.phasen)S.phasen=[...PNAMES];
   S.phasen.forEach(p=>{if(!PD[p])PD[p]={f:'#E8E8E8',t:'#333333'};});
