@@ -4728,6 +4728,13 @@ init();
     try{res=buildPdf(aid,sel,withRM,bem);}catch(err){msg.textContent='Fehler beim Erstellen: '+err.message;return;}
     var file=null;
     try{file=new File([res.blob],res.name,{type:'application/pdf'});}catch(err){}
+    var isMacDesktop=/Mac/.test(navigator.platform||navigator.userAgent)&&!(navigator.maxTouchPoints>1);
+    if(isMacDesktop){
+      download(res);
+      msg.innerHTML='PDF gespeichert in «Downloads» ('+res.name+').<br>WhatsApp öffnen, Chat wählen und das PDF hineinziehen.'
+        +'<div style="margin-top:8px;"><a href="whatsapp://" style="display:inline-block;background:#25D366;color:#fff;text-decoration:none;font-weight:600;padding:7px 14px;border-radius:7px;">WhatsApp öffnen</a></div>';
+      return;
+    }
     if(file&&navigator.canShare&&navigator.canShare({files:[file]})){
       navigator.share({files:[file],title:res.name.replace(/\.pdf$/,'')}).then(function(){closeM();}).catch(function(err){
         if(err&&err.name==='AbortError')return;
