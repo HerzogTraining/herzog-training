@@ -1614,9 +1614,13 @@ function getKatByKey(key){return _katMap[key];}
 
 function videoForLine(line){
   const vids=S.katalogVideos||{};
-  const l=line.toLowerCase();
+  const l=String(line||'').toLowerCase();
   if(l.length<4)return null;
-  let best=null,bestLen=0;
+  // "20 Min. Rudern" = Rudergerät (kein Video im Katalog) -> nicht mit "Rudern (Row)" verwechseln
+  if(/^\s*\d+\s*(min|minuten)\.?\s+(locker\s+)?rudern\b/.test(l))return null;
+  const LET='a-zäöüßéèàç';
+  const esc=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  let best=null,bestPos=999,bestLen=0;
   Object.keys(vids).forEach(name=>{
     const full=name.toLowerCase();
     const cands=[full];
@@ -1624,7 +1628,15 @@ function videoForLine(line){
     if(m){cands.push(m[1].toLowerCase());cands.push(m[2].toLowerCase());}
     cands.forEach(c=>{
       c=c.trim();
-      if(c.length>=4&&c.length>bestLen&&l.includes(c)){best=name;bestLen=c.length;}
+      if(c.length<4)return;
+      if(!l.includes(c))return;
+      // nur ganze Wörter (Plural-Endung n/s/e erlaubt), und Übung muss vorne in der Zeile stehen
+      const re=new RegExp('(?:^|[^'+LET+'])('+esc(c)+')(?:[^'+LET+']|[nse]{1,2}(?!['+LET+'])|$)');
+      const mm=re.exec(l);
+      if(!mm)return;
+      const p=l.indexOf(mm[1],mm.index);
+      if(p>30)return;
+      if(p<bestPos||(p===bestPos&&c.length>bestLen)){best=name;bestPos=p;bestLen=c.length;}
     });
   });
   return best?vids[best]:null;
