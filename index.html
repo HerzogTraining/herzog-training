@@ -2473,8 +2473,119 @@ function pdHelper(p){
 }
 const _dwOpen={};
 const _dwDetails={};
-function togDW(aid){_dwOpen[aid]=!_dwOpen[aid];if(!_dwOpen[aid])_dwDetails[aid]=false;if(_pinned.has(aid))_activePin=_dwOpen[aid]?aid:null;rUebersicht();}
+function togDW(aid){_dwOpen[aid]=!_dwOpen[aid];if(!_dwOpen[aid])_dwDetails[aid]=false;if(_pinned.has(aid))_activePin=_dwOpen[aid]?aid:null;rUebersicht();if(_dwOpen[aid]&&_tbLoaded)loadTagebuch();}
 function togDWDetails(aid){_dwDetails[aid]=!_dwDetails[aid];rUebersicht();}
+// ---- TAGEBUCH (eigene Supabase-Tabelle athleten_notizen, unabhängig vom trainer_state) ----
+let _tb=[];              // alle Einträge, neuste zuerst
+let _tbLoaded=false;
+const _tbShowAll={};
+const _tbQuery={};
+const _tbCollapsed={};
+async function tbFetch(method,path,body,_retry){
+  let token=await getToken();
+  if(!token){await requireLogin();token=await getToken();}
+  const headers={'Content-Type':'application/json','apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+(token||SUPABASE_ANON_KEY),'Prefer':'return=representation'};
+  const opts={method,headers,cache:'no-store'};
+  if(body)opts.body=JSON.stringify(body);
+  const res=await fetch(SUPABASE_URL+'/rest/v1/athleten_notizen'+path,opts);
+  if(res.status===401&&!_retry){
+    const ok=await refreshAuth();
+    if(ok!==true){clearAuth();await requireLogin('Bitte erneut anmelden.');}
+    return tbFetch(method,path,body,true);
+  }
+  return res;
+}
+async function loadTagebuch(){
+  try{
+    const res=await tbFetch('GET','?select=id,athlet_id,datum,text,quelle,created_at&order=datum.desc,created_at.desc');
+    if(!res.ok){console.error('Tagebuch load',res.status);return;}
+    _tb=await res.json();_tbLoaded=true;
+  }catch(e){console.error('Tagebuch',e);return;}
+  // nur offene Tagebuch-Boxen neu zeichnen (kein rUebersicht -> kein Scroll-Sprung)
+  Object.keys(_dwOpen).forEach(k=>{if(_dwOpen[k])tbPaint(+k);});
+}
+function tbEntries(aid){return _tb.filter(e=>e.athlet_id===aid);}
+function tbEsc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function tbDateStr(d){ // 'YYYY-MM-DD' -> 'Mo 19.10.2026'
+  const p=String(d).split('-');if(p.length<3)return d;
+  const dt=new Date(+p[0],+p[1]-1,+p[2]);
+  return ['So','Mo','Di','Mi','Do','Fr','Sa'][dt.getDay()]+' '+p[2]+'.'+p[1]+'.'+p[0];
+}
+function tbToday(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function tbBadge(aid){
+  const e=tbEntries(aid)[0];if(!e)return '';
+  return '<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:#F3E9D2;color:#7A5C1E;font-weight:500;">📔 '+tbDateStr(e.datum)+': '+tbEsc(e.text.split('\n')[0].substring(0,40))+(e.text.length>40?'…':'')+'</span>';
+}
+function tbBoxHtml(aid){return '<div id="tb-box-'+aid+'" onclick="event.stopPropagation()">'+tbInner(aid)+'</div>';}
+function tbPaint(aid){const b=document.getElementById('tb-box-'+aid);if(b)b.innerHTML=tbInner(aid);}
+function tbInner(aid){
+  const all=tbEntries(aid);
+  const q=(_tbQuery[aid]||'').trim().toLowerCase();
+  const list=q?all.filter(e=>(e.text||'').toLowerCase().includes(q)||tbDateStr(e.datum).toLowerCase().includes(q)):all;
+  const showAll=!!_tbShowAll[aid]||!!q;
+  const shown=showAll?list:list.slice(0,5);
+  const collapsed=!!_tbCollapsed[aid];
+  const inp='font-family:\'DM Sans\',sans-serif;background:#fff;color:var(--text);';
+  let h='<div style="margin-top:10px;border:1.5px solid #D9C9A8;border-radius:10px;background:#FBF7EE;padding:8px 10px;">';
+  h+='<div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;" onclick="_tbCollapsed['+aid+']=!_tbCollapsed['+aid+'];tbPaint('+aid+')">'
+    +'<div style="font-size:10px;font-weight:700;color:#7A5C1E;text-transform:uppercase;letter-spacing:.07em;">📔 Tagebuch'
+    +(all.length?' <span style="font-weight:500;opacity:.7;">('+all.length+')</span>':'')
+    +(_tbLoaded?'':' <span style="font-weight:400;opacity:.6;">lädt…</span>')+'</div>'
+    +'<span style="font-size:11px;color:var(--muted);">'+(collapsed?'▼':'▲')+'</span></div>';
+  if(!collapsed){
+    h+='<div style="display:flex;gap:6px;margin-top:8px;align-items:flex-start;flex-wrap:wrap;">'
+      +'<input type="date" id="tb-dat-'+aid+'" value="'+tbToday()+'" style="font-size:12px;padding:6px;border-radius:6px;border:1px solid #D9C9A8;'+inp+'">'
+      +'<textarea id="tb-txt-'+aid+'" rows="1" placeholder="Wie ist es heute gelaufen?" style="flex:1;min-width:160px;font-size:13px;resize:none;min-height:32px;border-radius:6px;border:1px solid #D9C9A8;padding:7px 10px;'+inp+'" oninput="autoResize(this)" onkeydown="if(event.key===\'Enter\'&&(event.metaKey||event.ctrlKey)){tbAdd('+aid+');}"></textarea>'
+      +'<button onclick="tbAdd('+aid+')" style="font-size:12px;font-weight:600;padding:7px 12px;border-radius:6px;border:1px solid #7A5C1E;background:#7A5C1E;color:#fff;cursor:pointer;white-space:nowrap;">Eintragen</button>'
+      +'</div>';
+    if(all.length>3)h+='<input type="text" placeholder="Im Tagebuch suchen…" value="'+tbEsc(_tbQuery[aid]||'')+'" oninput="_tbQuery['+aid+']=this.value;tbPaintKeepFocus('+aid+',this)" style="width:100%;margin-top:8px;font-size:12px;padding:6px 10px;border-radius:6px;border:1px solid #E5DCC8;box-sizing:border-box;'+inp+'">';
+    if(!all.length)h+='<div style="font-size:12px;color:var(--muted);margin-top:8px;">Noch keine Einträge.</div>';
+    else if(!list.length)h+='<div style="font-size:12px;color:var(--muted);margin-top:8px;">Nichts gefunden.</div>';
+    h+='<div style="margin-top:6px;">';
+    shown.forEach(e=>{
+      h+='<div style="display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-top:1px solid #EADFC9;">'
+        +'<div style="font-size:11px;font-weight:600;color:#7A5C1E;white-space:nowrap;min-width:92px;padding-top:1px;font-family:\'DM Mono\',monospace;">'+tbDateStr(e.datum)+'</div>'
+        +'<div style="flex:1;font-size:13px;line-height:1.4;white-space:pre-wrap;color:var(--text);">'+tbEsc(e.text)+'</div>'
+        +'<button onclick="tbDel('+aid+','+e.id+')" title="Eintrag löschen" style="background:none;border:none;cursor:pointer;font-size:12px;opacity:.4;padding:0 2px;line-height:1;">🗑</button>'
+        +'</div>';
+    });
+    h+='</div>';
+    if(!showAll&&list.length>5)h+='<button onclick="_tbShowAll['+aid+']=true;tbPaint('+aid+')" style="width:100%;margin-top:4px;font-size:11px;padding:5px;border-radius:6px;border:1px solid #D9C9A8;background:#fff;color:#7A5C1E;cursor:pointer;">Alle '+list.length+' Einträge anzeigen</button>';
+    else if(showAll&&!q&&list.length>5)h+='<button onclick="_tbShowAll['+aid+']=false;tbPaint('+aid+')" style="width:100%;margin-top:4px;font-size:11px;padding:5px;border-radius:6px;border:1px solid #D9C9A8;background:#fff;color:#7A5C1E;cursor:pointer;">Nur die letzten 5 anzeigen</button>';
+  }
+  h+='</div>';
+  return h;
+}
+function tbPaintKeepFocus(aid,inp){
+  const pos=inp.selectionStart;tbPaint(aid);
+  const n=document.querySelector('#tb-box-'+aid+' input[type=text]');
+  if(n){n.focus();try{n.setSelectionRange(pos,pos);}catch(e){}}
+}
+async function tbAdd(aid){
+  const ta=document.getElementById('tb-txt-'+aid);const di=document.getElementById('tb-dat-'+aid);
+  if(!ta)return;const text=ta.value.trim();if(!text)return;
+  const a=S.athleten.find(x=>x.id===aid);
+  const datum=(di&&di.value)||tbToday();
+  ta.disabled=true;
+  try{
+    const res=await tbFetch('POST','',{athlet_id:aid,athlet_name:a?a.name:null,datum:datum,text:text,quelle:'app'});
+    if(!res.ok){alert('Eintrag konnte nicht gespeichert werden (Fehler '+res.status+').');ta.disabled=false;return;}
+    const rows=await res.json();
+    if(rows&&rows.length)_tb.push(rows[0]);
+    _tb.sort((x,y)=>y.datum>x.datum?1:y.datum<x.datum?-1:(y.created_at>x.created_at?1:-1));
+    tbPaint(aid);
+  }catch(e){alert('Keine Verbindung – Eintrag nicht gespeichert.');ta.disabled=false;}
+}
+async function tbDel(aid,id){
+  if(!confirm('Diesen Tagebuch-Eintrag löschen?'))return;
+  try{
+    const res=await tbFetch('DELETE','?id=eq.'+id);
+    if(!res.ok){alert('Löschen fehlgeschlagen (Fehler '+res.status+').');return;}
+    _tb=_tb.filter(e=>e.id!==id);tbPaint(aid);
+  }catch(e){alert('Keine Verbindung.');}
+}
+// Beim Zurückkehren zur App neue Einträge (z.B. abends per Chat erfasst) nachladen
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&_tbLoaded)loadTagebuch();});
 const _uNotizTimers={};
 function saveUNotiz(aid,week){
   if(_uNotizTimers[aid+week])clearTimeout(_uNotizTimers[aid+week]);
@@ -2799,7 +2910,7 @@ function rUebersicht(){
         <span style="font-size:18px;color:var(--muted);">▲</span>
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">
-        ${wkBadge}${periodBadge}${bdBadge}${notizBadge}
+        ${wkBadge}${periodBadge}${bdBadge}${notizBadge}${tbBadge(a.id)}
       </div>
       ${prevBox}
       <div style="position:relative;margin-top:8px;margin-bottom:6px;" onclick="event.stopPropagation()">
@@ -2817,6 +2928,7 @@ function rUebersicht(){
         <textarea id="un3-${a.id}" rows="2" style="width:100%;font-size:13px;resize:none;border-radius:6px;border:1px solid #b2d0f5;padding:7px 10px;font-family:'DM Sans',sans-serif;background:#F0F5FF;color:var(--text);" placeholder="Vorausplanung in 2 Wochen…" oninput="saveUNotiz(${a.id},'next2')">${uNotiz2}</textarea>
         <span id="un3-sv-${a.id}" style="position:absolute;right:8px;bottom:8px;font-size:11px;color:#4A7BE2;opacity:0;transition:opacity .3s;">✓</span>
       </div>
+      ${tbBoxHtml(a.id)}
       ${expDW}
     </div>`;
   });
@@ -4502,6 +4614,7 @@ async function init(){
   });
   document.getElementById('loading-overlay').style.display='none';
   rUebersicht();
+  loadTagebuch();
 }
 init();
 </script>
