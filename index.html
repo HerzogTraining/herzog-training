@@ -4490,5 +4490,72 @@ async function init(){
 }
 init();
 </script>
+<script>
+/* YouTube-Videos in der App abspielen (statt neuen Tab). Senden/Teilen bleibt unverändert. */
+(function(){
+  function ytId(url){
+    if(!url)return null;
+    var m=String(url).match(/(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/|v\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+    return m?m[1]:null;
+  }
+  function closeVid(){
+    var o=document.getElementById('yt-modal');
+    if(o)o.remove();
+    document.removeEventListener('keydown',escVid);
+  }
+  function escVid(e){if(e.key==='Escape')closeVid();}
+  function openVid(id,url,title){
+    closeVid();
+    var o=document.createElement('div');
+    o.id='yt-modal';
+    o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;';
+    var box=document.createElement('div');
+    box.style.cssText='width:100%;max-width:900px;background:#111;border-radius:10px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.5);';
+    var bar=document.createElement('div');
+    bar.style.cssText='display:flex;align-items:center;gap:8px;padding:8px 10px;background:#1c1c1c;color:#fff;font-size:13px;';
+    var t=document.createElement('div');
+    t.style.cssText='flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+    t.textContent=title||'Video';
+    var yt=document.createElement('a');
+    yt.href=url;yt.target='_blank';yt.rel='noopener';yt.setAttribute('data-yt-direct','1');
+    yt.textContent='Auf YouTube öffnen';
+    yt.style.cssText='color:#fff;text-decoration:none;border:1px solid #555;border-radius:6px;padding:4px 9px;white-space:nowrap;font-size:12px;';
+    var x=document.createElement('button');
+    x.type='button';x.textContent='✕';x.title='Schliessen';
+    x.style.cssText='background:#E8000F;color:#fff;border:none;border-radius:6px;width:30px;height:28px;font-size:15px;cursor:pointer;';
+    x.onclick=closeVid;
+    bar.appendChild(t);bar.appendChild(yt);bar.appendChild(x);
+    var wrap=document.createElement('div');
+    wrap.style.cssText='position:relative;width:100%;padding-top:56.25%;background:#000;';
+    var f=document.createElement('iframe');
+    f.src='https://www.youtube-nocookie.com/embed/'+id+'?autoplay=1&rel=0&playsinline=1';
+    f.setAttribute('allow','autoplay; encrypted-media; picture-in-picture; fullscreen');
+    f.setAttribute('allowfullscreen','');
+    f.setAttribute('referrerpolicy','strict-origin-when-cross-origin');
+    f.style.cssText='position:absolute;inset:0;width:100%;height:100%;border:0;';
+    wrap.appendChild(f);
+    box.appendChild(bar);box.appendChild(wrap);
+    o.appendChild(box);
+    o.addEventListener('click',function(e){if(e.target===o)closeVid();});
+    document.body.appendChild(o);
+    document.addEventListener('keydown',escVid);
+  }
+  document.addEventListener('click',function(e){
+    var a=e.target&&e.target.closest?e.target.closest('a[href]'):null;
+    if(!a||a.hasAttribute('data-yt-direct'))return;
+    if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;
+    var id=ytId(a.getAttribute('href'));
+    if(!id)return;
+    e.preventDefault();
+    e.stopPropagation();
+    var row=a.parentElement;
+    var title='';
+    if(row){title=(row.textContent||'').replace(a.textContent||'','').replace(/\s+/g,' ').trim();}
+    if(!title||title.length>120)title=(a.textContent||'Video').replace(/^[▶🔗\s]+/,'').trim();
+    openVid(id,a.href,title);
+  },true);
+  window.openYtVideo=function(url,title){var id=ytId(url);if(id)openVid(id,url,title);else window.open(url,'_blank');};
+})();
+</script>
 </body>
 </html>
