@@ -2166,7 +2166,7 @@ function rPersonal(){
       const delBlock='<div style="margin-top:1rem;text-align:right;" onclick="event.stopPropagation()">'
         +'<button onclick="event.stopPropagation();confirmDeletePT('+k.id+')" style="font-size:12px;color:#C0392B;background:none;border:none;cursor:pointer;text-decoration:underline;">Kunde l&ouml;schen</button>'
         +'</div>';
-      inner='<div style="border-top:1px solid #D8D8D8;margin-top:10px;padding-top:10px;">'+navBtn+beachtenBlock+t1Block+t2Block+notizBlock+tbBoxHtml('personal',k.id)+urlaubBlock+saveBlock+delBlock+'</div>';
+      inner='<div style="border-top:1px solid #D8D8D8;margin-top:10px;padding-top:10px;">'+beachtenBlock+tbBoxHtml('personal',k.id)+urlaubBlock+delBlock+'</div>';
     }
     const initials=k.name.split(' ').map(x=>x[0]).join('');
     const beachtenPreview=k.beachten?'<div style="font-size:11px;color:#854F0B;">&#9888; '+k.beachten.split('\n')[0].substring(0,40)+'</div>':'';
@@ -2537,7 +2537,9 @@ function tbInner(typ,id){
   const q=(_tbQuery[k]||'').trim().toLowerCase();
   const list=q?all.filter(e=>((e.text||'')+' '+(e.erzaehlt||'')).toLowerCase().includes(q)||tbDateStr(e.datum).toLowerCase().includes(q)):all;
   const showAll=!!_tbShowAll[k]||!!q;
-  const shown=showAll?list:list.slice(0,5);
+  const cut=(()=>{const d=new Date();d.setDate(d.getDate()-28);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');})();
+  const nRecent=Math.max(5,list.filter(e=>e.datum>=cut).length);
+  const shown=showAll?list:list.slice(0,nRecent);
   const collapsed=!!_tbCollapsed[k];
   const args='\''+typ+'\','+id;
   const inp='font-family:\'DM Sans\',sans-serif;background:#fff;color:var(--text);';
@@ -2572,8 +2574,8 @@ function tbInner(typ,id){
         +'</div>';
     });
     h+='</div>';
-    if(!showAll&&list.length>5)h+='<button onclick="_tbShowAll[\''+k+'\']=true;tbPaint('+args+')" style="width:100%;margin-top:4px;font-size:11px;padding:5px;border-radius:6px;border:1px solid #D9C9A8;background:#fff;color:#7A5C1E;cursor:pointer;">Alle '+list.length+' Einträge anzeigen</button>';
-    else if(showAll&&!q&&list.length>5)h+='<button onclick="_tbShowAll[\''+k+'\']=false;tbPaint('+args+')" style="width:100%;margin-top:4px;font-size:11px;padding:5px;border-radius:6px;border:1px solid #D9C9A8;background:#fff;color:#7A5C1E;cursor:pointer;">Nur die letzten 5 anzeigen</button>';
+    if(!showAll&&list.length>nRecent)h+='<button onclick="_tbShowAll[\''+k+'\']=true;tbPaint('+args+')" style="width:100%;margin-top:4px;font-size:11px;padding:5px;border-radius:6px;border:1px solid #D9C9A8;background:#fff;color:#7A5C1E;cursor:pointer;">Ältere anzeigen (alle '+list.length+')</button>';
+    else if(showAll&&!q&&list.length>nRecent)h+='<button onclick="_tbShowAll[\''+k+'\']=false;tbPaint('+args+')" style="width:100%;margin-top:4px;font-size:11px;padding:5px;border-radius:6px;border:1px solid #D9C9A8;background:#fff;color:#7A5C1E;cursor:pointer;">Nur die letzten 4 Wochen anzeigen</button>';
   }
   h+='</div>';
   return h;
