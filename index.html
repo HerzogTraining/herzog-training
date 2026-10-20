@@ -2099,7 +2099,7 @@ function confUebungPicker(aid,planField){
 // PERSONAL TRAINING
 // ============================================================
 const _ptOpen={};
-function togPT(id){_ptOpen[id]=!_ptOpen[id];rPersonal();}
+function togPT(id){_ptOpen[id]=!_ptOpen[id];rPersonal();if(_ptOpen[id]&&_tbLoaded)loadTagebuch();}
 
 function rPersonal(){
   const el=document.getElementById('view-personal');
@@ -2166,14 +2166,14 @@ function rPersonal(){
       const delBlock='<div style="margin-top:1rem;text-align:right;" onclick="event.stopPropagation()">'
         +'<button onclick="event.stopPropagation();confirmDeletePT('+k.id+')" style="font-size:12px;color:#C0392B;background:none;border:none;cursor:pointer;text-decoration:underline;">Kunde l&ouml;schen</button>'
         +'</div>';
-      inner='<div style="border-top:1px solid #D8D8D8;margin-top:10px;padding-top:10px;">'+navBtn+beachtenBlock+t1Block+t2Block+notizBlock+urlaubBlock+saveBlock+delBlock+'</div>';
+      inner='<div style="border-top:1px solid #D8D8D8;margin-top:10px;padding-top:10px;">'+navBtn+beachtenBlock+t1Block+t2Block+notizBlock+tbBoxHtml('personal',k.id)+urlaubBlock+saveBlock+delBlock+'</div>';
     }
     const initials=k.name.split(' ').map(x=>x[0]).join('');
     const beachtenPreview=k.beachten?'<div style="font-size:11px;color:#854F0B;">&#9888; '+k.beachten.split('\n')[0].substring(0,40)+'</div>':'';
     h+='<div style="background:#FFFFFF;border:2px solid '+(isO?'#E8000F':'#D0D0D0')+';border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer;" onclick="togPT('+k.id+')">'
       +'<div style="display:flex;align-items:center;gap:10px;">'
       +'<div class="avatar" style="width:36px;height:36px;font-size:13px;flex-shrink:0;background:#EAF3DE;color:#3B6D11;">'+initials+'</div>'
-      +'<div style="flex:1;"><div style="font-size:14px;font-weight:500;">'+k.name+'</div>'+beachtenPreview+'</div>'
+      +'<div style="flex:1;"><div style="font-size:14px;font-weight:500;">'+k.name+'</div>'+beachtenPreview+(tbBadge('personal',k.id)?'<div style="margin-top:3px;">'+tbBadge('personal',k.id)+'</div>':'')+'</div>'
       +'<span style="font-size:18px;color:#555555;">'+(isO?'&#9650;':'&#9660;')+'</span>'
       +'</div>'
       +inner+'</div>';
@@ -2476,6 +2476,7 @@ const _dwDetails={};
 function togDW(aid){_dwOpen[aid]=!_dwOpen[aid];if(!_dwOpen[aid])_dwDetails[aid]=false;if(_pinned.has(aid))_activePin=_dwOpen[aid]?aid:null;rUebersicht();if(_dwOpen[aid]&&_tbLoaded)loadTagebuch();}
 function togDWDetails(aid){_dwDetails[aid]=!_dwDetails[aid];rUebersicht();}
 // ---- TAGEBUCH (eigene Supabase-Tabelle athleten_notizen, unabhängig vom trainer_state) ----
+// typ 'athlet' (Diese Woche) oder 'personal' (Personal-Kunden); Personal hat zwei Felder: Training + Erzählt
 let _tb=[];              // alle Einträge, neuste zuerst
 let _tbLoaded=false;
 const _tbShowAll={};
@@ -2497,14 +2498,23 @@ async function tbFetch(method,path,body,_retry){
 }
 async function loadTagebuch(){
   try{
-    const res=await tbFetch('GET','?select=id,athlet_id,datum,text,quelle,created_at&order=datum.desc,created_at.desc');
+    const res=await tbFetch('GET','?select=id,athlet_id,athlet_name,typ,datum,text,erzaehlt,quelle,created_at&order=datum.desc,created_at.desc');
     if(!res.ok){console.error('Tagebuch load',res.status);return;}
     _tb=await res.json();_tbLoaded=true;
   }catch(e){console.error('Tagebuch',e);return;}
   // nur offene Tagebuch-Boxen neu zeichnen (kein rUebersicht -> kein Scroll-Sprung)
-  Object.keys(_dwOpen).forEach(k=>{if(_dwOpen[k])tbPaint(+k);});
+  Object.keys(_dwOpen).forEach(k=>{if(_dwOpen[k])tbPaint('athlet',+k);});
+  if(typeof _ptOpen!=='undefined')Object.keys(_ptOpen).forEach(k=>{if(_ptOpen[k])tbPaint('personal',+k);});
 }
-function tbEntries(aid){return _tb.filter(e=>e.athlet_id===aid);}
+function tbNorm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'');}
+function tbPerson(typ,id){
+  if(typ==='personal')return (S.personal||[]).find(x=>x.id===id);
+  return S.athleten.find(x=>x.id===id);
+}
+function tbEntries(typ,id){
+  const p=tbPerson(typ,id);const nm=p?tbNorm(p.name):'';
+  return _tb.filter(e=>(e.typ||'athlet')===typ&&(e.athlet_id===id||(e.athlet_id==null&&nm&&tbNorm(e.athlet_name)===nm)));
+}
 function tbEsc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function tbDateStr(d){ // 'YYYY-MM-DD' -> 'Mo 19.10.2026'
   const p=String(d).split('-');if(p.length<3)return d;
@@ -2512,76 +2522,91 @@ function tbDateStr(d){ // 'YYYY-MM-DD' -> 'Mo 19.10.2026'
   return ['So','Mo','Di','Mi','Do','Fr','Sa'][dt.getDay()]+' '+p[2]+'.'+p[1]+'.'+p[0];
 }
 function tbToday(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
-function tbBadge(aid){
-  const e=tbEntries(aid)[0];if(!e)return '';
-  return '<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:#F3E9D2;color:#7A5C1E;font-weight:500;">📔 '+tbDateStr(e.datum)+': '+tbEsc(e.text.split('\n')[0].substring(0,40))+(e.text.length>40?'…':'')+'</span>';
+function tbFirstLine(e){const t=(e.erzaehlt&&e.erzaehlt.trim())?('💬 '+e.erzaehlt):(e.text||'');return t.split('\n')[0];}
+function tbBadge(typ,id){
+  const e=tbEntries(typ,id)[0];if(!e)return '';
+  const t=tbFirstLine(e);
+  return '<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:#F3E9D2;color:#7A5C1E;font-weight:500;">📔 '+tbDateStr(e.datum)+': '+tbEsc(t.substring(0,40))+(t.length>40?'…':'')+'</span>';
 }
-function tbBoxHtml(aid){return '<div id="tb-box-'+aid+'" onclick="event.stopPropagation()">'+tbInner(aid)+'</div>';}
-function tbPaint(aid){const b=document.getElementById('tb-box-'+aid);if(b)b.innerHTML=tbInner(aid);}
-function tbInner(aid){
-  const all=tbEntries(aid);
-  const q=(_tbQuery[aid]||'').trim().toLowerCase();
-  const list=q?all.filter(e=>(e.text||'').toLowerCase().includes(q)||tbDateStr(e.datum).toLowerCase().includes(q)):all;
-  const showAll=!!_tbShowAll[aid]||!!q;
+function tbKey(typ,id){return typ+'-'+id;}
+function tbBoxHtml(typ,id){return '<div id="tb-box-'+tbKey(typ,id)+'" onclick="event.stopPropagation()">'+tbInner(typ,id)+'</div>';}
+function tbPaint(typ,id){const b=document.getElementById('tb-box-'+tbKey(typ,id));if(b)b.innerHTML=tbInner(typ,id);}
+function tbInner(typ,id){
+  const k=tbKey(typ,id);
+  const all=tbEntries(typ,id);
+  const q=(_tbQuery[k]||'').trim().toLowerCase();
+  const list=q?all.filter(e=>((e.text||'')+' '+(e.erzaehlt||'')).toLowerCase().includes(q)||tbDateStr(e.datum).toLowerCase().includes(q)):all;
+  const showAll=!!_tbShowAll[k]||!!q;
   const shown=showAll?list:list.slice(0,5);
-  const collapsed=!!_tbCollapsed[aid];
+  const collapsed=!!_tbCollapsed[k];
+  const args='\''+typ+'\','+id;
   const inp='font-family:\'DM Sans\',sans-serif;background:#fff;color:var(--text);';
+  const ta='font-size:13px;resize:none;min-height:32px;border-radius:6px;border:1px solid #D9C9A8;padding:7px 10px;'+inp;
   let h='<div style="margin-top:10px;border:1.5px solid #D9C9A8;border-radius:10px;background:#FBF7EE;padding:8px 10px;">';
-  h+='<div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;" onclick="_tbCollapsed['+aid+']=!_tbCollapsed['+aid+'];tbPaint('+aid+')">'
+  h+='<div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;" onclick="_tbCollapsed[\''+k+'\']=!_tbCollapsed[\''+k+'\'];tbPaint('+args+')">'
     +'<div style="font-size:10px;font-weight:700;color:#7A5C1E;text-transform:uppercase;letter-spacing:.07em;">📔 Tagebuch'
     +(all.length?' <span style="font-weight:500;opacity:.7;">('+all.length+')</span>':'')
     +(_tbLoaded?'':' <span style="font-weight:400;opacity:.6;">lädt…</span>')+'</div>'
     +'<span style="font-size:11px;color:var(--muted);">'+(collapsed?'▼':'▲')+'</span></div>';
   if(!collapsed){
     h+='<div style="display:flex;gap:6px;margin-top:8px;align-items:flex-start;flex-wrap:wrap;">'
-      +'<input type="date" id="tb-dat-'+aid+'" value="'+tbToday()+'" style="font-size:12px;padding:6px;border-radius:6px;border:1px solid #D9C9A8;'+inp+'">'
-      +'<textarea id="tb-txt-'+aid+'" rows="1" placeholder="Wie ist es heute gelaufen?" style="flex:1;min-width:160px;font-size:13px;resize:none;min-height:32px;border-radius:6px;border:1px solid #D9C9A8;padding:7px 10px;'+inp+'" oninput="autoResize(this)" onkeydown="if(event.key===\'Enter\'&&(event.metaKey||event.ctrlKey)){tbAdd('+aid+');}"></textarea>'
-      +'<button onclick="tbAdd('+aid+')" style="font-size:12px;font-weight:600;padding:7px 12px;border-radius:6px;border:1px solid #7A5C1E;background:#7A5C1E;color:#fff;cursor:pointer;white-space:nowrap;">Eintragen</button>'
+      +'<input type="date" id="tb-dat-'+k+'" value="'+tbToday()+'" style="font-size:12px;padding:6px;border-radius:6px;border:1px solid #D9C9A8;'+inp+'">'
+      +'<div style="flex:1;min-width:160px;display:flex;flex-direction:column;gap:6px;">'
+      +'<textarea id="tb-txt-'+k+'" rows="1" placeholder="'+(typ==='personal'?'Training: Was haben wir gemacht?':'Wie ist es heute gelaufen?')+'" style="'+ta+'" oninput="autoResize(this)" onkeydown="if(event.key===\'Enter\'&&(event.metaKey||event.ctrlKey)){tbAdd('+args+');}"></textarea>'
+      +(typ==='personal'?'<textarea id="tb-erz-'+k+'" rows="1" placeholder="💬 Erzählt: Was hat der Kunde erzählt?" style="'+ta+'border-color:#B9A6D9;background:#F6F1FC;" oninput="autoResize(this)" onkeydown="if(event.key===\'Enter\'&&(event.metaKey||event.ctrlKey)){tbAdd('+args+');}"></textarea>':'')
+      +'</div>'
+      +'<button onclick="tbAdd('+args+')" style="font-size:12px;font-weight:600;padding:7px 12px;border-radius:6px;border:1px solid #7A5C1E;background:#7A5C1E;color:#fff;cursor:pointer;white-space:nowrap;">Eintragen</button>'
       +'</div>';
-    if(all.length>3)h+='<input type="text" placeholder="Im Tagebuch suchen…" value="'+tbEsc(_tbQuery[aid]||'')+'" oninput="_tbQuery['+aid+']=this.value;tbPaintKeepFocus('+aid+',this)" style="width:100%;margin-top:8px;font-size:12px;padding:6px 10px;border-radius:6px;border:1px solid #E5DCC8;box-sizing:border-box;'+inp+'">';
+    if(all.length>3)h+='<input type="text" placeholder="Im Tagebuch suchen…" value="'+tbEsc(_tbQuery[k]||'')+'" oninput="_tbQuery[\''+k+'\']=this.value;tbPaintKeepFocus('+args+',this)" style="width:100%;margin-top:8px;font-size:12px;padding:6px 10px;border-radius:6px;border:1px solid #E5DCC8;box-sizing:border-box;'+inp+'">';
     if(!all.length)h+='<div style="font-size:12px;color:var(--muted);margin-top:8px;">Noch keine Einträge.</div>';
     else if(!list.length)h+='<div style="font-size:12px;color:var(--muted);margin-top:8px;">Nichts gefunden.</div>';
     h+='<div style="margin-top:6px;">';
     shown.forEach(e=>{
+      let body='';
+      if(e.text&&e.text.trim())body+='<div style="white-space:pre-wrap;">'+tbEsc(e.text)+'</div>';
+      if(e.erzaehlt&&e.erzaehlt.trim())body+='<div style="white-space:pre-wrap;margin-top:'+(body?'3px':'0')+';padding:4px 8px;border-radius:6px;background:#F6F1FC;color:#3E2A6E;border-left:3px solid #B9A6D9;">💬 '+tbEsc(e.erzaehlt)+'</div>';
       h+='<div style="display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-top:1px solid #EADFC9;">'
         +'<div style="font-size:11px;font-weight:600;color:#7A5C1E;white-space:nowrap;min-width:92px;padding-top:1px;font-family:\'DM Mono\',monospace;">'+tbDateStr(e.datum)+'</div>'
-        +'<div style="flex:1;font-size:13px;line-height:1.4;white-space:pre-wrap;color:var(--text);">'+tbEsc(e.text)+'</div>'
-        +'<button onclick="tbDel('+aid+','+e.id+')" title="Eintrag löschen" style="background:none;border:none;cursor:pointer;font-size:12px;opacity:.4;padding:0 2px;line-height:1;">🗑</button>'
+        +'<div style="flex:1;font-size:13px;line-height:1.4;color:var(--text);">'+body+'</div>'
+        +'<button onclick="tbDel('+args+','+e.id+')" title="Eintrag löschen" style="background:none;border:none;cursor:pointer;font-size:12px;opacity:.4;padding:0 2px;line-height:1;">🗑</button>'
         +'</div>';
     });
     h+='</div>';
-    if(!showAll&&list.length>5)h+='<button onclick="_tbShowAll['+aid+']=true;tbPaint('+aid+')" style="width:100%;margin-top:4px;font-size:11px;padding:5px;border-radius:6px;border:1px solid #D9C9A8;background:#fff;color:#7A5C1E;cursor:pointer;">Alle '+list.length+' Einträge anzeigen</button>';
-    else if(showAll&&!q&&list.length>5)h+='<button onclick="_tbShowAll['+aid+']=false;tbPaint('+aid+')" style="width:100%;margin-top:4px;font-size:11px;padding:5px;border-radius:6px;border:1px solid #D9C9A8;background:#fff;color:#7A5C1E;cursor:pointer;">Nur die letzten 5 anzeigen</button>';
+    if(!showAll&&list.length>5)h+='<button onclick="_tbShowAll[\''+k+'\']=true;tbPaint('+args+')" style="width:100%;margin-top:4px;font-size:11px;padding:5px;border-radius:6px;border:1px solid #D9C9A8;background:#fff;color:#7A5C1E;cursor:pointer;">Alle '+list.length+' Einträge anzeigen</button>';
+    else if(showAll&&!q&&list.length>5)h+='<button onclick="_tbShowAll[\''+k+'\']=false;tbPaint('+args+')" style="width:100%;margin-top:4px;font-size:11px;padding:5px;border-radius:6px;border:1px solid #D9C9A8;background:#fff;color:#7A5C1E;cursor:pointer;">Nur die letzten 5 anzeigen</button>';
   }
   h+='</div>';
   return h;
 }
-function tbPaintKeepFocus(aid,inp){
-  const pos=inp.selectionStart;tbPaint(aid);
-  const n=document.querySelector('#tb-box-'+aid+' input[type=text]');
+function tbPaintKeepFocus(typ,id,inp){
+  const pos=inp.selectionStart;tbPaint(typ,id);
+  const n=document.querySelector('#tb-box-'+tbKey(typ,id)+' input[type=text]');
   if(n){n.focus();try{n.setSelectionRange(pos,pos);}catch(e){}}
 }
-async function tbAdd(aid){
-  const ta=document.getElementById('tb-txt-'+aid);const di=document.getElementById('tb-dat-'+aid);
-  if(!ta)return;const text=ta.value.trim();if(!text)return;
-  const a=S.athleten.find(x=>x.id===aid);
+async function tbAdd(typ,id){
+  const k=tbKey(typ,id);
+  const ta=document.getElementById('tb-txt-'+k);const te=document.getElementById('tb-erz-'+k);const di=document.getElementById('tb-dat-'+k);
+  if(!ta)return;
+  const text=ta.value.trim();const erz=te?te.value.trim():'';
+  if(!text&&!erz)return;
+  const p=tbPerson(typ,id);
   const datum=(di&&di.value)||tbToday();
-  ta.disabled=true;
+  ta.disabled=true;if(te)te.disabled=true;
   try{
-    const res=await tbFetch('POST','',{athlet_id:aid,athlet_name:a?a.name:null,datum:datum,text:text,quelle:'app'});
-    if(!res.ok){alert('Eintrag konnte nicht gespeichert werden (Fehler '+res.status+').');ta.disabled=false;return;}
+    const res=await tbFetch('POST','',{athlet_id:id,athlet_name:p?p.name:null,typ:typ,datum:datum,text:text||null,erzaehlt:erz||null,quelle:'app'});
+    if(!res.ok){alert('Eintrag konnte nicht gespeichert werden (Fehler '+res.status+').');ta.disabled=false;if(te)te.disabled=false;return;}
     const rows=await res.json();
     if(rows&&rows.length)_tb.push(rows[0]);
     _tb.sort((x,y)=>y.datum>x.datum?1:y.datum<x.datum?-1:(y.created_at>x.created_at?1:-1));
-    tbPaint(aid);
-  }catch(e){alert('Keine Verbindung – Eintrag nicht gespeichert.');ta.disabled=false;}
+    tbPaint(typ,id);
+  }catch(e){alert('Keine Verbindung – Eintrag nicht gespeichert.');ta.disabled=false;if(te)te.disabled=false;}
 }
-async function tbDel(aid,id){
+async function tbDel(typ,id,eid){
   if(!confirm('Diesen Tagebuch-Eintrag löschen?'))return;
   try{
-    const res=await tbFetch('DELETE','?id=eq.'+id);
+    const res=await tbFetch('DELETE','?id=eq.'+eid);
     if(!res.ok){alert('Löschen fehlgeschlagen (Fehler '+res.status+').');return;}
-    _tb=_tb.filter(e=>e.id!==id);tbPaint(aid);
+    _tb=_tb.filter(e=>e.id!==eid);tbPaint(typ,id);
   }catch(e){alert('Keine Verbindung.');}
 }
 // Beim Zurückkehren zur App neue Einträge (z.B. abends per Chat erfasst) nachladen
@@ -2910,7 +2935,7 @@ function rUebersicht(){
         <span style="font-size:18px;color:var(--muted);">▲</span>
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">
-        ${wkBadge}${periodBadge}${bdBadge}${notizBadge}${tbBadge(a.id)}
+        ${wkBadge}${periodBadge}${bdBadge}${notizBadge}${tbBadge('athlet',a.id)}
       </div>
       ${prevBox}
       <div style="position:relative;margin-top:8px;margin-bottom:6px;" onclick="event.stopPropagation()">
@@ -2928,7 +2953,7 @@ function rUebersicht(){
         <textarea id="un3-${a.id}" rows="2" style="width:100%;font-size:13px;resize:none;border-radius:6px;border:1px solid #b2d0f5;padding:7px 10px;font-family:'DM Sans',sans-serif;background:#F0F5FF;color:var(--text);" placeholder="Vorausplanung in 2 Wochen…" oninput="saveUNotiz(${a.id},'next2')">${uNotiz2}</textarea>
         <span id="un3-sv-${a.id}" style="position:absolute;right:8px;bottom:8px;font-size:11px;color:#4A7BE2;opacity:0;transition:opacity .3s;">✓</span>
       </div>
-      ${tbBoxHtml(a.id)}
+      ${tbBoxHtml('athlet',a.id)}
       ${expDW}
     </div>`;
   });
