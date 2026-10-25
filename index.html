@@ -1620,9 +1620,10 @@ const _katMap={};
 function setKat(key,val){_katMap[key]=val;return key;}
 function getKatByKey(key){return _katMap[key];}
 
+function vidBase(line){return String(line||'').split(' / ')[0].trim();}
 function videoForLine(line){
   const vids=S.katalogVideos||{};
-  const l=String(line||'').toLowerCase();
+  const l=vidBase(line).toLowerCase();
   if(l.length<4)return null;
   // "20 Min. Rudern" = Rudergerät (kein Video im Katalog) -> nicht mit "Rudern (Row)" verwechseln
   if(/^\s*\d+\s*(min|minuten)\.?\s+(locker\s+)?rudern\b/.test(l))return null;
@@ -1653,7 +1654,7 @@ function planVidsHtml(txt){
   if(!txt||!txt.trim())return '';
   const seen=new Set();let h='';
   txt.split('\n').map(x=>x.trim()).filter(Boolean).forEach(ln=>{
-    if(ln.length>100)return;
+    if(vidBase(ln).length>100)return;
     const u=videoForLine(ln);
     if(!u||seen.has(u))return;
     seen.add(u);
@@ -1703,7 +1704,7 @@ function buildSendText(){
       t+=(names.length>1?(i+1)+'. ':'')+lines[0]+'\n';
       lines.slice(1).forEach(ln=>{
         t+=ln+'\n';
-        const u=ln.length<=100?videoForLine(ln):null;
+        const u=vidBase(ln).length<=100?videoForLine(ln):null;
         if(u)t+='▶ '+u+'\n';
       });
     }
@@ -1724,7 +1725,7 @@ function showSendUebungen(){
       html=n.replace(/</g,'&lt;')+(vids[n]?' <span style="color:#E8000F;font-size:11px;">▶ Video</span>':' <span style="color:var(--muted);font-size:11px;">(kein Video)</span>');
     }else{
       html=lines.map((ln,i)=>{
-        const u=(i>0&&ln.length<=100)?videoForLine(ln):null;
+        const u=(i>0&&vidBase(ln).length<=100)?videoForLine(ln):null;
         return ln.replace(/</g,'&lt;')+(u?' <span style="color:#E8000F;font-size:11px;">▶ Video</span>':'');
       }).join('<br>');
     }
@@ -4814,7 +4815,7 @@ init();
       txt.split('\n').forEach(function(line){
         var l=clean(line).replace(/\s+$/,'');
         if(!l.trim()){y+=2.5;return;}
-        var url=line.trim().length<=100?videoForLine(line):null;
+        var url=vidBase(line).length<=100?videoForLine(line):null;
         var maxW=W-2*M-(url?20:4);
         var parts=doc.splitTextToSize(l,maxW);
         need(parts.length*4.6+1);
