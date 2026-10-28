@@ -418,6 +418,7 @@ function isInPeriod(kw,yr,periods){
 function getPeriodType(kw,yr,a){
   if(isInPeriod(kw,yr,a.urlaub))return'urlaub';
   if(isInPeriod(kw,yr,a.tl))return'tl';
+  if(isInPeriod(kw,yr,a.mil))return'mil';
   return null;
 }
 // Wie viele Tage bis Periode? Negativ = läuft
@@ -923,13 +924,13 @@ function showBarPopup(txt,el){
 function barTap(e,el){
   e.stopPropagation();
   const pt=el.dataset.pt;
-  if(pt==='tl'||pt==='urlaub'){
+  if(pt==='tl'||pt==='urlaub'||pt==='mil'){
     const aid=parseInt(el.dataset.aid);
     const kw=parseInt(el.dataset.kw);
     const yr=parseInt(el.dataset.yr);
     const a=S.athleten.find(x=>x.id===aid);
     if(a){
-      const arr=pt==='tl'?a.tl:a.urlaub;
+      const arr=pt==='tl'?a.tl:pt==='mil'?a.mil:a.urlaub;
       const entry=(arr||[]).find(t=>isInPeriod(kw,yr,[t]));
       if(entry&&entry.vonDat&&entry.bisDat){
         const von=parseDate(entry.vonDat);
@@ -973,11 +974,11 @@ function buildBar(a,big){
     const nowStyle=isNow&&big?'outline:2.5px solid white;outline-offset:-2.5px;':'';
     const nowArrow=isNow&&big?'<div style="position:absolute;bottom:-10px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid white;z-index:5;filter:drop-shadow(0 1px 1px rgba(0,0,0,.3));"></div>':'';
     const pt=big?getPeriodType(s.kw,s.yr,a):null;
-    const bottomColor=pt==='tl'?'#111111':pt==='urlaub'?'#F5C518':null;
+    const bottomColor=pt==='tl'?'#111111':pt==='urlaub'?'#F5C518':pt==='mil'?'#556B2F':null;
     const innerHtml=nowArrow+(big&&bottomColor
       ?'<div style="position:absolute;bottom:0;left:0;right:0;height:40%;background:'+bottomColor+';opacity:.85;pointer-events:none;"></div>'
       :'');
-    const tipSafe=('KW '+s.kw+'/'+s.yr+(e?' · '+e.phase+' · '+e.int+'%':' · Ungeplant')+(e&&e.schwerpunkte?' · '+e.schwerpunkte:'')+(pt?' · '+(pt==='tl'?'TL':'Urlaub'):'')).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/`/g,'&#96;');
+    const tipSafe=('KW '+s.kw+'/'+s.yr+(e?' · '+e.phase+' · '+e.int+'%':' · Ungeplant')+(e&&e.schwerpunkte?' · '+e.schwerpunkte:'')+(pt?' · '+(pt==='tl'?'TL':pt==='mil'?'Militär-WK':'Urlaub'):'')).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/`/g,'&#96;');
     const touchAttr=big?` data-tip="${tipSafe}" data-kw="${s.kw}" data-yr="${s.yr}" data-aid="${aid}" data-pt="${pt||''}"`:'';
     segs+=`<div class="seg" style="background:${p.f};flex:1;position:relative;${nowStyle}${big?'cursor:pointer;':''}" title="${tipSafe}"${touchAttr}>${innerHtml}</div>`;
   });
@@ -2311,6 +2312,14 @@ function exportIcal(){
       const uid='tl-'+a.id+'-'+i+'@herzogtraining';
       ical+='BEGIN:VEVENT\r\nUID:'+uid+'\r\nDTSTART;VALUE=DATE:'+fmt(von)+'\r\nDTEND;VALUE=DATE:'+fmt(bisNext)+'\r\nSUMMARY:🏋️ '+a.name+' TL\r\nEND:VEVENT\r\n';
     });
+    (a.mil||[]).forEach((t,i)=>{
+      const von=t.vonDat?parseDate(t.vonDat):kwToDate(t.vonKW,t.vonYr);
+      const bis=t.bisDat?parseDate(t.bisDat):kwToDate(t.bisKW,t.bisYr);
+      if(!von||!bis)return;
+      const bisNext=new Date(bis);bisNext.setDate(bisNext.getDate()+1);
+      const uid='mil-'+a.id+'-'+i+'@herzogtraining';
+      ical+='BEGIN:VEVENT\r\nUID:'+uid+'\r\nDTSTART;VALUE=DATE:'+fmt(von)+'\r\nDTEND;VALUE=DATE:'+fmt(bisNext)+'\r\nSUMMARY:🪖 '+a.name+' Militär-WK\r\nEND:VEVENT\r\n';
+    });
   });
   ical+='END:VCALENDAR';
   const blob=new Blob([ical],{type:'text/calendar'});
@@ -2432,11 +2441,17 @@ function rUebersicht(){
       const lbl=d===0?'🏋️ TL läuft':d<=21?`🏋️ TL in ${d}T`:`🏋️ TL in ${Math.round(d/7)} KW`;
       return `<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:#EDE0FC;color:#26215C;font-weight:500;">${lbl}</span>`;
     })();
+    const milCard=(()=>{
+      const p=npHelper(a.mil);if(!p)return'';
+      const d=daysUntilPeriod(p);
+      const lbl=d===0?'🪖 Militär-WK läuft':d<=21?'🪖 Militär-WK in '+d+'T':'🪖 Militär-WK in '+Math.round(d/7)+' KW';
+      return '<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:#E4EBD8;color:#3B4A1E;font-weight:500;">'+lbl+'</span>';
+    })();
     const bdCard=(()=>{const age=birthdayThisWeek(a);return age!==null?`<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:#FFF0C8;color:#7A4F00;font-weight:600;">🎂 wird ${age}</span>`:''})();
     h+=`<div id="acard-${a.id}" class="acard${isO?' open':''}"><div class="arow" onclick="tog(${a.id})">
       <div class="avatar" style="background:${avc.bg};color:${avc.c};">${ini(a.name)}</div>
       <div class="ainfo"><div class="aname">${a.name}${isO?` <span style="font-size:11px;font-weight:400;color:var(--muted);font-family:'DM Mono',monospace;margin-left:4px;">KW ${KWN} / ${YRN}</span>`:''} ${notizBadge}</div><div class="ameta">${a.sport}</div></div>
-      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${tfBadge}${urlaubCard}${tlCard}${bdCard}${a.verletzt?`<span class="ppill" style="background:#FCEAEA;color:#C0392B;font-weight:600;">🤕 Verletzt seit KW ${a.verletzt.kw}/${a.verletzt.yr}</span>`:`<span class="ppill" style="background:${p.f};color:${p.t};">${phase} · ${ins}%</span>`}</div>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${tfBadge}${urlaubCard}${tlCard}${milCard}${bdCard}${a.verletzt?`<span class="ppill" style="background:#FCEAEA;color:#C0392B;font-weight:600;">🤕 Verletzt seit KW ${a.verletzt.kw}/${a.verletzt.yr}</span>`:`<span class="ppill" style="background:${p.f};color:${p.t};">${phase} · ${ins}%</span>`}</div>
     </div>${exp}</div>`;
   });
   // Build pinned tab bar
@@ -2716,6 +2731,8 @@ function rUebersicht(){
       const tlStr=perDaysStr(a.tl,'🏋️ TL');
       if(urlaubStr)items.push(urlaubStr);
       if(tlStr)items.push(tlStr);
+      const milStr=perDaysStr(a.mil,'🪖 Militär-WK');
+      if(milStr)items.push(milStr);
       const wKey=kwKeyStr(kw,yr);
       const wo=a.wochen&&a.wochen[wKey];
       if(wo&&wo.uNotiz&&wo.uNotiz.trim())items.push('📝 '+wo.uNotiz.trim());
@@ -2802,6 +2819,13 @@ function rUebersicht(){
       const datStr=nextPer.vonDat&&nextPer.bisDat?` (${nextPer.vonDat}–${nextPer.bisDat})`:'';
       return `<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${bg};color:${col};font-weight:500;">${label}${datStr}</span>`;
     })();
+    const milBadgeW=(()=>{
+      const p=npHelper(a.mil);if(!p)return'';
+      const diff=pdHelper(p);
+      const label=diff===0?'🪖 Militär-WK läuft':diff<=21?'🪖 Militär-WK in '+diff+'T':'🪖 Militär-WK in '+Math.round(diff/7)+' KW';
+      const datStr=p.vonDat&&p.bisDat?' ('+p.vonDat+'–'+p.bisDat+')':'';
+      return '<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:#E4EBD8;color:#3B4A1E;font-weight:500;">'+label+datStr+'</span>';
+    })();
     // Geburtstag
     const bdAge=birthdayThisWeek(a);
     const bdBadge=bdAge!==null?`<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:#FFF0C8;color:#7A4F00;font-weight:600;">🎂 ${a.name.split(' ')[0]} wird ${bdAge}</span>`:'';
@@ -2838,8 +2862,8 @@ function rUebersicht(){
     const vwPhase=vwEntry?vwEntry.phase:'Ungeplant';
     const vwIns=vwEntry?vwEntry.int:0;
     const vwPeriod=getPeriodType(vkw,vyr,a);
-    const vwP=vwPeriod==='urlaub'?{f:'#C8E6FA',t:'#0C447C'}:vwPeriod==='tl'?{f:'#EDE0FC',t:'#26215C'}:pd(vwPhase,vwIns);
-    const vwLabel=vwPeriod==='urlaub'?'🏖 Urlaub':vwPeriod==='tl'?'🏋️ Trainingslager':(vwPhase+' · '+vwIns+'%');
+    const vwP=vwPeriod==='urlaub'?{f:'#C8E6FA',t:'#0C447C'}:vwPeriod==='tl'?{f:'#EDE0FC',t:'#26215C'}:vwPeriod==='mil'?{f:'#E4EBD8',t:'#3B4A1E'}:pd(vwPhase,vwIns);
+    const vwLabel=vwPeriod==='urlaub'?'🏖 Urlaub':vwPeriod==='tl'?'🏋️ Trainingslager':vwPeriod==='mil'?'🪖 Militär-WK':(vwPhase+' · '+vwIns+'%');
     const vwSchwerpunkte=vwEntry&&vwEntry.schwerpunkte?vwEntry.schwerpunkte:null;
     // Wettkämpfe in dieser KW
     const vwWks=getWettkaempfe(a).filter(w=>w.kw===vkw&&w.yr===vyr);
@@ -2946,7 +2970,7 @@ function rUebersicht(){
         <span style="font-size:18px;color:var(--muted);">▲</span>
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">
-        ${wkBadge}${periodBadge}${bdBadge}${notizBadge}${tbBadge('athlet',a.id)}
+        ${wkBadge}${periodBadge}${milBadgeW}${bdBadge}${notizBadge}${tbBadge('athlet',a.id)}
       </div>
       ${prevBox}
       <div style="position:relative;margin-top:8px;margin-bottom:6px;" onclick="event.stopPropagation()">
@@ -3601,6 +3625,7 @@ function showEditAthlet(aid){
   </div>`;
   const urlaubRows=(a.urlaub||[]).map((u,i)=>mkPeriodRow('u',u,i)).join('');
   const tlRows=(a.tl||[]).map((t,i)=>mkPeriodRow('t',t,i)).join('');
+  const milRows=(a.mil||[]).map((t,i)=>mkPeriodRow('w',t,i)).join('');
   modal(`<h3>Athlet bearbeiten</h3>
     <div class="frow"><label>Name</label><input type="text" id="m-nm" value="${a.name}"></div>
     <div class="frow"><label>Sportart</label><select id="m-sp">${sOpts}</select></div>
@@ -3622,6 +3647,9 @@ function showEditAthlet(aid){
     <div style="margin:6px 0 4px;font-size:11px;font-weight:600;color:#26215C;text-transform:uppercase;letter-spacing:.06em;">🏋️ Trainingslager</div>
     <div id="m-tl-list">${tlRows||'<div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Kein TL eingetragen.</div>'}</div>
     <button onclick="addEditPeriod('t')" style="font-size:12px;padding:4px 10px;border-radius:6px;border:1px solid #26215C;background:#EDE0FC;color:#26215C;cursor:pointer;margin-bottom:10px;">+ TL</button>
+    <div style="margin:6px 0 4px;font-size:11px;font-weight:600;color:#3B4A1E;text-transform:uppercase;letter-spacing:.06em;">🪖 Militär-WK</div>
+    <div id="m-mil-list">${milRows||'<div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Kein Militär-WK eingetragen.</div>'}</div>
+    <button onclick="addEditPeriod('w')" style="font-size:12px;padding:4px 10px;border-radius:6px;border:1px solid #3B4A1E;background:#E4EBD8;color:#3B4A1E;cursor:pointer;margin-bottom:10px;">+ Militär-WK</button>
     <div class="mbtns"><button onclick="closeM()">Abbrechen</button><button class="primary" onclick="confEditAthlet(${aid})">Speichern</button></div>
     <div style="margin-top:1rem;text-align:center;">
       <button onclick="confirmDelete(${aid})" style="font-size:12px;color:var(--red);background:none;border:none;cursor:pointer;text-decoration:underline;font-family:'DM Sans',sans-serif;">Athlet löschen</button>
@@ -3632,6 +3660,7 @@ function addEditPeriod(type){
   if(!a)return;
   if(!a.urlaub)a.urlaub=[];
   if(!a.tl)a.tl=[];
+  if(!a.mil)a.mil=[];
   // Default: heute + 7 Tage
   const n=new Date();
   const fmt=d=>`${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}`;
@@ -3639,6 +3668,7 @@ function addEditPeriod(type){
   const bis=new Date(n);bis.setDate(bis.getDate()+6);
   const bisDat=fmt(bis);
   if(type==='u')a.urlaub.push({vonDat,bisDat,vonKW:KWN,vonYr:YRN,bisKW:KWN+1,bisYr:YRN});
+  else if(type==='w')a.mil.push({vonDat,bisDat,vonKW:KWN,vonYr:YRN,bisKW:KWN+1,bisYr:YRN});
   else a.tl.push({vonDat,bisDat,vonKW:KWN,vonYr:YRN,bisKW:KWN+1,bisYr:YRN});
   showEditAthlet(window._editAid);
 }
@@ -3647,6 +3677,7 @@ function removeEditPeriod(type,idx){
   if(!a)return;
   if(type==='u'&&a.urlaub)a.urlaub.splice(idx,1);
   else if(type==='t'&&a.tl)a.tl.splice(idx,1);
+  else if(type==='w'&&a.mil)a.mil.splice(idx,1);
   showEditAthlet(window._editAid);
 }
 function confEditAthlet(aid){
@@ -3676,6 +3707,7 @@ function confEditAthlet(aid){
   }
   a.urlaub=readPeriods(a.urlaub||[],'u');
   a.tl=readPeriods(a.tl||[],'t');
+  a.mil=readPeriods(a.mil||[],'w');
   save();closeM();rEditor();rUebersicht();
 }
 function clearVerletzt(aid){
@@ -4033,6 +4065,7 @@ async function gcalSyncAll(){
       const notiz=wo&&wo.uNotiz&&wo.uNotiz.trim();
       const isUrlaub=isInPeriod(kw,yr,a.urlaub);
       const isTl=isInPeriod(kw,yr,a.tl);
+      const isMil=isInPeriod(kw,yr,a.mil);
       // Für Urlaub/TL: genaue Tage der Woche berechnen
       const perDaysRange=(periods)=>{
         const found=(periods||[]).find(p=>isInPeriod(kw,yr,[p]));
@@ -4047,7 +4080,7 @@ async function gcalSyncAll(){
       };
       const parts=[];
       if(notiz)parts.push(notiz.split('\n')[0]);
-      if(!isUrlaub&&!isTl){
+      if(!isUrlaub&&!isTl&&!isMil){
         if(!parts.length)continue;
         const summary=a.name.split(' ')[0]+' '+a.name.split(' ')[1][0]+'. KW'+kw+': '+parts.join(', ');
         const stableId='ht-'+a.id+'-'+startDate.replace(/-/g,'')+'@herzogtraining';
@@ -4072,6 +4105,13 @@ async function gcalSyncAll(){
           const tSummary=a.name.split(' ')[0]+' '+a.name.split(' ')[1][0]+'. 🏋️ TL';
           const tId='ht-tl-'+a.id+'-kw'+kw+'-'+yr+'@herzogtraining';
           await gcalUpsertEvent(token,tId,tSummary,tStart,tEnd);
+          synced++;
+        }
+        if(isMil){
+          const{start:mStart,end:mEnd}=perDaysRange(a.mil);
+          const mSummary=a.name.split(' ')[0]+' '+a.name.split(' ')[1][0]+'. 🪖 Militär-WK';
+          const mId='ht-mil-'+a.id+'-kw'+kw+'-'+yr+'@herzogtraining';
+          await gcalUpsertEvent(token,mId,mSummary,mStart,mEnd);
           synced++;
         }
       }
