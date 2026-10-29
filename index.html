@@ -2176,14 +2176,14 @@ function rPersonal(){
       const delBlock='<div style="margin-top:1rem;text-align:right;" onclick="event.stopPropagation()">'
         +'<button onclick="event.stopPropagation();confirmDeletePT('+k.id+')" style="font-size:12px;color:#C0392B;background:none;border:none;cursor:pointer;text-decoration:underline;">Kunde l&ouml;schen</button>'
         +'</div>';
-      inner='<div style="border-top:1px solid #D8D8D8;margin-top:10px;padding-top:10px;">'+beachtenBlock+tbBoxHtml('personal',k.id)+urlaubBlock+delBlock+'</div>';
+      inner='<div style="border-top:1px solid #D8D8D8;margin-top:10px;padding-top:10px;">'+beachtenBlock+ptWorkoutsBlock(k)+tbBoxHtml('personal',k.id)+ptGuthabenBlock(k)+urlaubBlock+delBlock+'</div>';
     }
     const initials=k.name.split(' ').map(x=>x[0]).join('');
     const beachtenPreview=k.beachten?'<div style="font-size:11px;color:#854F0B;">&#9888; '+k.beachten.split('\n')[0].substring(0,40)+'</div>':'';
     h+='<div style="background:#FFFFFF;border:2px solid '+(isO?'#E8000F':'#D0D0D0')+';border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer;" onclick="togPT('+k.id+')">'
       +'<div style="display:flex;align-items:center;gap:10px;">'
       +'<div class="avatar" style="width:36px;height:36px;font-size:13px;flex-shrink:0;background:#EAF3DE;color:#3B6D11;">'+initials+'</div>'
-      +'<div style="flex:1;"><div style="font-size:14px;font-weight:500;">'+k.name+'</div>'+beachtenPreview+(tbBadge('personal',k.id)?'<div style="margin-top:3px;">'+tbBadge('personal',k.id)+'</div>':'')+'</div>'
+      +'<div style="flex:1;"><div style="font-size:14px;font-weight:500;">'+k.name+'</div>'+beachtenPreview+(ptGuthabenBadge(k)?'<div style="margin-top:3px;">'+ptGuthabenBadge(k)+'</div>':'')+(tbBadge('personal',k.id)?'<div style="margin-top:3px;">'+tbBadge('personal',k.id)+'</div>':'')+'</div>'
       +'<span style="font-size:18px;color:#555555;">'+(isO?'&#9650;':'&#9660;')+'</span>'
       +'</div>'
       +inner+'</div>';
@@ -2274,6 +2274,223 @@ function delPTUrlaub(id,idx){
   save();rPersonal();
 }
 
+
+// ============================================================
+// PERSONAL: Workouts + Guthaben (Vorauszahlung, Abzug pro Training)
+// ============================================================
+const PT_WT=['So','Mo','Di','Mi','Do','Fr','Sa'];
+const AMRAP_BEINARBEIT='AMRAP 20 Min: Beinarbeit\n\n10 Goblet Squats (unten 2 Sek. halten)\n12 Step-ups auf Box/Bank (abwechselnd, ca. 40–50 cm)\n15 KB Swings (russisch, auf Brusthöhe)\n10 Reverse Lunges (5 pro Seite)\n20 m Farmer Walk (schwer)\n\nLeichter: Box tiefer, Squat auf Bank absitzen, Lunges ohne Gewicht\nSchwerer: Step-ups mit KH, Farmer Walk schwerer, 12 Squats\n\nRunden + Wdh. aufschreiben, in 4–6 Wochen wiederholen. Ziel ca. 4–6 Runden.';
+function ptEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function ptIso(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function ptIsoToD(s){const p=String(s||'').split('-');if(p.length<3)return null;const d=new Date(+p[0],+p[1]-1,+p[2]);d.setHours(0,0,0,0);return d;}
+function ptIsoFmt(s){const p=String(s||'').split('-');return p.length<3?s:p[2]+'.'+p[1]+'.'+p[0];}
+function ptChf(n){return 'CHF '+Math.round(n).toLocaleString('de-CH');}
+function ptInFerien(k,d){
+  return (k.urlaub||[]).some(u=>{const v=parseDate(u.vonDat),b=parseDate(u.bisDat);return v&&b&&d>=v&&d<=b;});
+}
+// Berechnet Saldo und Liste der abgezogenen Trainings
+function ptGuthabenCalc(k){
+  const g=k.guthaben;if(!g)return null;
+  const ein=g.einzahlungen||[];
+  const total=ein.reduce((s,e)=>s+(+e.betrag||0),0);
+  const preis=+g.preis||0;
+  const res={total,preis,trainings:[],ausfall:[],saldo:total,start:null};
+  if(!ein.length)return res;
+  const start=ein.map(e=>e.ab||e.datum).sort()[0];
+  res.start=start;
+  const sD=ptIsoToD(start),tD=today();
+  if(!sD)return res;
+  const aus=new Set(g.ausfall||[]),tage=g.tage||[];
+  const set={};
+  for(let d=new Date(sD);d<=tD;d.setDate(d.getDate()+1)){
+    if(tage.indexOf(d.getDay())===-1)continue;
+    const iso=ptIso(d);
+    if(aus.has(iso)){res.ausfall.push({iso,grund:'abgesagt'});continue;}
+    if(ptInFerien(k,d)){res.ausfall.push({iso,grund:'Ferien'});continue;}
+    set[iso]='regulär';
+  }
+  (g.extra||[]).forEach(iso=>{if(iso>=start&&iso<=ptIso(tD))set[iso]='zusätzlich';});
+  res.trainings=Object.keys(set).sort().reverse().map(iso=>({iso,art:set[iso]}));
+  res.saldo=total-res.trainings.length*preis;
+  return res;
+}
+function ptGuthabenBadge(k){
+  const c=ptGuthabenCalc(k);if(!c||!c.total)return '';
+  const low=c.saldo<=c.preis*2;
+  return '<span style="font-size:11px;padding:1px 7px;border-radius:9px;background:'+(low?'#FDE2E2':'#E3F2E1')+';color:'+(low?'#A32020':'#2E6B24')+';">&#128176; '+ptChf(c.saldo)+'</span>';
+}
+function ptGuthabenBlock(k){
+  const st='onclick="event.stopPropagation()"';
+  const btn='font-size:12px;padding:4px 10px;border-radius:6px;border:1px solid #2E6B24;background:#E3F2E1;color:#2E6B24;cursor:pointer;margin:4px 6px 0 0;';
+  let h='<div style="margin-top:1rem;" '+st+'>'
+    +'<div style="font-size:10px;font-weight:600;color:#2E6B24;text-transform:uppercase;margin-bottom:6px;">&#128176; Guthaben</div>';
+  if(!k.guthaben){
+    h+='<button onclick="event.stopPropagation();ptGuthabenInit('+k.id+')" style="'+btn+'">Guthaben-Konto einrichten</button></div>';
+    return h;
+  }
+  const g=k.guthaben,c=ptGuthabenCalc(k);
+  const tageTxt=(g.tage||[]).slice().sort((a,b)=>((a+6)%7)-((b+6)%7)).map(t=>PT_WT[t]).join(', ')||'keine Tage';
+  if(!c.total){
+    h+='<div style="font-size:12px;color:#555555;margin-bottom:4px;">Noch keine Vorauszahlung erfasst. '+ptChf(c.preis)+' pro Training &middot; '+tageTxt+'</div>';
+  }else{
+    const low=c.saldo<=c.preis*2;
+    const rest=c.preis>0?Math.floor(c.saldo/c.preis):0;
+    h+='<div style="background:'+(low?'#FDE2E2':'#F1F8EF')+';border:1px solid '+(low?'#E8A0A0':'#B7D9B0')+';border-radius:8px;padding:8px 10px;margin-bottom:6px;">'
+      +'<div style="font-size:18px;font-weight:700;color:'+(low?'#A32020':'#2E6B24')+';">'+ptChf(c.saldo)+'</div>'
+      +'<div style="font-size:12px;color:#444444;">'+(c.saldo>=0?'reicht noch für '+rest+' Training'+(rest===1?'':'s'):'im Minus')+' &middot; '+c.trainings.length+' abgezogen &middot; '+ptChf(c.preis)+' pro Training &middot; '+tageTxt+' &middot; ab '+ptIsoFmt(c.start)+'</div>'
+      +'</div>';
+    // Abgezogene Trainings (letzte 8) + Ausfälle
+    const rows=c.trainings.slice(0,8).map(t=>'<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid #E4E4E4;font-size:12px;">'
+      +'<span style="flex:1;">'+PT_WT[ptIsoToD(t.iso).getDay()]+' '+ptIsoFmt(t.iso)+(t.art==='zusätzlich'?' &middot; zusätzlich':'')+'</span>'
+      +'<span style="color:#A32020;">&minus;'+c.preis+'</span>'
+      +'<button title="Training fand nicht statt" onclick="event.stopPropagation();ptAusfall('+k.id+',\''+t.iso+'\',\''+t.art+'\')" style="background:none;border:none;font-size:14px;cursor:pointer;color:#888888;">&#215;</button>'
+      +'</div>').join('');
+    const ausRows=c.ausfall.slice(-4).reverse().map(a=>'<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid #E4E4E4;font-size:12px;color:#888888;">'
+      +'<span style="flex:1;text-decoration:line-through;">'+PT_WT[ptIsoToD(a.iso).getDay()]+' '+ptIsoFmt(a.iso)+'</span><span>'+a.grund+'</span>'
+      +(a.grund==='abgesagt'?'<button title="Doch stattgefunden" onclick="event.stopPropagation();ptAusfallWeg('+k.id+',\''+a.iso+'\')" style="background:none;border:none;font-size:13px;cursor:pointer;color:#888888;">&#8634;</button>':'')
+      +'</div>').join('');
+    if(rows||ausRows)h+='<div style="margin-bottom:4px;">'+rows+ausRows+'</div>';
+    // Einzahlungen
+    h+='<div style="font-size:11px;color:#555555;margin-top:6px;">Einzahlungen:</div>'
+      +(g.einzahlungen||[]).map((e,i)=>'<div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:12px;">'
+        +'<span style="flex:1;">'+ptIsoFmt(e.datum)+(e.ab&&e.ab!==e.datum?' (zählt ab '+ptIsoFmt(e.ab)+')':'')+'</span><span style="color:#2E6B24;">+'+(+e.betrag).toLocaleString('de-CH')+'</span>'
+        +'<button onclick="event.stopPropagation();ptEinzahlungDel('+k.id+','+i+')" style="background:none;border:none;font-size:14px;cursor:pointer;color:#888888;">&#215;</button>'
+        +'</div>').join('');
+  }
+  h+='<div><button onclick="event.stopPropagation();ptEinzahlungShow('+k.id+')" style="'+btn+'">+ Einzahlung</button>'
+    +'<button onclick="event.stopPropagation();ptExtraShow('+k.id+')" style="'+btn+'">+ Zusatztraining</button>'
+    +'<button onclick="event.stopPropagation();ptGuthabenSettings('+k.id+')" style="'+btn+'background:#FFFFFF;">Einstellungen</button></div>'
+    +'<div style="font-size:11px;color:#777777;margin-top:4px;">Abgezogen wird automatisch an jedem Trainingstag. Ferien zählen nicht. Fällt ein Training aus: &#215; antippen.</div>'
+    +'</div>';
+  return h;
+}
+function ptK(id){return (S.personal||[]).find(x=>x.id===id);}
+function ptGuthabenInit(id){const k=ptK(id);if(!k)return;k.guthaben={preis:150,tage:[],einzahlungen:[],ausfall:[],extra:[]};save();ptGuthabenSettings(id);}
+function ptEinzahlungShow(id){
+  const t=ptIso(today());
+  modal('<h3>Einzahlung erfassen</h3>'
+    +'<div class="frow"><label>Betrag (CHF)</label><input type="number" id="m-ptbetrag" placeholder="7000"></div>'
+    +'<div class="frow"><label>Bezahlt am</label><input type="date" id="m-ptdat" value="'+t+'"></div>'
+    +'<div class="frow"><label>Trainings zählen ab</label><input type="date" id="m-ptab" value="'+t+'"></div>'
+    +'<div class="mbtns"><button onclick="closeM()">Abbrechen</button><button class="primary" onclick="ptEinzahlungConf('+id+')">Speichern</button></div>');
+}
+function ptEinzahlungConf(id){
+  const k=ptK(id);if(!k||!k.guthaben)return;
+  const b=parseFloat(document.getElementById('m-ptbetrag').value);
+  const d=document.getElementById('m-ptdat').value;
+  const ab=document.getElementById('m-ptab').value||d;
+  if(!b||!d){alert('Bitte Betrag und Datum eingeben.');return;}
+  if(!k.guthaben.einzahlungen)k.guthaben.einzahlungen=[];
+  k.guthaben.einzahlungen.push({datum:d,ab:ab,betrag:b});
+  k.guthaben.einzahlungen.sort((a,c)=>a.datum<c.datum?-1:1);
+  save();closeM();_ptOpen[id]=true;rPersonal();
+}
+function ptEinzahlungDel(id,i){
+  const k=ptK(id);if(!k||!k.guthaben)return;
+  if(!confirm('Einzahlung löschen?'))return;
+  k.guthaben.einzahlungen.splice(i,1);save();rPersonal();
+}
+function ptGuthabenSettings(id){
+  const k=ptK(id);if(!k||!k.guthaben)return;
+  const g=k.guthaben;
+  const cb=[1,2,3,4,5,6,0].map(t=>'<label style="display:inline-flex;align-items:center;gap:3px;margin-right:10px;font-size:13px;"><input type="checkbox" class="m-pttag" value="'+t+'"'+((g.tage||[]).indexOf(t)!==-1?' checked':'')+'>'+PT_WT[t]+'</label>').join('');
+  modal('<h3>Guthaben &middot; '+ptEsc(k.name)+'</h3>'
+    +'<div class="frow"><label>Preis pro Training (CHF)</label><input type="number" id="m-ptpreis" value="'+(g.preis||150)+'"></div>'
+    +'<div class="frow"><label>Trainingstage</label><div>'+cb+'</div></div>'
+    +'<div style="margin-top:8px;"><button onclick="ptGuthabenRemove('+id+')" style="font-size:12px;color:#C0392B;background:none;border:none;cursor:pointer;text-decoration:underline;">Guthaben-Konto entfernen</button></div>'
+    +'<div class="mbtns"><button onclick="closeM()">Abbrechen</button><button class="primary" onclick="ptGuthabenSettingsConf('+id+')">Speichern</button></div>');
+}
+function ptGuthabenSettingsConf(id){
+  const k=ptK(id);if(!k||!k.guthaben)return;
+  k.guthaben.preis=parseFloat(document.getElementById('m-ptpreis').value)||0;
+  k.guthaben.tage=[].slice.call(document.querySelectorAll('.m-pttag')).filter(x=>x.checked).map(x=>+x.value);
+  save();closeM();_ptOpen[id]=true;rPersonal();
+}
+function ptGuthabenRemove(id){
+  const k=ptK(id);if(!k)return;
+  if(!confirm('Guthaben-Konto mit allen Einzahlungen entfernen?'))return;
+  delete k.guthaben;save();closeM();rPersonal();
+}
+function ptAusfall(id,iso,art){
+  const k=ptK(id);if(!k||!k.guthaben)return;
+  const g=k.guthaben;
+  if(art==='zusätzlich'){g.extra=(g.extra||[]).filter(x=>x!==iso);}
+  else{if(!g.ausfall)g.ausfall=[];if(g.ausfall.indexOf(iso)===-1)g.ausfall.push(iso);}
+  save();rPersonal();
+}
+function ptAusfallWeg(id,iso){
+  const k=ptK(id);if(!k||!k.guthaben)return;
+  k.guthaben.ausfall=(k.guthaben.ausfall||[]).filter(x=>x!==iso);save();rPersonal();
+}
+function ptExtraShow(id){
+  modal('<h3>Zusatztraining</h3>'
+    +'<div class="frow"><label>Datum</label><input type="date" id="m-ptextra" value="'+ptIso(today())+'"></div>'
+    +'<div class="mbtns"><button onclick="closeM()">Abbrechen</button><button class="primary" onclick="ptExtraConf('+id+')">Abziehen</button></div>');
+}
+function ptExtraConf(id){
+  const k=ptK(id);if(!k||!k.guthaben)return;
+  const d=document.getElementById('m-ptextra').value;if(!d)return;
+  const g=k.guthaben;if(!g.extra)g.extra=[];
+  g.ausfall=(g.ausfall||[]).filter(x=>x!==d);
+  if(g.extra.indexOf(d)===-1)g.extra.push(d);
+  save();closeM();_ptOpen[id]=true;rPersonal();
+}
+// Workouts pro Kunde/Gruppe
+function ptWorkoutsBlock(k){
+  const st='onclick="event.stopPropagation()"';
+  const list=(k.workouts||[]).slice().sort((a,b)=>(b.datum||'')<(a.datum||'')?-1:1);
+  let h='<div style="margin-top:1rem;" '+st+'>'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">'
+    +'<div style="font-size:10px;font-weight:700;color:#E8000F;text-transform:uppercase;">&#127947; Workouts</div>'
+    +'<button onclick="event.stopPropagation();ptWorkoutAdd('+k.id+')" style="font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid #E8000F;background:#FFF5F5;color:#E8000F;cursor:pointer;">+ Workout</button>'
+    +'</div>';
+  if(!list.length)h+='<div style="font-size:12px;color:#555555;">Noch keine Workouts.</div>';
+  list.forEach(w=>{
+    h+='<div style="border:1px solid #F0B8B8;border-radius:8px;padding:8px;margin-bottom:8px;background:#FFF8F8;">'
+      +'<div style="display:flex;gap:6px;align-items:center;margin-bottom:5px;">'
+      +'<input type="text" value="'+ptEsc(w.titel)+'" placeholder="Titel" oninput="ptWorkoutEdit('+k.id+','+w.id+',\'titel\',this.value)" onclick="event.stopPropagation()" style="flex:1;font-size:13px;font-weight:600;border:1px solid #DDDDDD;border-radius:5px;padding:4px 7px;">'
+      +'<input type="date" value="'+ptEsc(w.datum)+'" onchange="ptWorkoutEdit('+k.id+','+w.id+',\'datum\',this.value)" onclick="event.stopPropagation()" style="font-size:12px;border:1px solid #DDDDDD;border-radius:5px;padding:3px 5px;">'
+      +'<button onclick="event.stopPropagation();ptWorkoutDel('+k.id+','+w.id+')" style="background:none;border:none;font-size:15px;cursor:pointer;color:#888888;">&#215;</button>'
+      +'</div>'
+      +'<textarea rows="4" oninput="autoResize(this);ptWorkoutEdit('+k.id+','+w.id+',\'text\',this.value)" onclick="event.stopPropagation()" style="width:100%;font-size:13px;resize:none;min-height:70px;border-radius:6px;border:1px solid #E8000F;padding:8px 10px;background:#FFFFFF;color:#111111;white-space:pre-wrap;line-height:1.5;" placeholder="Workout...">'+ptEsc(w.text)+'</textarea>'
+      +'</div>';
+  });
+  return h+'</div>';
+}
+function ptWorkoutAdd(id){
+  const k=ptK(id);if(!k)return;
+  if(!k.workouts)k.workouts=[];
+  k.workouts.push({id:Date.now(),titel:'',datum:ptIso(today()),text:''});
+  save();_ptOpen[id]=true;rPersonal();
+}
+function ptWorkoutEdit(id,wid,f,v){
+  const k=ptK(id);if(!k||!k.workouts)return;
+  const w=k.workouts.find(x=>x.id===wid);if(!w)return;
+  w[f]=v;
+  if(_ptTimers['w'+id])clearTimeout(_ptTimers['w'+id]);
+  _ptTimers['w'+id]=setTimeout(()=>save(),1200);
+}
+function ptWorkoutDel(id,wid){
+  const k=ptK(id);if(!k||!k.workouts)return;
+  if(!confirm('Workout löschen?'))return;
+  k.workouts=k.workouts.filter(x=>x.id!==wid);save();rPersonal();
+}
+// Einmalig: AMRAP + Guthaben-Konto für Columbus und Open Gym
+function migratePTGruppenV1(){
+  if(S.ptGruppenSeedV1||!S.personal)return;
+  let changed=false;
+  [['columbus',[1,4],1]].concat([['open gym',[2],2]]).forEach(([nm,tage,n])=>{
+    const k=S.personal.find(x=>(x.name||'').toLowerCase().indexOf(nm)!==-1);
+    if(!k)return;
+    if(!k.workouts)k.workouts=[];
+    if(!k.workouts.some(w=>w.titel==='AMRAP Beinarbeit')){
+      k.workouts.push({id:Date.now()+n,titel:'AMRAP Beinarbeit',datum:'2026-10-29',text:AMRAP_BEINARBEIT});changed=true;
+    }
+    if(!k.guthaben){k.guthaben={preis:150,tage:tage,einzahlungen:[],ausfall:[],extra:[]};changed=true;}
+  });
+  S.ptGruppenSeedV1=true;
+  save();
+}
 
 
 function exportIcal(){
@@ -4676,6 +4893,7 @@ async function init(){
   migrateEsvWettkaempfe2027B4();
   fixEsvWettkaempfePrio();
   fixHardCoreS128Video();
+  migratePTGruppenV1();
   if(dedupeWettkaempfe()>0)save();
   if(!S.trainingsVorlagen)S.trainingsVorlagen=[];
   if(!S.phasen)S.phasen=[...PNAMES];
