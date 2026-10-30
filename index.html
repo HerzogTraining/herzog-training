@@ -220,6 +220,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--border2);}
     <button class="tab" onclick="switchTab('katalog',this)">Übungen</button>
     <button class="tab" onclick="switchTab('personal',this)">Personal</button>
     <button class="tab" onclick="switchTab('ideen',this)">Ideen</button>
+    <button class="tab" onclick="switchTab('extern',this)">Extern</button>
   </div>
   <div id="view-uebersicht" class="view active"></div>
   <div id="view-training" class="view"></div>
@@ -228,6 +229,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--border2);}
   <div id="view-vorlagen" class="view"></div>
   <div id="view-personal" class="view"></div>
   <div id="view-ideen" class="view"></div>
+  <div id="view-extern" class="view"></div>
 </div>
 <div id="modal-wrap"></div>
 
@@ -2483,12 +2485,19 @@ function migratePTGruppenV1(){
     const k=S.personal.find(x=>(x.name||'').toLowerCase().indexOf(nm)!==-1);
     if(!k)return;
     if(!k.workouts)k.workouts=[];
-    if(!k.workouts.some(w=>w.titel==='AMRAP Beinarbeit')){
+    if(nm==='columbus'&&!k.workouts.some(w=>w.titel==='AMRAP Beinarbeit')){
       k.workouts.push({id:Date.now()+n,titel:'AMRAP Beinarbeit',datum:'2026-10-29',text:AMRAP_BEINARBEIT});changed=true;
     }
     if(!k.guthaben){k.guthaben={preis:150,tage:tage,einzahlungen:[],ausfall:[],extra:[]};changed=true;}
   });
   S.ptGruppenSeedV1=true;
+  save();
+}
+function migratePTGruppenV2(){
+  if(S.ptGruppenFixV2||!S.personal)return;
+  const k=S.personal.find(x=>(x.name||'').toLowerCase().indexOf('open gym')!==-1);
+  if(k&&k.workouts)k.workouts=k.workouts.filter(w=>!(w.titel==='AMRAP Beinarbeit'&&w.text===AMRAP_BEINARBEIT));
+  S.ptGruppenFixV2=true;
   save();
 }
 
@@ -4859,6 +4868,7 @@ function switchTab(t,btn){
   else if(t==='katalog')rKatalog();
   else if(t==='personal')rPersonal();
   else if(t==='ideen')rIdeen();
+  else if(t==='extern')rExtern();
 }
 
 // ---- ASYNC INIT ----
@@ -4894,6 +4904,7 @@ async function init(){
   fixEsvWettkaempfePrio();
   fixHardCoreS128Video();
   migratePTGruppenV1();
+  migratePTGruppenV2();
   if(dedupeWettkaempfe()>0)save();
   if(!S.trainingsVorlagen)S.trainingsVorlagen=[];
   if(!S.phasen)S.phasen=[...PNAMES];
@@ -5151,6 +5162,299 @@ init();
     if(isMacDesktop){
       download(res);
       msg.innerHTML='PDF gespeichert in «Downloads» ('+res.name+').<br>WhatsApp öffnen, Chat wählen und das PDF hineinziehen.'
+        +'<div style="margin-top:8px;"><a href="whatsapp://" style="display:inline-block;background:#25D366;color:#fff;text-decoration:none;font-weight:600;padding:7px 14px;border-radius:7px;">WhatsApp öffnen</a></div>';
+      return;
+    }
+    if(file&&navigator.canShare&&navigator.canShare({files:[file]})){
+      navigator.share({files:[file],title:res.name.replace(/\.pdf$/,'')}).then(function(){closeM();}).catch(function(err){
+        if(err&&err.name==='AbortError')return;
+        download(res);msg.textContent='Teilen nicht möglich – PDF wurde gespeichert.';
+      });
+    }else{
+      download(res);msg.textContent='PDF wurde gespeichert (Downloads). Jetzt in WhatsApp hineinziehen.';
+    }
+  };
+})();
+</script>
+<script>
+/* Trainingspläne extern: Pläne für Kunden, die selbst trainieren. In der App abgelegt, als PDF mit Videolinks senden. */
+(function(){
+  var JSPDF_URL='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+  var loading=null;
+  function loadJsPdf(){
+    if(window.jspdf&&window.jspdf.jsPDF)return Promise.resolve();
+    if(loading)return loading;
+    loading=new Promise(function(res,rej){
+      var s=document.createElement('script');s.src=JSPDF_URL;s.onload=function(){res();};
+      s.onerror=function(){loading=null;rej(new Error('jsPDF konnte nicht geladen werden'));};
+      document.head.appendChild(s);
+    });
+    return loading;
+  }
+  function clean(t){
+    return String(t==null?'':t)
+      .replace(/[‘’‚′]/g,"'").replace(/[“”„″]/g,'"')
+      .replace(/[–—−]/g,'-').replace(/•/g,'-').replace(/…/g,'...')
+      .replace(/≈/g,'~').replace(/≥/g,'>=').replace(/≤/g,'<=').replace(/→/g,'->')
+      .replace(/ /g,' ').replace(/[^\x09\x0A\x0D\x20-\x7E -ÿ]/g,'');
+  }
+  function esc(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function fmtD(ts){var d=ts instanceof Date?ts:new Date(ts);return String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+d.getFullYear();}
+  function list(){if(!S.extern)S.extern=[];return S.extern;}
+  function find(id){return list().find(function(p){return p.id===id;});}
+  var openId=null,tmr=null;
+  function saveSoon(){if(tmr)clearTimeout(tmr);tmr=setTimeout(function(){tmr=null;save();},1200);}
+  function flush(){if(tmr){clearTimeout(tmr);tmr=null;save();}}
+
+  var BTN='font-size:12px;padding:6px 12px;border-radius:6px;cursor:pointer;font-weight:600;font-family:inherit;';
+  var BTN_RED=BTN+'border:1px solid #E8000F;background:#E8000F;color:#fff;';
+  var BTN_LIGHT=BTN+'border:1px solid var(--border);background:transparent;color:var(--text);';
+
+  function fInput(p,f,label,ph){
+    return '<div class="frow"><label>'+label+'</label><input value="'+esc(p[f]||'')+'" placeholder="'+esc(ph||'')+'" oninput="extSet('+p.id+',\''+f+'\',this.value)" style="width:100%;"></div>';
+  }
+  function fArea(p,f,label,rows,hint){
+    return '<div class="frow"><label>'+label+'</label>'+(hint?'<div style="font-size:11px;color:var(--muted);margin-bottom:4px;">'+hint+'</div>':'')
+      +'<textarea rows="'+rows+'" oninput="extSet('+p.id+',\''+f+'\',this.value)" style="width:100%;">'+esc(p[f]||'')+'</textarea></div>';
+  }
+  function card(p){
+    var isOpen=openId===p.id;
+    var sub=[p.kunde,p.sport,p.ts?fmtD(p.ts):''].filter(Boolean).join(' · ');
+    var h='<div style="margin-bottom:12px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);padding:14px;">'
+      +'<div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="extToggle('+p.id+')">'
+      +'<div style="flex:1;min-width:0;"><div style="font-size:15px;font-weight:700;">'+esc(p.titel||'Ohne Titel')+'</div>'
+      +'<div style="font-size:12px;color:var(--muted);">'+esc(sub)+'</div></div>'
+      +'<button onclick="event.stopPropagation();extPdf('+p.id+')" style="'+BTN_RED+'">📄 PDF senden</button>'
+      +'<span style="font-size:12px;color:var(--muted);width:14px;text-align:center;">'+(isOpen?'▲':'▼')+'</span></div>';
+    if(isOpen){
+      h+='<div style="margin-top:14px;">'
+        +fInput(p,'titel','Titel','z.B. Athletiktraining Golf 6 Wochen')
+        +'<div style="display:flex;gap:10px;flex-wrap:wrap;"><div style="flex:1;min-width:180px;">'+fInput(p,'kunde','Kunde / Kundin','Name')+'</div>'
+        +'<div style="flex:1;min-width:180px;">'+fInput(p,'sport','Sportart','z.B. Golf')+'</div></div>'
+        +fArea(p,'einleitung','Einleitung',4,'Steht oben im PDF in einem grauen Kasten.');
+      h+='<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:6px 0 4px;">Trainings</div>'
+        +'<div style="font-size:11px;color:var(--muted);margin-bottom:6px;">Pro Zeile eine Übung: Name aus dem Übungskatalog, dann « / » und die Erklärung. Das Video wird dann automatisch verlinkt.</div>';
+      (p.trainings||[]).forEach(function(t,i){
+        var tid='ext-ta-'+p.id+'-'+i;
+        h+='<div style="border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:10px;">'
+          +'<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">'
+          +'<input value="'+esc(t.titel||'')+'" placeholder="z.B. Training A" oninput="extTr('+p.id+','+i+',\'titel\',this.value)" style="flex:1;font-weight:700;">'
+          +(i>0?'<button onclick="extTrMove('+p.id+','+i+',-1)" title="nach oben" style="'+BTN_LIGHT+'padding:4px 9px;">↑</button>':'')
+          +'<button onclick="extTrDel('+p.id+','+i+')" title="Training entfernen" style="'+BTN_LIGHT+'padding:4px 9px;">✕</button></div>'
+          +'<textarea id="'+tid+'" rows="9" style="width:100%;" oninput="extTr('+p.id+','+i+',\'text\',this.value);updatePlanVids(this.id)">'+esc(t.text||'')+'</textarea>'
+          +'<div id="vids-'+tid+'">'+planVidsHtml(t.text||'')+'</div></div>';
+      });
+      h+='<button onclick="extTrAdd('+p.id+')" style="'+BTN_LIGHT+'margin-bottom:14px;">+ Training</button>'
+        +fArea(p,'ablauf','Ablauf / Steigerung',7,'Tabelle: Spalten mit « | » trennen, erste Zeile = Überschrift. Normale Zeilen werden als Text gedruckt.')
+        +fArea(p,'hinweis','Hinweis',2,'Steht unten im PDF, z.B. was bei Schmerzen zu tun ist.')
+        +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">'
+        +'<button onclick="extDup('+p.id+')" style="'+BTN_LIGHT+'">⧉ Duplizieren</button>'
+        +'<button onclick="extDel('+p.id+')" style="'+BTN_LIGHT+'color:#E8000F;">Löschen</button>'
+        +'</div></div>';
+    }
+    return h+'</div>';
+  }
+  window.rExtern=function(){
+    var el=document.getElementById('view-extern');if(!el)return;
+    var arr=list().slice().sort(function(a,b){return (b.ts||0)-(a.ts||0);});
+    var h='<div style="padding:1rem 0;">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;flex-wrap:wrap;">'
+      +'<h2 style="font-size:18px;font-weight:700;">📄 Trainingspläne extern</h2>'
+      +'<button onclick="extNeu()" style="'+BTN_RED+'">+ Neuer Plan</button></div>'
+      +'<p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Pläne für Kunden, die selbst trainieren. Als PDF mit Logo und anklickbaren Videos senden.</p>';
+    if(!arr.length)h+='<div style="font-size:13px;color:var(--muted);">Noch keine Pläne.</div>';
+    arr.forEach(function(p){h+=card(p);});
+    el.innerHTML=h+'</div>';
+  };
+  window.extToggle=function(id){flush();openId=openId===id?null:id;rExtern();};
+  window.extSet=function(id,f,v){var p=find(id);if(!p)return;p[f]=v;saveSoon();};
+  window.extTr=function(id,i,f,v){var p=find(id);if(!p||!p.trainings[i])return;p.trainings[i][f]=v;saveSoon();};
+  window.extNeu=function(){
+    flush();var id=Date.now();
+    list().push({id:id,ts:id,titel:'Neuer Plan',kunde:'',sport:'',einleitung:'',trainings:[{titel:'Training A',text:''}],ablauf:'',hinweis:''});
+    openId=id;save();rExtern();
+  };
+  window.extTrAdd=function(id){
+    var p=find(id);if(!p)return;if(!p.trainings)p.trainings=[];
+    p.trainings.push({titel:'Training '+String.fromCharCode(65+p.trainings.length),text:''});save();rExtern();
+  };
+  window.extTrDel=function(id,i){
+    var p=find(id);if(!p)return;
+    if(!confirm('Training «'+(p.trainings[i].titel||'')+'» entfernen?'))return;
+    p.trainings.splice(i,1);save();rExtern();
+  };
+  window.extTrMove=function(id,i,d){
+    var p=find(id);if(!p)return;var j=i+d;if(j<0||j>=p.trainings.length)return;
+    var t=p.trainings[i];p.trainings[i]=p.trainings[j];p.trainings[j]=t;save();rExtern();
+  };
+  window.extDup=function(id){
+    flush();var p=find(id);if(!p)return;
+    var c=JSON.parse(JSON.stringify(p));c.id=Date.now();c.ts=c.id;c.titel=(p.titel||'Plan')+' (Kopie)';c.kunde='';
+    list().push(c);openId=c.id;save();rExtern();
+  };
+  window.extDel=function(id){
+    var p=find(id);if(!p)return;
+    if(!confirm('Plan «'+(p.titel||'')+'» löschen?'))return;
+    S.extern=list().filter(function(x){return x.id!==id;});openId=null;save();rExtern();
+  };
+
+  function buildPdf(p){
+    var jsPDF=window.jspdf.jsPDF;
+    var doc=new jsPDF({unit:'mm',format:'a4'});
+    var W=210,H=297,M=15,y=M,LH=4.6;
+    function need(h){if(y+h>H-20){doc.addPage();y=M;}}
+    function wrap(t,w){var out=[];String(t).split('\n').forEach(function(par){var s=doc.splitTextToSize(par,w);if(!s.length)s=[''];out=out.concat(s);});return out;}
+    function bar(txt){
+      need(16);
+      doc.setFillColor(232,0,15);doc.roundedRect(M,y,W-2*M,7,1.5,1.5,'F');
+      doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(255,255,255);
+      doc.text(clean(txt).toUpperCase(),M+3,y+4.9);y+=10;
+    }
+    function box(txt,label){
+      doc.setFont('helvetica','normal');doc.setFontSize(10);
+      var ls=wrap(clean(txt),W-2*M-9);
+      var hh=ls.length*LH+(label?9:5);
+      need(hh);
+      doc.setFillColor(245,245,245);doc.rect(M,y,W-2*M,hh,'F');
+      doc.setFillColor(232,0,15);doc.rect(M,y,1.2,hh,'F');
+      var yy=y+5;
+      if(label){doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(232,0,15);doc.text(label,M+5,yy);yy+=5;doc.setFont('helvetica','normal');doc.setFontSize(10);}
+      doc.setTextColor(17,17,17);
+      ls.forEach(function(l,k){doc.text(l,M+5,yy+k*LH);});
+      y+=hh+6;
+    }
+    // Kopf
+    var logoW=0;
+    try{var pr=doc.getImageProperties(HT_LOGO);var lh=24;logoW=lh*pr.width/pr.height;doc.addImage(HT_LOGO,'JPEG',W-M-logoW,y,logoW,lh);}catch(err){}
+    doc.setFont('helvetica','bold');doc.setFontSize(18);doc.setTextColor(17,17,17);
+    var tl=doc.splitTextToSize(clean(p.titel||'Trainingsplan'),W-2*M-logoW-6);
+    tl.forEach(function(l,k){doc.text(l,M,y+6+k*7);});
+    var yy=y+6+tl.length*7;
+    doc.setFont('helvetica','normal');doc.setFontSize(10);doc.setTextColor(136,136,136);
+    var sub=[p.kunde,p.sport].filter(Boolean).join(' · ');
+    if(sub){doc.text(clean(sub),M,yy);yy+=5;}
+    y=Math.max(y+27,yy+2);
+    doc.setDrawColor(232,0,15);doc.setLineWidth(0.8);doc.line(M,y,W-M,y);y+=6;
+    if((p.einleitung||'').trim())box(p.einleitung.trim(),'');
+    // Trainings
+    (p.trainings||[]).forEach(function(t){
+      var txt=(t.text||'').trim();if(!txt)return;
+      bar(t.titel||'Training');
+      txt.split('\n').forEach(function(line){
+        var raw=line.replace(/\s+$/,'');
+        if(!raw.trim()){y+=2.5;return;}
+        var url=vidBase(raw).length<=100?videoForLine(raw):null;
+        var idx=raw.indexOf(' / ');
+        var name=idx>0?raw.slice(0,idx).trim():null;
+        var rest=idx>0?raw.slice(idx+3).trim():raw.trim();
+        var maxW=W-2*M-(url?20:4);
+        doc.setFontSize(10);
+        doc.setFont('helvetica','bold');
+        var nl=name?doc.splitTextToSize(clean(name),maxW):[];
+        doc.setFont('helvetica','normal');
+        var rl=rest?doc.splitTextToSize(clean(rest),name?W-2*M-4:maxW):[];
+        var isHead=!name&&/:$/.test(raw.trim());
+        need((nl.length+rl.length)*LH+2);
+        var y0=y;
+        doc.setTextColor(17,17,17);
+        if(nl.length){doc.setFont('helvetica','bold');nl.forEach(function(l,k){doc.text(l,M+2,y+3.5+k*LH);});y+=nl.length*LH;}
+        doc.setFont('helvetica',isHead?'bold':'normal');
+        if(name)doc.setTextColor(70,70,70);
+        rl.forEach(function(l,k){doc.text(l,M+2,y+3.5+k*LH);});
+        y+=rl.length*LH;
+        if(url){
+          doc.setTextColor(232,0,15);doc.setFont('helvetica','bold');doc.setFontSize(9);
+          doc.textWithLink('> Video',W-M-15,y0+3.5,{url:url});
+          doc.setFontSize(10);
+        }
+        doc.setFont('helvetica','normal');
+        doc.setDrawColor(221,221,221);doc.setLineWidth(0.2);doc.line(M,y+0.8,W-M,y+0.8);y+=2.2;
+      });
+      y+=5;
+    });
+    // Ablauf
+    var ab=(p.ablauf||'').trim();
+    if(ab){
+      bar('Ablauf');
+      var lines=ab.split('\n'),i=0;
+      while(i<lines.length){
+        var ln=lines[i];
+        if(ln.indexOf('|')!==-1){
+          var rows=[];
+          while(i<lines.length&&lines[i].indexOf('|')!==-1){rows.push(lines[i].split('|').map(function(c){return clean(c.trim());}));i++;}
+          var nc=Math.max.apply(null,rows.map(function(r){return r.length;}));
+          var cw=(W-2*M)/nc;
+          rows.forEach(function(r,ri){
+            doc.setFont('helvetica',ri===0?'bold':'normal');doc.setFontSize(ri===0?9:9.5);
+            var cells=[];for(var c=0;c<nc;c++)cells.push(doc.splitTextToSize(r[c]||'',cw-3));
+            var rh=Math.max.apply(null,cells.map(function(x){return x.length;}))*4.2+3;
+            need(rh);
+            for(var c2=0;c2<nc;c2++){
+              var x=M+c2*cw;
+              if(ri===0){doc.setFillColor(242,242,242);doc.rect(x,y,cw,rh,'F');}
+              doc.setDrawColor(200,200,200);doc.setLineWidth(0.2);doc.rect(x,y,cw,rh);
+              doc.setTextColor(17,17,17);
+              doc.setFont('helvetica',(ri===0||c2===0)?'bold':'normal');
+              cells[c2].forEach(function(l,k){doc.text(l,x+1.5,y+4+k*4.2);});
+            }
+            y+=rh;
+          });
+          y+=4;
+        }else{
+          if(!ln.trim()){y+=2.5;i++;continue;}
+          doc.setFont('helvetica','normal');doc.setFontSize(10);doc.setTextColor(17,17,17);
+          var pl=doc.splitTextToSize(clean(ln.trim()),W-2*M-4);
+          need(pl.length*LH+1);
+          pl.forEach(function(l,k){doc.text(l,M+2,y+3.5+k*LH);});
+          y+=pl.length*LH+1;i++;
+        }
+      }
+      y+=4;
+    }
+    if((p.hinweis||'').trim())box(p.hinweis.trim(),'WICHTIG');
+    // Fusszeile
+    var n=doc.getNumberOfPages();
+    for(var pg=1;pg<=n;pg++){
+      doc.setPage(pg);
+      doc.setDrawColor(221,221,221);doc.setLineWidth(0.2);doc.line(M,H-16,W-M,H-16);
+      doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(232,0,15);doc.text('Tommy Herzog',M,H-11);
+      doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(120,120,120);
+      doc.text('Herzog Training GmbH · info@herzog-training.ch · herzog-training.ch',M,H-7);
+      doc.text('Erstellt '+fmtD(new Date())+(n>1?'  ·  Seite '+pg+'/'+n:''),W-M,H-7,{align:'right'});
+    }
+    var fname=('Trainingsplan_'+(p.titel||'')+(p.kunde?'_'+p.kunde:'')).replace(/[^A-Za-z0-9ÄÖÜäöüéèà_-]+/g,'_').replace(/_+/g,'_')+'.pdf';
+    return {blob:doc.output('blob'),name:fname};
+  }
+  window.extBuildPdf=buildPdf;
+
+  function download(res){
+    var u=URL.createObjectURL(res.blob);var l=document.createElement('a');l.href=u;l.download=res.name;
+    document.body.appendChild(l);l.click();setTimeout(function(){URL.revokeObjectURL(u);l.remove();},4000);
+  }
+  window.extPdf=function(id){
+    flush();var p=find(id);if(!p)return;
+    loadJsPdf().catch(function(){});
+    modal('<h3>'+esc(p.titel||'Plan')+' – PDF</h3>'
+      +'<div style="font-size:13px;color:var(--muted);margin-bottom:8px;">'+esc([p.kunde,p.sport].filter(Boolean).join(' · ')||'Kein Kunde eingetragen')+'</div>'
+      +'<div style="font-size:12px;color:var(--muted);">Das PDF enthält Logo, alle Trainings mit anklickbaren Videos, den Ablauf und den Hinweis.</div>'
+      +'<div id="extpdf-msg" style="font-size:12px;color:var(--muted);min-height:16px;margin-top:8px;"></div>'
+      +'<div class="mbtns"><button onclick="closeM()">Abbrechen</button><button class="primary" onclick="extPdfGo('+id+')">PDF erstellen & senden</button></div>');
+  };
+  window.extPdfGo=function(id){
+    var msg=document.getElementById('extpdf-msg');var p=find(id);if(!p)return;
+    if(!(window.jspdf&&window.jspdf.jsPDF)){
+      msg.textContent='PDF wird vorbereitet … bitte gleich nochmals tippen.';
+      loadJsPdf().then(function(){msg.textContent='Bereit – bitte nochmals «PDF erstellen & senden» tippen.';}).catch(function(){msg.textContent='Keine Internetverbindung zum Laden des PDF-Moduls.';});
+      return;
+    }
+    var res;
+    try{res=buildPdf(p);}catch(err){msg.textContent='Fehler beim Erstellen: '+err.message;return;}
+    var file=null;
+    try{file=new File([res.blob],res.name,{type:'application/pdf'});}catch(err){}
+    var isMacDesktop=/Mac/.test(navigator.platform||navigator.userAgent)&&!(navigator.maxTouchPoints>1);
+    if(isMacDesktop){
+      download(res);
+      msg.innerHTML='PDF gespeichert in «Downloads» ('+esc(res.name)+').<br>WhatsApp öffnen, Chat wählen und das PDF hineinziehen.'
         +'<div style="margin-top:8px;"><a href="whatsapp://" style="display:inline-block;background:#25D366;color:#fff;text-decoration:none;font-weight:600;padding:7px 14px;border-radius:7px;">WhatsApp öffnen</a></div>';
       return;
     }
