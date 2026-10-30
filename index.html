@@ -2178,7 +2178,13 @@ function rPersonal(){
       const delBlock='<div style="margin-top:1rem;text-align:right;" onclick="event.stopPropagation()">'
         +'<button onclick="event.stopPropagation();confirmDeletePT('+k.id+')" style="font-size:12px;color:#C0392B;background:none;border:none;cursor:pointer;text-decoration:underline;">Kunde l&ouml;schen</button>'
         +'</div>';
-      inner='<div style="border-top:1px solid #D8D8D8;margin-top:10px;padding-top:10px;">'+beachtenBlock+ptWorkoutsBlock(k)+tbBoxHtml('personal',k.id)+ptGuthabenBlock(k)+urlaubBlock+delBlock+'</div>';
+      const preisBlock='<div style="margin-top:1rem;" onclick="event.stopPropagation()">'
+        +'<div style="font-size:10px;font-weight:600;color:#3B6D11;text-transform:uppercase;margin-bottom:6px;">&#128176; Preis (intern)</div>'
+        +'<div style="display:flex;gap:6px;flex-wrap:wrap;">'
+        +'<input type="number" id="pt-preis-'+k.id+'" min="0" step="5" placeholder="CHF/Training" style="width:120px;font-size:13px;" value="'+(k.preis!=null?k.preis:'')+'" onclick="event.stopPropagation()" oninput="autoSavePTPreis('+k.id+')">'
+        +'<input type="text" id="pt-preisnotiz-'+k.id+'" placeholder="Notiz, z.B. zahlt bar" style="flex:1;min-width:140px;font-size:13px;" value="'+String(k.preisNotiz||'').replace(/"/g,'&quot;')+'" onclick="event.stopPropagation()" oninput="autoSavePTPreis('+k.id+')">'
+        +'</div></div>';
+      inner='<div style="border-top:1px solid #D8D8D8;margin-top:10px;padding-top:10px;">'+beachtenBlock+ptWorkoutsBlock(k)+tbBoxHtml('personal',k.id)+ptGuthabenBlock(k)+urlaubBlock+preisBlock+delBlock+'</div>';
     }
     const initials=k.name.split(' ').map(x=>x[0]).join('');
     const beachtenPreview=k.beachten?'<div style="font-size:11px;color:#854F0B;">&#9888; '+k.beachten.split('\n')[0].substring(0,40)+'</div>':'';
@@ -2234,6 +2240,16 @@ const _ptTimers={};
 function autoSavePT(id){
   if(_ptTimers[id])clearTimeout(_ptTimers[id]);
   _ptTimers[id]=setTimeout(()=>savePT(id),1500);
+}
+function autoSavePTPreis(id){
+  const k=(S.personal||[]).find(x=>x.id===id);
+  if(!k)return;
+  const pr=document.getElementById('pt-preis-'+id);
+  const pn=document.getElementById('pt-preisnotiz-'+id);
+  if(pr){const v=pr.value.trim();k.preis=v===''?null:Number(v);}
+  if(pn)k.preisNotiz=pn.value;
+  if(_ptTimers['p'+id])clearTimeout(_ptTimers['p'+id]);
+  _ptTimers['p'+id]=setTimeout(()=>save(),1500);
 }
 function autoSavePTBeachten(id){
   const k=S.personal.find(x=>x.id===id);
@@ -3860,6 +3876,10 @@ function showEditAthlet(aid){
       <div class="frow"><label>Start Jahr</label><input type="number" id="m-sy" min="2020" max="2035" value="${a.startYr}"></div>
     </div>
     <div class="frow"><label>Geburtstag</label><input type="text" id="m-geb" placeholder="TT.MM.JJJJ z.B. 15.03.1998" value="${a.gebDat||''}"></div>
+    <div class="fgrid2">
+      <div class="frow"><label>💰 Preis/Training (CHF, intern)</label><input type="number" id="m-preis" min="0" step="5" placeholder="z.B. 150" value="${a.preis!=null?a.preis:''}"></div>
+      <div class="frow"><label>Preis-Notiz (intern)</label><input type="text" id="m-preisnotiz" placeholder="z.B. zahlt monatlich" value="${(a.preisNotiz||'').replace(/"/g,'&quot;')}"></div>
+    </div>
     <div class="frow"><label>Verletzt seit (KW/Jahr)</label>
       <div style="display:flex;gap:6px;">
         <input type="number" id="m-vkw" min="1" max="53" placeholder="KW" style="width:60px;" value="${a.verletzt?a.verletzt.kw:''}">
@@ -3914,6 +3934,10 @@ function confEditAthlet(aid){
   a.startKW=parseInt(document.getElementById('m-sk').value);
   a.startYr=parseInt(document.getElementById('m-sy').value);
   a.gebDat=document.getElementById('m-geb').value.trim()||null;
+  const _pr=document.getElementById('m-preis');
+  if(_pr){const v=_pr.value.trim();a.preis=v===''?null:Number(v);}
+  const _pn=document.getElementById('m-preisnotiz');
+  if(_pn)a.preisNotiz=_pn.value.trim();
   const vkw=document.getElementById('m-vkw').value;
   const vyr=document.getElementById('m-vyr').value;
   a.verletzt=(vkw&&vyr)?{kw:parseInt(vkw),yr:parseInt(vyr)}:null;
