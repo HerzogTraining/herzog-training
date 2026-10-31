@@ -220,6 +220,8 @@ input:focus,select:focus,textarea:focus{border-color:var(--border2);}
     <button class="tab" onclick="switchTab('katalog',this)">Übungen</button>
     <button class="tab" onclick="switchTab('personal',this)">Personal</button>
     <button class="tab" onclick="switchTab('ideen',this)">Ideen</button>
+    <button class="tab" onclick="switchTab('extern',this)">Extern</button>
+    <button class="tab" onclick="switchTab('patienten',this)">Patienten</button>
   </div>
   <div id="view-uebersicht" class="view active"></div>
   <div id="view-training" class="view"></div>
@@ -228,6 +230,8 @@ input:focus,select:focus,textarea:focus{border-color:var(--border2);}
   <div id="view-vorlagen" class="view"></div>
   <div id="view-personal" class="view"></div>
   <div id="view-ideen" class="view"></div>
+  <div id="view-extern" class="view"></div>
+  <div id="view-patienten" class="view"></div>
 </div>
 <div id="modal-wrap"></div>
 
@@ -418,6 +422,7 @@ function isInPeriod(kw,yr,periods){
 function getPeriodType(kw,yr,a){
   if(isInPeriod(kw,yr,a.urlaub))return'urlaub';
   if(isInPeriod(kw,yr,a.tl))return'tl';
+  if(isInPeriod(kw,yr,a.mil))return'mil';
   return null;
 }
 // Wie viele Tage bis Periode? Negativ = läuft
@@ -923,13 +928,13 @@ function showBarPopup(txt,el){
 function barTap(e,el){
   e.stopPropagation();
   const pt=el.dataset.pt;
-  if(pt==='tl'||pt==='urlaub'){
+  if(pt==='tl'||pt==='urlaub'||pt==='mil'){
     const aid=parseInt(el.dataset.aid);
     const kw=parseInt(el.dataset.kw);
     const yr=parseInt(el.dataset.yr);
     const a=S.athleten.find(x=>x.id===aid);
     if(a){
-      const arr=pt==='tl'?a.tl:a.urlaub;
+      const arr=pt==='tl'?a.tl:pt==='mil'?a.mil:a.urlaub;
       const entry=(arr||[]).find(t=>isInPeriod(kw,yr,[t]));
       if(entry&&entry.vonDat&&entry.bisDat){
         const von=parseDate(entry.vonDat);
@@ -973,11 +978,11 @@ function buildBar(a,big){
     const nowStyle=isNow&&big?'outline:2.5px solid white;outline-offset:-2.5px;':'';
     const nowArrow=isNow&&big?'<div style="position:absolute;bottom:-10px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid white;z-index:5;filter:drop-shadow(0 1px 1px rgba(0,0,0,.3));"></div>':'';
     const pt=big?getPeriodType(s.kw,s.yr,a):null;
-    const bottomColor=pt==='tl'?'#111111':pt==='urlaub'?'#F5C518':null;
+    const bottomColor=pt==='tl'?'#111111':pt==='urlaub'?'#F5C518':pt==='mil'?'#556B2F':null;
     const innerHtml=nowArrow+(big&&bottomColor
       ?'<div style="position:absolute;bottom:0;left:0;right:0;height:40%;background:'+bottomColor+';opacity:.85;pointer-events:none;"></div>'
       :'');
-    const tipSafe=('KW '+s.kw+'/'+s.yr+(e?' · '+e.phase+' · '+e.int+'%':' · Ungeplant')+(e&&e.schwerpunkte?' · '+e.schwerpunkte:'')+(pt?' · '+(pt==='tl'?'TL':'Urlaub'):'')).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/`/g,'&#96;');
+    const tipSafe=('KW '+s.kw+'/'+s.yr+(e?' · '+e.phase+' · '+e.int+'%':' · Ungeplant')+(e&&e.schwerpunkte?' · '+e.schwerpunkte:'')+(pt?' · '+(pt==='tl'?'TL':pt==='mil'?'Militär-WK':'Urlaub'):'')).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/`/g,'&#96;');
     const touchAttr=big?` data-tip="${tipSafe}" data-kw="${s.kw}" data-yr="${s.yr}" data-aid="${aid}" data-pt="${pt||''}"`:'';
     segs+=`<div class="seg" style="background:${p.f};flex:1;position:relative;${nowStyle}${big?'cursor:pointer;':''}" title="${tipSafe}"${touchAttr}>${innerHtml}</div>`;
   });
@@ -2175,14 +2180,20 @@ function rPersonal(){
       const delBlock='<div style="margin-top:1rem;text-align:right;" onclick="event.stopPropagation()">'
         +'<button onclick="event.stopPropagation();confirmDeletePT('+k.id+')" style="font-size:12px;color:#C0392B;background:none;border:none;cursor:pointer;text-decoration:underline;">Kunde l&ouml;schen</button>'
         +'</div>';
-      inner='<div style="border-top:1px solid #D8D8D8;margin-top:10px;padding-top:10px;">'+beachtenBlock+tbBoxHtml('personal',k.id)+urlaubBlock+delBlock+'</div>';
+      const preisBlock='<div style="margin-top:1rem;" onclick="event.stopPropagation()">'
+        +'<div style="font-size:10px;font-weight:600;color:#3B6D11;text-transform:uppercase;margin-bottom:6px;">&#128176; Preis (intern)</div>'
+        +'<div style="display:flex;gap:6px;flex-wrap:wrap;">'
+        +'<input type="number" id="pt-preis-'+k.id+'" min="0" step="5" placeholder="CHF/Training" style="width:120px;font-size:13px;" value="'+(k.preis!=null?k.preis:'')+'" onclick="event.stopPropagation()" oninput="autoSavePTPreis('+k.id+')">'
+        +'<input type="text" id="pt-preisnotiz-'+k.id+'" placeholder="Notiz, z.B. zahlt bar" style="flex:1;min-width:140px;font-size:13px;" value="'+String(k.preisNotiz||'').replace(/"/g,'&quot;')+'" onclick="event.stopPropagation()" oninput="autoSavePTPreis('+k.id+')">'
+        +'</div></div>';
+      inner='<div style="border-top:1px solid #D8D8D8;margin-top:10px;padding-top:10px;">'+beachtenBlock+ptWorkoutsBlock(k)+tbBoxHtml('personal',k.id)+ptGuthabenBlock(k)+urlaubBlock+preisBlock+delBlock+'</div>';
     }
     const initials=k.name.split(' ').map(x=>x[0]).join('');
     const beachtenPreview=k.beachten?'<div style="font-size:11px;color:#854F0B;">&#9888; '+k.beachten.split('\n')[0].substring(0,40)+'</div>':'';
     h+='<div style="background:#FFFFFF;border:2px solid '+(isO?'#E8000F':'#D0D0D0')+';border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer;" onclick="togPT('+k.id+')">'
       +'<div style="display:flex;align-items:center;gap:10px;">'
       +'<div class="avatar" style="width:36px;height:36px;font-size:13px;flex-shrink:0;background:#EAF3DE;color:#3B6D11;">'+initials+'</div>'
-      +'<div style="flex:1;"><div style="font-size:14px;font-weight:500;">'+k.name+'</div>'+beachtenPreview+(tbBadge('personal',k.id)?'<div style="margin-top:3px;">'+tbBadge('personal',k.id)+'</div>':'')+'</div>'
+      +'<div style="flex:1;"><div style="font-size:14px;font-weight:500;">'+k.name+'</div>'+beachtenPreview+(ptGuthabenBadge(k)?'<div style="margin-top:3px;">'+ptGuthabenBadge(k)+'</div>':'')+(tbBadge('personal',k.id)?'<div style="margin-top:3px;">'+tbBadge('personal',k.id)+'</div>':'')+'</div>'
       +'<span style="font-size:18px;color:#555555;">'+(isO?'&#9650;':'&#9660;')+'</span>'
       +'</div>'
       +inner+'</div>';
@@ -2232,6 +2243,16 @@ function autoSavePT(id){
   if(_ptTimers[id])clearTimeout(_ptTimers[id]);
   _ptTimers[id]=setTimeout(()=>savePT(id),1500);
 }
+function autoSavePTPreis(id){
+  const k=(S.personal||[]).find(x=>x.id===id);
+  if(!k)return;
+  const pr=document.getElementById('pt-preis-'+id);
+  const pn=document.getElementById('pt-preisnotiz-'+id);
+  if(pr){const v=pr.value.trim();k.preis=v===''?null:Number(v);}
+  if(pn)k.preisNotiz=pn.value;
+  if(_ptTimers['p'+id])clearTimeout(_ptTimers['p'+id]);
+  _ptTimers['p'+id]=setTimeout(()=>save(),1500);
+}
 function autoSavePTBeachten(id){
   const k=S.personal.find(x=>x.id===id);
   const bt=document.getElementById('pt-beachten-'+id);
@@ -2274,6 +2295,230 @@ function delPTUrlaub(id,idx){
 }
 
 
+// ============================================================
+// PERSONAL: Workouts + Guthaben (Vorauszahlung, Abzug pro Training)
+// ============================================================
+const PT_WT=['So','Mo','Di','Mi','Do','Fr','Sa'];
+const AMRAP_BEINARBEIT='AMRAP 20 Min: Beinarbeit\n\n10 Goblet Squats (unten 2 Sek. halten)\n12 Step-ups auf Box/Bank (abwechselnd, ca. 40–50 cm)\n15 KB Swings (russisch, auf Brusthöhe)\n10 Reverse Lunges (5 pro Seite)\n20 m Farmer Walk (schwer)\n\nLeichter: Box tiefer, Squat auf Bank absitzen, Lunges ohne Gewicht\nSchwerer: Step-ups mit KH, Farmer Walk schwerer, 12 Squats\n\nRunden + Wdh. aufschreiben, in 4–6 Wochen wiederholen. Ziel ca. 4–6 Runden.';
+function ptEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function ptIso(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function ptIsoToD(s){const p=String(s||'').split('-');if(p.length<3)return null;const d=new Date(+p[0],+p[1]-1,+p[2]);d.setHours(0,0,0,0);return d;}
+function ptIsoFmt(s){const p=String(s||'').split('-');return p.length<3?s:p[2]+'.'+p[1]+'.'+p[0];}
+function ptChf(n){return 'CHF '+Math.round(n).toLocaleString('de-CH');}
+function ptInFerien(k,d){
+  return (k.urlaub||[]).some(u=>{const v=parseDate(u.vonDat),b=parseDate(u.bisDat);return v&&b&&d>=v&&d<=b;});
+}
+// Berechnet Saldo und Liste der abgezogenen Trainings
+function ptGuthabenCalc(k){
+  const g=k.guthaben;if(!g)return null;
+  const ein=g.einzahlungen||[];
+  const total=ein.reduce((s,e)=>s+(+e.betrag||0),0);
+  const preis=+g.preis||0;
+  const res={total,preis,trainings:[],ausfall:[],saldo:total,start:null};
+  if(!ein.length)return res;
+  const start=ein.map(e=>e.ab||e.datum).sort()[0];
+  res.start=start;
+  const sD=ptIsoToD(start),tD=today();
+  if(!sD)return res;
+  const aus=new Set(g.ausfall||[]),tage=g.tage||[];
+  const set={};
+  for(let d=new Date(sD);d<=tD;d.setDate(d.getDate()+1)){
+    if(tage.indexOf(d.getDay())===-1)continue;
+    const iso=ptIso(d);
+    if(aus.has(iso)){res.ausfall.push({iso,grund:'abgesagt'});continue;}
+    if(ptInFerien(k,d)){res.ausfall.push({iso,grund:'Ferien'});continue;}
+    set[iso]='regulär';
+  }
+  (g.extra||[]).forEach(iso=>{if(iso>=start&&iso<=ptIso(tD))set[iso]='zusätzlich';});
+  res.trainings=Object.keys(set).sort().reverse().map(iso=>({iso,art:set[iso]}));
+  res.saldo=total-res.trainings.length*preis;
+  return res;
+}
+function ptGuthabenBadge(k){
+  const c=ptGuthabenCalc(k);if(!c||!c.total)return '';
+  const low=c.saldo<=c.preis*2;
+  return '<span style="font-size:11px;padding:1px 7px;border-radius:9px;background:'+(low?'#FDE2E2':'#E3F2E1')+';color:'+(low?'#A32020':'#2E6B24')+';">&#128176; '+ptChf(c.saldo)+'</span>';
+}
+function ptGuthabenBlock(k){
+  const st='onclick="event.stopPropagation()"';
+  const btn='font-size:12px;padding:4px 10px;border-radius:6px;border:1px solid #2E6B24;background:#E3F2E1;color:#2E6B24;cursor:pointer;margin:4px 6px 0 0;';
+  let h='<div style="margin-top:1rem;" '+st+'>'
+    +'<div style="font-size:10px;font-weight:600;color:#2E6B24;text-transform:uppercase;margin-bottom:6px;">&#128176; Guthaben</div>';
+  if(!k.guthaben){
+    h+='<button onclick="event.stopPropagation();ptGuthabenInit('+k.id+')" style="'+btn+'">Guthaben-Konto einrichten</button></div>';
+    return h;
+  }
+  const g=k.guthaben,c=ptGuthabenCalc(k);
+  const tageTxt=(g.tage||[]).slice().sort((a,b)=>((a+6)%7)-((b+6)%7)).map(t=>PT_WT[t]).join(', ')||'keine Tage';
+  if(!c.total){
+    h+='<div style="font-size:12px;color:#555555;margin-bottom:4px;">Noch keine Vorauszahlung erfasst. '+ptChf(c.preis)+' pro Training &middot; '+tageTxt+'</div>';
+  }else{
+    const low=c.saldo<=c.preis*2;
+    const rest=c.preis>0?Math.floor(c.saldo/c.preis):0;
+    h+='<div style="background:'+(low?'#FDE2E2':'#F1F8EF')+';border:1px solid '+(low?'#E8A0A0':'#B7D9B0')+';border-radius:8px;padding:8px 10px;margin-bottom:6px;">'
+      +'<div style="font-size:18px;font-weight:700;color:'+(low?'#A32020':'#2E6B24')+';">'+ptChf(c.saldo)+'</div>'
+      +'<div style="font-size:12px;color:#444444;">'+(c.saldo>=0?'reicht noch für '+rest+' Training'+(rest===1?'':'s'):'im Minus')+' &middot; '+c.trainings.length+' abgezogen &middot; '+ptChf(c.preis)+' pro Training &middot; '+tageTxt+' &middot; ab '+ptIsoFmt(c.start)+'</div>'
+      +'</div>';
+    // Abgezogene Trainings (letzte 8) + Ausfälle
+    const rows=c.trainings.slice(0,8).map(t=>'<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid #E4E4E4;font-size:12px;">'
+      +'<span style="flex:1;">'+PT_WT[ptIsoToD(t.iso).getDay()]+' '+ptIsoFmt(t.iso)+(t.art==='zusätzlich'?' &middot; zusätzlich':'')+'</span>'
+      +'<span style="color:#A32020;">&minus;'+c.preis+'</span>'
+      +'<button title="Training fand nicht statt" onclick="event.stopPropagation();ptAusfall('+k.id+',\''+t.iso+'\',\''+t.art+'\')" style="background:none;border:none;font-size:14px;cursor:pointer;color:#888888;">&#215;</button>'
+      +'</div>').join('');
+    const ausRows=c.ausfall.slice(-4).reverse().map(a=>'<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid #E4E4E4;font-size:12px;color:#888888;">'
+      +'<span style="flex:1;text-decoration:line-through;">'+PT_WT[ptIsoToD(a.iso).getDay()]+' '+ptIsoFmt(a.iso)+'</span><span>'+a.grund+'</span>'
+      +(a.grund==='abgesagt'?'<button title="Doch stattgefunden" onclick="event.stopPropagation();ptAusfallWeg('+k.id+',\''+a.iso+'\')" style="background:none;border:none;font-size:13px;cursor:pointer;color:#888888;">&#8634;</button>':'')
+      +'</div>').join('');
+    if(rows||ausRows)h+='<div style="margin-bottom:4px;">'+rows+ausRows+'</div>';
+    // Einzahlungen
+    h+='<div style="font-size:11px;color:#555555;margin-top:6px;">Einzahlungen:</div>'
+      +(g.einzahlungen||[]).map((e,i)=>'<div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:12px;">'
+        +'<span style="flex:1;">'+ptIsoFmt(e.datum)+(e.ab&&e.ab!==e.datum?' (zählt ab '+ptIsoFmt(e.ab)+')':'')+'</span><span style="color:#2E6B24;">+'+(+e.betrag).toLocaleString('de-CH')+'</span>'
+        +'<button onclick="event.stopPropagation();ptEinzahlungDel('+k.id+','+i+')" style="background:none;border:none;font-size:14px;cursor:pointer;color:#888888;">&#215;</button>'
+        +'</div>').join('');
+  }
+  h+='<div><button onclick="event.stopPropagation();ptEinzahlungShow('+k.id+')" style="'+btn+'">+ Einzahlung</button>'
+    +'<button onclick="event.stopPropagation();ptExtraShow('+k.id+')" style="'+btn+'">+ Zusatztraining</button>'
+    +'<button onclick="event.stopPropagation();ptGuthabenSettings('+k.id+')" style="'+btn+'background:#FFFFFF;">Einstellungen</button></div>'
+    +'<div style="font-size:11px;color:#777777;margin-top:4px;">Abgezogen wird automatisch an jedem Trainingstag. Ferien zählen nicht. Fällt ein Training aus: &#215; antippen.</div>'
+    +'</div>';
+  return h;
+}
+function ptK(id){return (S.personal||[]).find(x=>x.id===id);}
+function ptGuthabenInit(id){const k=ptK(id);if(!k)return;k.guthaben={preis:150,tage:[],einzahlungen:[],ausfall:[],extra:[]};save();ptGuthabenSettings(id);}
+function ptEinzahlungShow(id){
+  const t=ptIso(today());
+  modal('<h3>Einzahlung erfassen</h3>'
+    +'<div class="frow"><label>Betrag (CHF)</label><input type="number" id="m-ptbetrag" placeholder="7000"></div>'
+    +'<div class="frow"><label>Bezahlt am</label><input type="date" id="m-ptdat" value="'+t+'"></div>'
+    +'<div class="frow"><label>Trainings zählen ab</label><input type="date" id="m-ptab" value="'+t+'"></div>'
+    +'<div class="mbtns"><button onclick="closeM()">Abbrechen</button><button class="primary" onclick="ptEinzahlungConf('+id+')">Speichern</button></div>');
+}
+function ptEinzahlungConf(id){
+  const k=ptK(id);if(!k||!k.guthaben)return;
+  const b=parseFloat(document.getElementById('m-ptbetrag').value);
+  const d=document.getElementById('m-ptdat').value;
+  const ab=document.getElementById('m-ptab').value||d;
+  if(!b||!d){alert('Bitte Betrag und Datum eingeben.');return;}
+  if(!k.guthaben.einzahlungen)k.guthaben.einzahlungen=[];
+  k.guthaben.einzahlungen.push({datum:d,ab:ab,betrag:b});
+  k.guthaben.einzahlungen.sort((a,c)=>a.datum<c.datum?-1:1);
+  save();closeM();_ptOpen[id]=true;rPersonal();
+}
+function ptEinzahlungDel(id,i){
+  const k=ptK(id);if(!k||!k.guthaben)return;
+  if(!confirm('Einzahlung löschen?'))return;
+  k.guthaben.einzahlungen.splice(i,1);save();rPersonal();
+}
+function ptGuthabenSettings(id){
+  const k=ptK(id);if(!k||!k.guthaben)return;
+  const g=k.guthaben;
+  const cb=[1,2,3,4,5,6,0].map(t=>'<label style="display:inline-flex;align-items:center;gap:3px;margin-right:10px;font-size:13px;"><input type="checkbox" class="m-pttag" value="'+t+'"'+((g.tage||[]).indexOf(t)!==-1?' checked':'')+'>'+PT_WT[t]+'</label>').join('');
+  modal('<h3>Guthaben &middot; '+ptEsc(k.name)+'</h3>'
+    +'<div class="frow"><label>Preis pro Training (CHF)</label><input type="number" id="m-ptpreis" value="'+(g.preis||150)+'"></div>'
+    +'<div class="frow"><label>Trainingstage</label><div>'+cb+'</div></div>'
+    +'<div style="margin-top:8px;"><button onclick="ptGuthabenRemove('+id+')" style="font-size:12px;color:#C0392B;background:none;border:none;cursor:pointer;text-decoration:underline;">Guthaben-Konto entfernen</button></div>'
+    +'<div class="mbtns"><button onclick="closeM()">Abbrechen</button><button class="primary" onclick="ptGuthabenSettingsConf('+id+')">Speichern</button></div>');
+}
+function ptGuthabenSettingsConf(id){
+  const k=ptK(id);if(!k||!k.guthaben)return;
+  k.guthaben.preis=parseFloat(document.getElementById('m-ptpreis').value)||0;
+  k.guthaben.tage=[].slice.call(document.querySelectorAll('.m-pttag')).filter(x=>x.checked).map(x=>+x.value);
+  save();closeM();_ptOpen[id]=true;rPersonal();
+}
+function ptGuthabenRemove(id){
+  const k=ptK(id);if(!k)return;
+  if(!confirm('Guthaben-Konto mit allen Einzahlungen entfernen?'))return;
+  delete k.guthaben;save();closeM();rPersonal();
+}
+function ptAusfall(id,iso,art){
+  const k=ptK(id);if(!k||!k.guthaben)return;
+  const g=k.guthaben;
+  if(art==='zusätzlich'){g.extra=(g.extra||[]).filter(x=>x!==iso);}
+  else{if(!g.ausfall)g.ausfall=[];if(g.ausfall.indexOf(iso)===-1)g.ausfall.push(iso);}
+  save();rPersonal();
+}
+function ptAusfallWeg(id,iso){
+  const k=ptK(id);if(!k||!k.guthaben)return;
+  k.guthaben.ausfall=(k.guthaben.ausfall||[]).filter(x=>x!==iso);save();rPersonal();
+}
+function ptExtraShow(id){
+  modal('<h3>Zusatztraining</h3>'
+    +'<div class="frow"><label>Datum</label><input type="date" id="m-ptextra" value="'+ptIso(today())+'"></div>'
+    +'<div class="mbtns"><button onclick="closeM()">Abbrechen</button><button class="primary" onclick="ptExtraConf('+id+')">Abziehen</button></div>');
+}
+function ptExtraConf(id){
+  const k=ptK(id);if(!k||!k.guthaben)return;
+  const d=document.getElementById('m-ptextra').value;if(!d)return;
+  const g=k.guthaben;if(!g.extra)g.extra=[];
+  g.ausfall=(g.ausfall||[]).filter(x=>x!==d);
+  if(g.extra.indexOf(d)===-1)g.extra.push(d);
+  save();closeM();_ptOpen[id]=true;rPersonal();
+}
+// Workouts pro Kunde/Gruppe
+function ptWorkoutsBlock(k){
+  const st='onclick="event.stopPropagation()"';
+  const list=(k.workouts||[]).slice().sort((a,b)=>(b.datum||'')<(a.datum||'')?-1:1);
+  let h='<div style="margin-top:1rem;" '+st+'>'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">'
+    +'<div style="font-size:10px;font-weight:700;color:#E8000F;text-transform:uppercase;">&#127947; Workouts</div>'
+    +'<button onclick="event.stopPropagation();ptWorkoutAdd('+k.id+')" style="font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid #E8000F;background:#FFF5F5;color:#E8000F;cursor:pointer;">+ Workout</button>'
+    +'</div>';
+  if(!list.length)h+='<div style="font-size:12px;color:#555555;">Noch keine Workouts.</div>';
+  list.forEach(w=>{
+    h+='<div style="border:1px solid #F0B8B8;border-radius:8px;padding:8px;margin-bottom:8px;background:#FFF8F8;">'
+      +'<div style="display:flex;gap:6px;align-items:center;margin-bottom:5px;">'
+      +'<input type="text" value="'+ptEsc(w.titel)+'" placeholder="Titel" oninput="ptWorkoutEdit('+k.id+','+w.id+',\'titel\',this.value)" onclick="event.stopPropagation()" style="flex:1;font-size:13px;font-weight:600;border:1px solid #DDDDDD;border-radius:5px;padding:4px 7px;">'
+      +'<input type="date" value="'+ptEsc(w.datum)+'" onchange="ptWorkoutEdit('+k.id+','+w.id+',\'datum\',this.value)" onclick="event.stopPropagation()" style="font-size:12px;border:1px solid #DDDDDD;border-radius:5px;padding:3px 5px;">'
+      +'<button onclick="event.stopPropagation();ptWorkoutDel('+k.id+','+w.id+')" style="background:none;border:none;font-size:15px;cursor:pointer;color:#888888;">&#215;</button>'
+      +'</div>'
+      +'<textarea rows="4" oninput="autoResize(this);ptWorkoutEdit('+k.id+','+w.id+',\'text\',this.value)" onclick="event.stopPropagation()" style="width:100%;font-size:13px;resize:none;min-height:70px;border-radius:6px;border:1px solid #E8000F;padding:8px 10px;background:#FFFFFF;color:#111111;white-space:pre-wrap;line-height:1.5;" placeholder="Workout...">'+ptEsc(w.text)+'</textarea>'
+      +'</div>';
+  });
+  return h+'</div>';
+}
+function ptWorkoutAdd(id){
+  const k=ptK(id);if(!k)return;
+  if(!k.workouts)k.workouts=[];
+  k.workouts.push({id:Date.now(),titel:'',datum:ptIso(today()),text:''});
+  save();_ptOpen[id]=true;rPersonal();
+}
+function ptWorkoutEdit(id,wid,f,v){
+  const k=ptK(id);if(!k||!k.workouts)return;
+  const w=k.workouts.find(x=>x.id===wid);if(!w)return;
+  w[f]=v;
+  if(_ptTimers['w'+id])clearTimeout(_ptTimers['w'+id]);
+  _ptTimers['w'+id]=setTimeout(()=>save(),1200);
+}
+function ptWorkoutDel(id,wid){
+  const k=ptK(id);if(!k||!k.workouts)return;
+  if(!confirm('Workout löschen?'))return;
+  k.workouts=k.workouts.filter(x=>x.id!==wid);save();rPersonal();
+}
+// Einmalig: AMRAP + Guthaben-Konto für Columbus und Open Gym
+function migratePTGruppenV1(){
+  if(S.ptGruppenSeedV1||!S.personal)return;
+  let changed=false;
+  [['columbus',[1,4],1]].concat([['open gym',[2],2]]).forEach(([nm,tage,n])=>{
+    const k=S.personal.find(x=>(x.name||'').toLowerCase().indexOf(nm)!==-1);
+    if(!k)return;
+    if(!k.workouts)k.workouts=[];
+    if(nm==='columbus'&&!k.workouts.some(w=>w.titel==='AMRAP Beinarbeit')){
+      k.workouts.push({id:Date.now()+n,titel:'AMRAP Beinarbeit',datum:'2026-10-29',text:AMRAP_BEINARBEIT});changed=true;
+    }
+    if(!k.guthaben){k.guthaben={preis:150,tage:tage,einzahlungen:[],ausfall:[],extra:[]};changed=true;}
+  });
+  S.ptGruppenSeedV1=true;
+  save();
+}
+function migratePTGruppenV2(){
+  if(S.ptGruppenFixV2||!S.personal)return;
+  const k=S.personal.find(x=>(x.name||'').toLowerCase().indexOf('open gym')!==-1);
+  if(k&&k.workouts)k.workouts=k.workouts.filter(w=>!(w.titel==='AMRAP Beinarbeit'&&w.text===AMRAP_BEINARBEIT));
+  S.ptGruppenFixV2=true;
+  save();
+}
+
 
 function exportIcal(){
   const fmt=d=>{const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return y+m+day;};
@@ -2310,6 +2555,14 @@ function exportIcal(){
       const bisNext=new Date(bis);bisNext.setDate(bisNext.getDate()+1);
       const uid='tl-'+a.id+'-'+i+'@herzogtraining';
       ical+='BEGIN:VEVENT\r\nUID:'+uid+'\r\nDTSTART;VALUE=DATE:'+fmt(von)+'\r\nDTEND;VALUE=DATE:'+fmt(bisNext)+'\r\nSUMMARY:🏋️ '+a.name+' TL\r\nEND:VEVENT\r\n';
+    });
+    (a.mil||[]).forEach((t,i)=>{
+      const von=t.vonDat?parseDate(t.vonDat):kwToDate(t.vonKW,t.vonYr);
+      const bis=t.bisDat?parseDate(t.bisDat):kwToDate(t.bisKW,t.bisYr);
+      if(!von||!bis)return;
+      const bisNext=new Date(bis);bisNext.setDate(bisNext.getDate()+1);
+      const uid='mil-'+a.id+'-'+i+'@herzogtraining';
+      ical+='BEGIN:VEVENT\r\nUID:'+uid+'\r\nDTSTART;VALUE=DATE:'+fmt(von)+'\r\nDTEND;VALUE=DATE:'+fmt(bisNext)+'\r\nSUMMARY:🪖 '+a.name+' Militär-WK\r\nEND:VEVENT\r\n';
     });
   });
   ical+='END:VCALENDAR';
@@ -2432,11 +2685,17 @@ function rUebersicht(){
       const lbl=d===0?'🏋️ TL läuft':d<=21?`🏋️ TL in ${d}T`:`🏋️ TL in ${Math.round(d/7)} KW`;
       return `<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:#EDE0FC;color:#26215C;font-weight:500;">${lbl}</span>`;
     })();
+    const milCard=(()=>{
+      const p=npHelper(a.mil);if(!p)return'';
+      const d=daysUntilPeriod(p);
+      const lbl=d===0?'🪖 Militär-WK läuft':d<=21?'🪖 Militär-WK in '+d+'T':'🪖 Militär-WK in '+Math.round(d/7)+' KW';
+      return '<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:#E4EBD8;color:#3B4A1E;font-weight:500;">'+lbl+'</span>';
+    })();
     const bdCard=(()=>{const age=birthdayThisWeek(a);return age!==null?`<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:#FFF0C8;color:#7A4F00;font-weight:600;">🎂 wird ${age}</span>`:''})();
     h+=`<div id="acard-${a.id}" class="acard${isO?' open':''}"><div class="arow" onclick="tog(${a.id})">
       <div class="avatar" style="background:${avc.bg};color:${avc.c};">${ini(a.name)}</div>
       <div class="ainfo"><div class="aname">${a.name}${isO?` <span style="font-size:11px;font-weight:400;color:var(--muted);font-family:'DM Mono',monospace;margin-left:4px;">KW ${KWN} / ${YRN}</span>`:''} ${notizBadge}</div><div class="ameta">${a.sport}</div></div>
-      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${tfBadge}${urlaubCard}${tlCard}${bdCard}${a.verletzt?`<span class="ppill" style="background:#FCEAEA;color:#C0392B;font-weight:600;">🤕 Verletzt seit KW ${a.verletzt.kw}/${a.verletzt.yr}</span>`:`<span class="ppill" style="background:${p.f};color:${p.t};">${phase} · ${ins}%</span>`}</div>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${tfBadge}${urlaubCard}${tlCard}${milCard}${bdCard}${a.verletzt?`<span class="ppill" style="background:#FCEAEA;color:#C0392B;font-weight:600;">🤕 Verletzt seit KW ${a.verletzt.kw}/${a.verletzt.yr}</span>`:`<span class="ppill" style="background:${p.f};color:${p.t};">${phase} · ${ins}%</span>`}</div>
     </div>${exp}</div>`;
   });
   // Build pinned tab bar
@@ -2716,6 +2975,8 @@ function rUebersicht(){
       const tlStr=perDaysStr(a.tl,'🏋️ TL');
       if(urlaubStr)items.push(urlaubStr);
       if(tlStr)items.push(tlStr);
+      const milStr=perDaysStr(a.mil,'🪖 Militär-WK');
+      if(milStr)items.push(milStr);
       const wKey=kwKeyStr(kw,yr);
       const wo=a.wochen&&a.wochen[wKey];
       if(wo&&wo.uNotiz&&wo.uNotiz.trim())items.push('📝 '+wo.uNotiz.trim());
@@ -2802,6 +3063,13 @@ function rUebersicht(){
       const datStr=nextPer.vonDat&&nextPer.bisDat?` (${nextPer.vonDat}–${nextPer.bisDat})`:'';
       return `<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${bg};color:${col};font-weight:500;">${label}${datStr}</span>`;
     })();
+    const milBadgeW=(()=>{
+      const p=npHelper(a.mil);if(!p)return'';
+      const diff=pdHelper(p);
+      const label=diff===0?'🪖 Militär-WK läuft':diff<=21?'🪖 Militär-WK in '+diff+'T':'🪖 Militär-WK in '+Math.round(diff/7)+' KW';
+      const datStr=p.vonDat&&p.bisDat?' ('+p.vonDat+'–'+p.bisDat+')':'';
+      return '<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:#E4EBD8;color:#3B4A1E;font-weight:500;">'+label+datStr+'</span>';
+    })();
     // Geburtstag
     const bdAge=birthdayThisWeek(a);
     const bdBadge=bdAge!==null?`<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:#FFF0C8;color:#7A4F00;font-weight:600;">🎂 ${a.name.split(' ')[0]} wird ${bdAge}</span>`:'';
@@ -2838,8 +3106,8 @@ function rUebersicht(){
     const vwPhase=vwEntry?vwEntry.phase:'Ungeplant';
     const vwIns=vwEntry?vwEntry.int:0;
     const vwPeriod=getPeriodType(vkw,vyr,a);
-    const vwP=vwPeriod==='urlaub'?{f:'#C8E6FA',t:'#0C447C'}:vwPeriod==='tl'?{f:'#EDE0FC',t:'#26215C'}:pd(vwPhase,vwIns);
-    const vwLabel=vwPeriod==='urlaub'?'🏖 Urlaub':vwPeriod==='tl'?'🏋️ Trainingslager':(vwPhase+' · '+vwIns+'%');
+    const vwP=vwPeriod==='urlaub'?{f:'#C8E6FA',t:'#0C447C'}:vwPeriod==='tl'?{f:'#EDE0FC',t:'#26215C'}:vwPeriod==='mil'?{f:'#E4EBD8',t:'#3B4A1E'}:pd(vwPhase,vwIns);
+    const vwLabel=vwPeriod==='urlaub'?'🏖 Urlaub':vwPeriod==='tl'?'🏋️ Trainingslager':vwPeriod==='mil'?'🪖 Militär-WK':(vwPhase+' · '+vwIns+'%');
     const vwSchwerpunkte=vwEntry&&vwEntry.schwerpunkte?vwEntry.schwerpunkte:null;
     // Wettkämpfe in dieser KW
     const vwWks=getWettkaempfe(a).filter(w=>w.kw===vkw&&w.yr===vyr);
@@ -2946,7 +3214,7 @@ function rUebersicht(){
         <span style="font-size:18px;color:var(--muted);">▲</span>
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">
-        ${wkBadge}${periodBadge}${bdBadge}${notizBadge}${tbBadge('athlet',a.id)}
+        ${wkBadge}${periodBadge}${milBadgeW}${bdBadge}${notizBadge}${tbBadge('athlet',a.id)}
       </div>
       ${prevBox}
       <div style="position:relative;margin-top:8px;margin-bottom:6px;" onclick="event.stopPropagation()">
@@ -3601,6 +3869,7 @@ function showEditAthlet(aid){
   </div>`;
   const urlaubRows=(a.urlaub||[]).map((u,i)=>mkPeriodRow('u',u,i)).join('');
   const tlRows=(a.tl||[]).map((t,i)=>mkPeriodRow('t',t,i)).join('');
+  const milRows=(a.mil||[]).map((t,i)=>mkPeriodRow('w',t,i)).join('');
   modal(`<h3>Athlet bearbeiten</h3>
     <div class="frow"><label>Name</label><input type="text" id="m-nm" value="${a.name}"></div>
     <div class="frow"><label>Sportart</label><select id="m-sp">${sOpts}</select></div>
@@ -3609,6 +3878,10 @@ function showEditAthlet(aid){
       <div class="frow"><label>Start Jahr</label><input type="number" id="m-sy" min="2020" max="2035" value="${a.startYr}"></div>
     </div>
     <div class="frow"><label>Geburtstag</label><input type="text" id="m-geb" placeholder="TT.MM.JJJJ z.B. 15.03.1998" value="${a.gebDat||''}"></div>
+    <div class="fgrid2">
+      <div class="frow"><label>💰 Preis/Training (CHF, intern)</label><input type="number" id="m-preis" min="0" step="5" placeholder="z.B. 150" value="${a.preis!=null?a.preis:''}"></div>
+      <div class="frow"><label>Preis-Notiz (intern)</label><input type="text" id="m-preisnotiz" placeholder="z.B. zahlt monatlich" value="${(a.preisNotiz||'').replace(/"/g,'&quot;')}"></div>
+    </div>
     <div class="frow"><label>Verletzt seit (KW/Jahr)</label>
       <div style="display:flex;gap:6px;">
         <input type="number" id="m-vkw" min="1" max="53" placeholder="KW" style="width:60px;" value="${a.verletzt?a.verletzt.kw:''}">
@@ -3622,6 +3895,9 @@ function showEditAthlet(aid){
     <div style="margin:6px 0 4px;font-size:11px;font-weight:600;color:#26215C;text-transform:uppercase;letter-spacing:.06em;">🏋️ Trainingslager</div>
     <div id="m-tl-list">${tlRows||'<div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Kein TL eingetragen.</div>'}</div>
     <button onclick="addEditPeriod('t')" style="font-size:12px;padding:4px 10px;border-radius:6px;border:1px solid #26215C;background:#EDE0FC;color:#26215C;cursor:pointer;margin-bottom:10px;">+ TL</button>
+    <div style="margin:6px 0 4px;font-size:11px;font-weight:600;color:#3B4A1E;text-transform:uppercase;letter-spacing:.06em;">🪖 Militär-WK</div>
+    <div id="m-mil-list">${milRows||'<div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Kein Militär-WK eingetragen.</div>'}</div>
+    <button onclick="addEditPeriod('w')" style="font-size:12px;padding:4px 10px;border-radius:6px;border:1px solid #3B4A1E;background:#E4EBD8;color:#3B4A1E;cursor:pointer;margin-bottom:10px;">+ Militär-WK</button>
     <div class="mbtns"><button onclick="closeM()">Abbrechen</button><button class="primary" onclick="confEditAthlet(${aid})">Speichern</button></div>
     <div style="margin-top:1rem;text-align:center;">
       <button onclick="confirmDelete(${aid})" style="font-size:12px;color:var(--red);background:none;border:none;cursor:pointer;text-decoration:underline;font-family:'DM Sans',sans-serif;">Athlet löschen</button>
@@ -3632,6 +3908,7 @@ function addEditPeriod(type){
   if(!a)return;
   if(!a.urlaub)a.urlaub=[];
   if(!a.tl)a.tl=[];
+  if(!a.mil)a.mil=[];
   // Default: heute + 7 Tage
   const n=new Date();
   const fmt=d=>`${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}`;
@@ -3639,6 +3916,7 @@ function addEditPeriod(type){
   const bis=new Date(n);bis.setDate(bis.getDate()+6);
   const bisDat=fmt(bis);
   if(type==='u')a.urlaub.push({vonDat,bisDat,vonKW:KWN,vonYr:YRN,bisKW:KWN+1,bisYr:YRN});
+  else if(type==='w')a.mil.push({vonDat,bisDat,vonKW:KWN,vonYr:YRN,bisKW:KWN+1,bisYr:YRN});
   else a.tl.push({vonDat,bisDat,vonKW:KWN,vonYr:YRN,bisKW:KWN+1,bisYr:YRN});
   showEditAthlet(window._editAid);
 }
@@ -3647,6 +3925,7 @@ function removeEditPeriod(type,idx){
   if(!a)return;
   if(type==='u'&&a.urlaub)a.urlaub.splice(idx,1);
   else if(type==='t'&&a.tl)a.tl.splice(idx,1);
+  else if(type==='w'&&a.mil)a.mil.splice(idx,1);
   showEditAthlet(window._editAid);
 }
 function confEditAthlet(aid){
@@ -3657,6 +3936,10 @@ function confEditAthlet(aid){
   a.startKW=parseInt(document.getElementById('m-sk').value);
   a.startYr=parseInt(document.getElementById('m-sy').value);
   a.gebDat=document.getElementById('m-geb').value.trim()||null;
+  const _pr=document.getElementById('m-preis');
+  if(_pr){const v=_pr.value.trim();a.preis=v===''?null:Number(v);}
+  const _pn=document.getElementById('m-preisnotiz');
+  if(_pn)a.preisNotiz=_pn.value.trim();
   const vkw=document.getElementById('m-vkw').value;
   const vyr=document.getElementById('m-vyr').value;
   a.verletzt=(vkw&&vyr)?{kw:parseInt(vkw),yr:parseInt(vyr)}:null;
@@ -3676,6 +3959,7 @@ function confEditAthlet(aid){
   }
   a.urlaub=readPeriods(a.urlaub||[],'u');
   a.tl=readPeriods(a.tl||[],'t');
+  a.mil=readPeriods(a.mil||[],'w');
   save();closeM();rEditor();rUebersicht();
 }
 function clearVerletzt(aid){
@@ -4033,6 +4317,7 @@ async function gcalSyncAll(){
       const notiz=wo&&wo.uNotiz&&wo.uNotiz.trim();
       const isUrlaub=isInPeriod(kw,yr,a.urlaub);
       const isTl=isInPeriod(kw,yr,a.tl);
+      const isMil=isInPeriod(kw,yr,a.mil);
       // Für Urlaub/TL: genaue Tage der Woche berechnen
       const perDaysRange=(periods)=>{
         const found=(periods||[]).find(p=>isInPeriod(kw,yr,[p]));
@@ -4047,7 +4332,7 @@ async function gcalSyncAll(){
       };
       const parts=[];
       if(notiz)parts.push(notiz.split('\n')[0]);
-      if(!isUrlaub&&!isTl){
+      if(!isUrlaub&&!isTl&&!isMil){
         if(!parts.length)continue;
         const summary=a.name.split(' ')[0]+' '+a.name.split(' ')[1][0]+'. KW'+kw+': '+parts.join(', ');
         const stableId='ht-'+a.id+'-'+startDate.replace(/-/g,'')+'@herzogtraining';
@@ -4072,6 +4357,13 @@ async function gcalSyncAll(){
           const tSummary=a.name.split(' ')[0]+' '+a.name.split(' ')[1][0]+'. 🏋️ TL';
           const tId='ht-tl-'+a.id+'-kw'+kw+'-'+yr+'@herzogtraining';
           await gcalUpsertEvent(token,tId,tSummary,tStart,tEnd);
+          synced++;
+        }
+        if(isMil){
+          const{start:mStart,end:mEnd}=perDaysRange(a.mil);
+          const mSummary=a.name.split(' ')[0]+' '+a.name.split(' ')[1][0]+'. 🪖 Militär-WK';
+          const mId='ht-mil-'+a.id+'-kw'+kw+'-'+yr+'@herzogtraining';
+          await gcalUpsertEvent(token,mId,mSummary,mStart,mEnd);
           synced++;
         }
       }
@@ -4602,6 +4894,8 @@ function switchTab(t,btn){
   else if(t==='katalog')rKatalog();
   else if(t==='personal')rPersonal();
   else if(t==='ideen')rIdeen();
+  else if(t==='extern')rExtern();
+  else if(t==='patienten')rPatienten();
 }
 
 // ---- ASYNC INIT ----
@@ -4636,6 +4930,8 @@ async function init(){
   migrateEsvWettkaempfe2027B4();
   fixEsvWettkaempfePrio();
   fixHardCoreS128Video();
+  migratePTGruppenV1();
+  migratePTGruppenV2();
   if(dedupeWettkaempfe()>0)save();
   if(!S.trainingsVorlagen)S.trainingsVorlagen=[];
   if(!S.phasen)S.phasen=[...PNAMES];
@@ -4907,5 +5203,483 @@ init();
   };
 })();
 </script>
+<script>
+/* Trainingspläne extern: Pläne für Kunden, die selbst trainieren. In der App abgelegt, als PDF mit Videolinks senden. */
+(function(){
+  var JSPDF_URL='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+  var loading=null;
+  function loadJsPdf(){
+    if(window.jspdf&&window.jspdf.jsPDF)return Promise.resolve();
+    if(loading)return loading;
+    loading=new Promise(function(res,rej){
+      var s=document.createElement('script');s.src=JSPDF_URL;s.onload=function(){res();};
+      s.onerror=function(){loading=null;rej(new Error('jsPDF konnte nicht geladen werden'));};
+      document.head.appendChild(s);
+    });
+    return loading;
+  }
+  function clean(t){
+    return String(t==null?'':t)
+      .replace(/[‘’‚′]/g,"'").replace(/[“”„″]/g,'"')
+      .replace(/[–—−]/g,'-').replace(/•/g,'-').replace(/…/g,'...')
+      .replace(/≈/g,'~').replace(/≥/g,'>=').replace(/≤/g,'<=').replace(/→/g,'->')
+      .replace(/ /g,' ').replace(/[^\x09\x0A\x0D\x20-\x7E -ÿ]/g,'');
+  }
+  function esc(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function fmtD(ts){var d=ts instanceof Date?ts:new Date(ts);return String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+d.getFullYear();}
+  function list(){if(!S.extern)S.extern=[];return S.extern;}
+  function find(id){return list().find(function(p){return p.id===id;});}
+  var openId=null,tmr=null;
+  function saveSoon(){if(tmr)clearTimeout(tmr);tmr=setTimeout(function(){tmr=null;save();},1200);}
+  function flush(){if(tmr){clearTimeout(tmr);tmr=null;save();}}
+
+  var BTN='font-size:12px;padding:6px 12px;border-radius:6px;cursor:pointer;font-weight:600;font-family:inherit;';
+  var BTN_RED=BTN+'border:1px solid #E8000F;background:#E8000F;color:#fff;';
+  var BTN_LIGHT=BTN+'border:1px solid var(--border);background:transparent;color:var(--text);';
+
+  function fInput(p,f,label,ph){
+    return '<div class="frow"><label>'+label+'</label><input value="'+esc(p[f]||'')+'" placeholder="'+esc(ph||'')+'" oninput="extSet('+p.id+',\''+f+'\',this.value)" style="width:100%;"></div>';
+  }
+  function fArea(p,f,label,rows,hint){
+    return '<div class="frow"><label>'+label+'</label>'+(hint?'<div style="font-size:11px;color:var(--muted);margin-bottom:4px;">'+hint+'</div>':'')
+      +'<textarea rows="'+rows+'" oninput="extSet('+p.id+',\''+f+'\',this.value)" style="width:100%;">'+esc(p[f]||'')+'</textarea></div>';
+  }
+  function card(p){
+    var isOpen=openId===p.id;
+    var sub=[p.kunde,p.sport,p.ts?fmtD(p.ts):''].filter(Boolean).join(' · ');
+    var h='<div style="margin-bottom:12px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);padding:14px;">'
+      +'<div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="extToggle('+p.id+')">'
+      +'<div style="flex:1;min-width:0;"><div style="font-size:15px;font-weight:700;">'+esc(p.titel||'Ohne Titel')+'</div>'
+      +'<div style="font-size:12px;color:var(--muted);">'+esc(sub)+'</div></div>'
+      +'<button onclick="event.stopPropagation();extPdf('+p.id+')" style="'+BTN_RED+'">📄 PDF senden</button>'
+      +'<span style="font-size:12px;color:var(--muted);width:14px;text-align:center;">'+(isOpen?'▲':'▼')+'</span></div>';
+    if(isOpen){
+      h+='<div style="margin-top:14px;">'
+        +fInput(p,'titel','Titel','z.B. Athletiktraining Golf 6 Wochen')
+        +'<div style="display:flex;gap:10px;flex-wrap:wrap;"><div style="flex:1;min-width:180px;">'+fInput(p,'kunde','Kunde / Kundin','Name')+'</div>'
+        +'<div style="flex:1;min-width:180px;">'+fInput(p,'sport','Sportart','z.B. Golf')+'</div></div>'
+        +fArea(p,'einleitung','Einleitung',4,'Steht oben im PDF in einem grauen Kasten.');
+      h+='<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:6px 0 4px;">Trainings</div>'
+        +'<div style="font-size:11px;color:var(--muted);margin-bottom:6px;">Pro Zeile eine Übung: Name aus dem Übungskatalog, dann « / » und die Erklärung. Das Video wird dann automatisch verlinkt.</div>';
+      (p.trainings||[]).forEach(function(t,i){
+        var tid='ext-ta-'+p.id+'-'+i;
+        h+='<div style="border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:10px;">'
+          +'<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">'
+          +'<input value="'+esc(t.titel||'')+'" placeholder="z.B. Training A" oninput="extTr('+p.id+','+i+',\'titel\',this.value)" style="flex:1;font-weight:700;">'
+          +(i>0?'<button onclick="extTrMove('+p.id+','+i+',-1)" title="nach oben" style="'+BTN_LIGHT+'padding:4px 9px;">↑</button>':'')
+          +'<button onclick="extTrDel('+p.id+','+i+')" title="Training entfernen" style="'+BTN_LIGHT+'padding:4px 9px;">✕</button></div>'
+          +'<textarea id="'+tid+'" rows="9" style="width:100%;" oninput="extTr('+p.id+','+i+',\'text\',this.value);updatePlanVids(this.id)">'+esc(t.text||'')+'</textarea>'
+          +'<div id="vids-'+tid+'">'+planVidsHtml(t.text||'')+'</div></div>';
+      });
+      h+='<button onclick="extTrAdd('+p.id+')" style="'+BTN_LIGHT+'margin-bottom:14px;">+ Training</button>'
+        +fArea(p,'ablauf','Ablauf / Steigerung',7,'Tabelle: Spalten mit « | » trennen, erste Zeile = Überschrift. Normale Zeilen werden als Text gedruckt.')
+        +fArea(p,'hinweis','Hinweis',2,'Steht unten im PDF, z.B. was bei Schmerzen zu tun ist.')
+        +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">'
+        +'<button onclick="extDup('+p.id+')" style="'+BTN_LIGHT+'">⧉ Duplizieren</button>'
+        +'<button onclick="extDel('+p.id+')" style="'+BTN_LIGHT+'color:#E8000F;">Löschen</button>'
+        +'</div></div>';
+    }
+    return h+'</div>';
+  }
+  window.rExtern=function(){
+    var el=document.getElementById('view-extern');if(!el)return;
+    var arr=list().slice().sort(function(a,b){return (b.ts||0)-(a.ts||0);});
+    var h='<div style="padding:1rem 0;">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;flex-wrap:wrap;">'
+      +'<h2 style="font-size:18px;font-weight:700;">📄 Trainingspläne extern</h2>'
+      +'<button onclick="extNeu()" style="'+BTN_RED+'">+ Neuer Plan</button></div>'
+      +'<p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Pläne für Kunden, die selbst trainieren. Als PDF mit Logo und anklickbaren Videos senden.</p>';
+    if(!arr.length)h+='<div style="font-size:13px;color:var(--muted);">Noch keine Pläne.</div>';
+    arr.forEach(function(p){h+=card(p);});
+    el.innerHTML=h+'</div>';
+  };
+  window.extToggle=function(id){flush();openId=openId===id?null:id;rExtern();};
+  window.extSet=function(id,f,v){var p=find(id);if(!p)return;p[f]=v;saveSoon();};
+  window.extTr=function(id,i,f,v){var p=find(id);if(!p||!p.trainings[i])return;p.trainings[i][f]=v;saveSoon();};
+  window.extNeu=function(){
+    flush();var id=Date.now();
+    list().push({id:id,ts:id,titel:'Neuer Plan',kunde:'',sport:'',einleitung:'',trainings:[{titel:'Training A',text:''}],ablauf:'',hinweis:''});
+    openId=id;save();rExtern();
+  };
+  window.extTrAdd=function(id){
+    var p=find(id);if(!p)return;if(!p.trainings)p.trainings=[];
+    p.trainings.push({titel:'Training '+String.fromCharCode(65+p.trainings.length),text:''});save();rExtern();
+  };
+  window.extTrDel=function(id,i){
+    var p=find(id);if(!p)return;
+    if(!confirm('Training «'+(p.trainings[i].titel||'')+'» entfernen?'))return;
+    p.trainings.splice(i,1);save();rExtern();
+  };
+  window.extTrMove=function(id,i,d){
+    var p=find(id);if(!p)return;var j=i+d;if(j<0||j>=p.trainings.length)return;
+    var t=p.trainings[i];p.trainings[i]=p.trainings[j];p.trainings[j]=t;save();rExtern();
+  };
+  window.extDup=function(id){
+    flush();var p=find(id);if(!p)return;
+    var c=JSON.parse(JSON.stringify(p));c.id=Date.now();c.ts=c.id;c.titel=(p.titel||'Plan')+' (Kopie)';c.kunde='';
+    list().push(c);openId=c.id;save();rExtern();
+  };
+  window.extDel=function(id){
+    var p=find(id);if(!p)return;
+    if(!confirm('Plan «'+(p.titel||'')+'» löschen?'))return;
+    S.extern=list().filter(function(x){return x.id!==id;});openId=null;save();rExtern();
+  };
+
+  function buildPdf(p){
+    var jsPDF=window.jspdf.jsPDF;
+    var doc=new jsPDF({unit:'mm',format:'a4'});
+    var W=210,H=297,M=15,y=M,LH=4.6;
+    function need(h){if(y+h>H-20){doc.addPage();y=M;}}
+    function wrap(t,w){var out=[];String(t).split('\n').forEach(function(par){var s=doc.splitTextToSize(par,w);if(!s.length)s=[''];out=out.concat(s);});return out;}
+    function bar(txt){
+      need(16);
+      doc.setFillColor(232,0,15);doc.roundedRect(M,y,W-2*M,7,1.5,1.5,'F');
+      doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(255,255,255);
+      doc.text(clean(txt).toUpperCase(),M+3,y+4.9);y+=10;
+    }
+    function box(txt,label){
+      doc.setFont('helvetica','normal');doc.setFontSize(10);
+      var ls=wrap(clean(txt),W-2*M-9);
+      var hh=ls.length*LH+(label?9:5);
+      need(hh);
+      doc.setFillColor(245,245,245);doc.rect(M,y,W-2*M,hh,'F');
+      doc.setFillColor(232,0,15);doc.rect(M,y,1.2,hh,'F');
+      var yy=y+5;
+      if(label){doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(232,0,15);doc.text(label,M+5,yy);yy+=5;doc.setFont('helvetica','normal');doc.setFontSize(10);}
+      doc.setTextColor(17,17,17);
+      ls.forEach(function(l,k){doc.text(l,M+5,yy+k*LH);});
+      y+=hh+6;
+    }
+    // Kopf
+    var logoW=0;
+    try{var pr=doc.getImageProperties(HT_LOGO);var lh=24;logoW=lh*pr.width/pr.height;doc.addImage(HT_LOGO,'JPEG',W-M-logoW,y,logoW,lh);}catch(err){}
+    doc.setFont('helvetica','bold');doc.setFontSize(18);doc.setTextColor(17,17,17);
+    var tl=doc.splitTextToSize(clean(p.titel||'Trainingsplan'),W-2*M-logoW-6);
+    tl.forEach(function(l,k){doc.text(l,M,y+6+k*7);});
+    var yy=y+6+tl.length*7;
+    doc.setFont('helvetica','normal');doc.setFontSize(10);doc.setTextColor(136,136,136);
+    var sub=[p.kunde,p.sport].filter(Boolean).join(' · ');
+    if(sub){doc.text(clean(sub),M,yy);yy+=5;}
+    y=Math.max(y+27,yy+2);
+    doc.setDrawColor(232,0,15);doc.setLineWidth(0.8);doc.line(M,y,W-M,y);y+=6;
+    if((p.einleitung||'').trim())box(p.einleitung.trim(),'');
+    // Trainings
+    (p.trainings||[]).forEach(function(t){
+      var txt=(t.text||'').trim();if(!txt)return;
+      bar(t.titel||'Training');
+      txt.split('\n').forEach(function(line){
+        var raw=line.replace(/\s+$/,'');
+        if(!raw.trim()){y+=2.5;return;}
+        var url=vidBase(raw).length<=100?videoForLine(raw):null;
+        var idx=raw.indexOf(' / ');
+        var name=idx>0?raw.slice(0,idx).trim():null;
+        var rest=idx>0?raw.slice(idx+3).trim():raw.trim();
+        var maxW=W-2*M-(url?20:4);
+        doc.setFontSize(10);
+        doc.setFont('helvetica','bold');
+        var nl=name?doc.splitTextToSize(clean(name),maxW):[];
+        doc.setFont('helvetica','normal');
+        var rl=rest?doc.splitTextToSize(clean(rest),name?W-2*M-4:maxW):[];
+        var isHead=!name&&/:$/.test(raw.trim());
+        need((nl.length+rl.length)*LH+2);
+        var y0=y;
+        doc.setTextColor(17,17,17);
+        if(nl.length){doc.setFont('helvetica','bold');nl.forEach(function(l,k){doc.text(l,M+2,y+3.5+k*LH);});y+=nl.length*LH;}
+        doc.setFont('helvetica',isHead?'bold':'normal');
+        if(name)doc.setTextColor(70,70,70);
+        rl.forEach(function(l,k){doc.text(l,M+2,y+3.5+k*LH);});
+        y+=rl.length*LH;
+        if(url){
+          doc.setTextColor(232,0,15);doc.setFont('helvetica','bold');doc.setFontSize(9);
+          doc.textWithLink('> Video',W-M-15,y0+3.5,{url:url});
+          doc.setFontSize(10);
+        }
+        doc.setFont('helvetica','normal');
+        doc.setDrawColor(221,221,221);doc.setLineWidth(0.2);doc.line(M,y+0.8,W-M,y+0.8);y+=2.2;
+      });
+      y+=5;
+    });
+    // Ablauf
+    var ab=(p.ablauf||'').trim();
+    if(ab){
+      bar('Ablauf');
+      var lines=ab.split('\n'),i=0;
+      while(i<lines.length){
+        var ln=lines[i];
+        if(ln.indexOf('|')!==-1){
+          var rows=[];
+          while(i<lines.length&&lines[i].indexOf('|')!==-1){rows.push(lines[i].split('|').map(function(c){return clean(c.trim());}));i++;}
+          var nc=Math.max.apply(null,rows.map(function(r){return r.length;}));
+          var cw=(W-2*M)/nc;
+          rows.forEach(function(r,ri){
+            doc.setFont('helvetica',ri===0?'bold':'normal');doc.setFontSize(ri===0?9:9.5);
+            var cells=[];for(var c=0;c<nc;c++)cells.push(doc.splitTextToSize(r[c]||'',cw-3));
+            var rh=Math.max.apply(null,cells.map(function(x){return x.length;}))*4.2+3;
+            need(rh);
+            for(var c2=0;c2<nc;c2++){
+              var x=M+c2*cw;
+              if(ri===0){doc.setFillColor(242,242,242);doc.rect(x,y,cw,rh,'F');}
+              doc.setDrawColor(200,200,200);doc.setLineWidth(0.2);doc.rect(x,y,cw,rh);
+              doc.setTextColor(17,17,17);
+              doc.setFont('helvetica',(ri===0||c2===0)?'bold':'normal');
+              cells[c2].forEach(function(l,k){doc.text(l,x+1.5,y+4+k*4.2);});
+            }
+            y+=rh;
+          });
+          y+=4;
+        }else{
+          if(!ln.trim()){y+=2.5;i++;continue;}
+          doc.setFont('helvetica','normal');doc.setFontSize(10);doc.setTextColor(17,17,17);
+          var pl=doc.splitTextToSize(clean(ln.trim()),W-2*M-4);
+          need(pl.length*LH+1);
+          pl.forEach(function(l,k){doc.text(l,M+2,y+3.5+k*LH);});
+          y+=pl.length*LH+1;i++;
+        }
+      }
+      y+=4;
+    }
+    if((p.hinweis||'').trim())box(p.hinweis.trim(),'WICHTIG');
+    // Fusszeile
+    var n=doc.getNumberOfPages();
+    for(var pg=1;pg<=n;pg++){
+      doc.setPage(pg);
+      doc.setDrawColor(221,221,221);doc.setLineWidth(0.2);doc.line(M,H-16,W-M,H-16);
+      doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(232,0,15);doc.text('Tommy Herzog',M,H-11);
+      doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(120,120,120);
+      doc.text('Herzog Training GmbH · info@herzog-training.ch · herzog-training.ch',M,H-7);
+      doc.text('Erstellt '+fmtD(new Date())+(n>1?'  ·  Seite '+pg+'/'+n:''),W-M,H-7,{align:'right'});
+    }
+    var fname=('Trainingsplan_'+(p.titel||'')+(p.kunde?'_'+p.kunde:'')).replace(/[^A-Za-z0-9ÄÖÜäöüéèà_-]+/g,'_').replace(/_+/g,'_')+'.pdf';
+    return {blob:doc.output('blob'),name:fname};
+  }
+  window.extBuildPdf=buildPdf;
+
+  function download(res){
+    var u=URL.createObjectURL(res.blob);var l=document.createElement('a');l.href=u;l.download=res.name;
+    document.body.appendChild(l);l.click();setTimeout(function(){URL.revokeObjectURL(u);l.remove();},4000);
+  }
+  window.extPdf=function(id){
+    flush();var p=find(id);if(!p)return;
+    loadJsPdf().catch(function(){});
+    modal('<h3>'+esc(p.titel||'Plan')+' – PDF</h3>'
+      +'<div style="font-size:13px;color:var(--muted);margin-bottom:8px;">'+esc([p.kunde,p.sport].filter(Boolean).join(' · ')||'Kein Kunde eingetragen')+'</div>'
+      +'<div style="font-size:12px;color:var(--muted);">Das PDF enthält Logo, alle Trainings mit anklickbaren Videos, den Ablauf und den Hinweis.</div>'
+      +'<div id="extpdf-msg" style="font-size:12px;color:var(--muted);min-height:16px;margin-top:8px;"></div>'
+      +'<div class="mbtns"><button onclick="closeM()">Abbrechen</button><button class="primary" onclick="extPdfGo('+id+')">PDF erstellen & senden</button></div>');
+  };
+  window.extPdfGo=function(id){
+    var msg=document.getElementById('extpdf-msg');var p=find(id);if(!p)return;
+    if(!(window.jspdf&&window.jspdf.jsPDF)){
+      msg.textContent='PDF wird vorbereitet … bitte gleich nochmals tippen.';
+      loadJsPdf().then(function(){msg.textContent='Bereit – bitte nochmals «PDF erstellen & senden» tippen.';}).catch(function(){msg.textContent='Keine Internetverbindung zum Laden des PDF-Moduls.';});
+      return;
+    }
+    var res;
+    try{res=buildPdf(p);}catch(err){msg.textContent='Fehler beim Erstellen: '+err.message;return;}
+    var file=null;
+    try{file=new File([res.blob],res.name,{type:'application/pdf'});}catch(err){}
+    var isMacDesktop=/Mac/.test(navigator.platform||navigator.userAgent)&&!(navigator.maxTouchPoints>1);
+    if(isMacDesktop){
+      download(res);
+      msg.innerHTML='PDF gespeichert in «Downloads» ('+esc(res.name)+').<br>WhatsApp öffnen, Chat wählen und das PDF hineinziehen.'
+        +'<div style="margin-top:8px;"><a href="whatsapp://" style="display:inline-block;background:#25D366;color:#fff;text-decoration:none;font-weight:600;padding:7px 14px;border-radius:7px;">WhatsApp öffnen</a></div>';
+      return;
+    }
+    if(file&&navigator.canShare&&navigator.canShare({files:[file]})){
+      navigator.share({files:[file],title:res.name.replace(/\.pdf$/,'')}).then(function(){closeM();}).catch(function(err){
+        if(err&&err.name==='AbortError')return;
+        download(res);msg.textContent='Teilen nicht möglich – PDF wurde gespeichert.';
+      });
+    }else{
+      download(res);msg.textContent='PDF wurde gespeichert (Downloads). Jetzt in WhatsApp hineinziehen.';
+    }
+  };
+})();
+</script>
+<script>
+/* ---- PATIENTEN (Supabase-Tabellen patienten + patienten_sitzungen, unabhängig vom trainer_state) ---- */
+var _pat=[], _patS=[], _patLoaded=false, _patOpen={}, _patAlle={};
+async function patFetch(tab,method,path,body,_retry){
+  var token=await getToken();
+  if(!token){await requireLogin();token=await getToken();}
+  var opts={method:method,cache:'no-store',headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+(token||SUPABASE_ANON_KEY),'Prefer':'return=representation'}};
+  if(body)opts.body=JSON.stringify(body);
+  var res=await fetch(SUPABASE_URL+'/rest/v1/'+tab+path,opts);
+  if(res.status===401&&!_retry){
+    var ok=await refreshAuth();
+    if(ok!==true){clearAuth();await requireLogin('Bitte erneut anmelden.');}
+    return patFetch(tab,method,path,body,true);
+  }
+  return res;
+}
+async function loadPatienten(){
+  try{
+    var r1=await patFetch('patienten','GET','?select=*&order=name.asc');
+    var r2=await patFetch('patienten_sitzungen','GET','?select=*&order=datum.desc,created_at.desc');
+    if(!r1.ok||!r2.ok){console.error('Patienten load',r1.status,r2.status);return;}
+    _pat=await r1.json();_patS=await r2.json();_patLoaded=true;
+  }catch(e){console.error('Patienten',e);return;}
+  var v=document.getElementById('view-patienten');
+  if(v&&v.classList.contains('active'))rPatienten();
+}
+function patEsc(s){return tbEsc(s);}
+function patSitz(p){
+  var nm=tbNorm(p.name);
+  return _patS.filter(function(s){return s.patient_id===p.id||(s.patient_id==null&&tbNorm(s.patient_name)===nm);});
+}
+function patMonat(d){return String(d).substring(0,7);}
+function patMonatName(m){var p=m.split('-');return ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'][(+p[1])-1]+' '+p[0];}
+function patAnz(list){return list.reduce(function(a,s){return a+(+s.anzahl||1);},0);}
+function rPatienten(){
+  var el=document.getElementById('view-patienten');if(!el)return;
+  var h='<button class="addbtn" onclick="showAddPatient()">+ Neuer Patient</button>';
+  if(!_patLoaded){el.innerHTML=h+'<div class="empty">Lädt…</div>';loadPatienten();return;}
+  var aktiv=_pat.filter(function(p){return p.aktiv!==false;});
+  if(!aktiv.length){el.innerHTML=h+'<div class="empty">Noch keine Patienten.</div>';return;}
+  var mNow=patMonat(tbToday());
+  aktiv.forEach(function(p){
+    var isO=!!_patOpen[p.id];
+    var sz=patSitz(p);
+    var nMon=patAnz(sz.filter(function(s){return patMonat(s.datum)===mNow;}));
+    var last=sz[0];
+    var initials=p.name.split(' ').map(function(x){return x[0];}).join('');
+    var badge='<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:#E3F0F7;color:#0C447C;font-weight:600;">'+patMonatName(mNow)+': '+nMon+'×</span>';
+    var lastB=last?'<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:#F3E9D2;color:#7A5C1E;margin-left:4px;">'+tbDateStr(last.datum)+'</span>':'';
+    var inner=isO?patInner(p,sz):'';
+    h+='<div style="background:#FFFFFF;border:2px solid '+(isO?'#0C447C':'#D0D0D0')+';border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer;" onclick="togPat('+p.id+')">'
+      +'<div style="display:flex;align-items:center;gap:10px;">'
+      +'<div class="avatar" style="width:36px;height:36px;font-size:13px;flex-shrink:0;background:#E3F0F7;color:#0C447C;">'+patEsc(initials)+'</div>'
+      +'<div style="flex:1;"><div style="font-size:14px;font-weight:500;">'+patEsc(p.name)+'</div>'
+      +(p.beachten?'<div style="font-size:11px;color:#854F0B;">&#9888; '+patEsc(p.beachten.split('\n')[0].substring(0,40))+'</div>':'')
+      +'<div style="margin-top:3px;">'+badge+lastB+'</div></div>'
+      +'<span style="font-size:18px;color:#555555;">'+(isO?'&#9650;':'&#9660;')+'</span></div>'
+      +inner+'</div>';
+  });
+  el.innerHTML=h;
+  setTimeout(function(){document.querySelectorAll('#view-patienten textarea').forEach(function(ta){autoResize(ta);});},0);
+}
+function patInner(p,sz){
+  var id=p.id;
+  var inp='font-family:\'DM Sans\',sans-serif;font-size:13px;border-radius:6px;padding:7px 10px;box-sizing:border-box;';
+  var lab='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;';
+  var h='<div style="border-top:1px solid #D8D8D8;margin-top:10px;padding-top:10px;cursor:default;" onclick="event.stopPropagation()">';
+  // Beachten / Anamnese
+  h+='<div style="margin-bottom:10px;"><div style="'+lab+'color:#854F0B;">&#9888; Beachten / Anamnese</div>'
+    +'<textarea id="pat-beachten-'+id+'" rows="2" style="width:100%;resize:none;border:1px solid #EF9F27;background:#FAEEDA;color:#633806;'+inp+'" placeholder="Vorgeschichte, Diagnose vom Arzt, Ziele…" oninput="autoResize(this);patAutoSave('+id+')">'+patEsc(p.beachten||'')+'</textarea></div>';
+  // Sitzung erfassen
+  h+='<div style="border:1.5px solid #9CC3DD;border-radius:10px;background:#F2F8FC;padding:10px;margin-bottom:10px;">'
+    +'<div style="'+lab+'color:#0C447C;">&#129658; Sitzung erfassen</div>'
+    +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0;">'
+    +'<input type="date" id="pat-dat-'+id+'" value="'+tbToday()+'" style="border:1px solid #9CC3DD;background:#fff;'+inp+'">'
+    +'<label style="font-size:12px;display:flex;align-items:center;gap:5px;color:#0C447C;">Anzahl <input type="number" id="pat-anz-'+id+'" value="1" min="1" step="1" style="width:56px;border:1px solid #9CC3DD;background:#fff;'+inp+'"></label>'
+    +'</div>'
+    +'<textarea id="pat-bef-'+id+'" rows="1" placeholder="Befund" style="width:100%;resize:none;margin-bottom:6px;border:1px solid #9CC3DD;background:#fff;'+inp+'" oninput="autoResize(this)"></textarea>'
+    +'<textarea id="pat-beh-'+id+'" rows="1" placeholder="Was wir gemacht haben" style="width:100%;resize:none;margin-bottom:6px;border:1px solid #9CC3DD;background:#fff;'+inp+'" oninput="autoResize(this)"></textarea>'
+    +'<button onclick="patAddSitzung('+id+')" style="font-size:12px;font-weight:600;padding:7px 14px;border-radius:6px;border:1px solid #0C447C;background:#0C447C;color:#fff;cursor:pointer;">Eintragen</button>'
+    +'</div>';
+  // Monate
+  var monate={};sz.forEach(function(s){var m=patMonat(s.datum);(monate[m]=monate[m]||[]).push(s);});
+  var keys=Object.keys(monate).sort().reverse();
+  var showAll=!!_patAlle[id];var shownKeys=showAll?keys:keys.slice(0,2);
+  if(!sz.length)h+='<div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Noch keine Sitzungen.</div>';
+  shownKeys.forEach(function(m){
+    var l=monate[m];var n=patAnz(l);
+    var betrag=(p.preis!=null&&p.preis!=='')?' · CHF '+(n*(+p.preis)).toFixed(0):'';
+    h+='<div style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:700;color:#0C447C;padding:4px 0;border-bottom:2px solid #9CC3DD;">'
+      +'<span>'+patMonatName(m)+'</span><span>'+n+' Sitzung'+(n===1?'':'en')+betrag+'</span></div>';
+    l.forEach(function(s){
+      var body='';
+      if(s.befund&&s.befund.trim())body+='<div style="white-space:pre-wrap;"><b style="font-size:11px;color:#0C447C;">Befund:</b> '+patEsc(s.befund)+'</div>';
+      if(s.behandlung&&s.behandlung.trim())body+='<div style="white-space:pre-wrap;margin-top:3px;"><b style="font-size:11px;color:#3B6D11;">Gemacht:</b> '+patEsc(s.behandlung)+'</div>';
+      h+='<div style="display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:1px solid #E3EDF3;">'
+        +'<div style="font-size:11px;font-weight:600;color:#0C447C;white-space:nowrap;min-width:92px;padding-top:1px;font-family:\'DM Mono\',monospace;">'+tbDateStr(s.datum)+((+s.anzahl||1)>1?' ('+s.anzahl+'×)':'')+'</div>'
+        +'<div style="flex:1;font-size:13px;line-height:1.4;">'+(body||'<span style="color:var(--muted);">–</span>')+'</div>'
+        +'<button onclick="patDelSitzung('+id+','+s.id+')" title="Sitzung löschen" style="background:none;border:none;cursor:pointer;font-size:12px;opacity:.4;padding:0 2px;">🗑</button></div>';
+    });
+    h+='</div>';
+  });
+  if(keys.length>2)h+='<button onclick="_patAlle['+id+']=!_patAlle['+id+'];rPatienten()" style="width:100%;margin-bottom:10px;font-size:11px;padding:5px;border-radius:6px;border:1px solid #9CC3DD;background:#fff;color:#0C447C;cursor:pointer;">'+(showAll?'Nur die letzten 2 Monate':'Ältere Monate anzeigen ('+keys.length+')')+'</button>';
+  // Stammdaten
+  h+='<div style="'+lab+'color:#555;margin-top:6px;">Kontakt &amp; Verrechnung (intern)</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:6px;">'
+    +'<input type="text" id="pat-tel-'+id+'" placeholder="Telefon" value="'+patEsc(p.telefon||'')+'" oninput="patAutoSave('+id+')" style="border:1px solid #CCC;'+inp+'">'
+    +'<input type="email" id="pat-mail-'+id+'" placeholder="E-Mail" value="'+patEsc(p.email||'')+'" oninput="patAutoSave('+id+')" style="border:1px solid #CCC;'+inp+'">'
+    +'<input type="number" id="pat-preis-'+id+'" placeholder="CHF / Sitzung" min="0" step="5" value="'+(p.preis!=null?p.preis:'')+'" oninput="patAutoSave('+id+')" style="border:1px solid #CCC;'+inp+'">'
+    +'<input type="text" id="pat-bexio-'+id+'" placeholder="Bexio-Kontakt-Nr." value="'+patEsc(p.bexio_id||'')+'" oninput="patAutoSave('+id+')" style="border:1px solid #CCC;'+inp+'">'
+    +'</div>'
+    +'<textarea id="pat-adr-'+id+'" rows="2" placeholder="Adresse (Strasse, PLZ Ort)" oninput="autoResize(this);patAutoSave('+id+')" style="width:100%;resize:none;margin-top:6px;border:1px solid #CCC;'+inp+'">'+patEsc(p.adresse||'')+'</textarea>'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;">'
+    +'<span id="pat-sv-'+id+'" style="font-size:11px;color:#3B6D11;opacity:0;transition:opacity .3s;">&#10003; Gespeichert</span>'
+    +'<button onclick="patArchiv('+id+')" style="font-size:12px;color:#C0392B;background:none;border:none;cursor:pointer;text-decoration:underline;">Patient archivieren</button></div>';
+  h+='</div>';
+  return h;
+}
+function togPat(id){_patOpen[id]=!_patOpen[id];rPatienten();}
+var _patTimers={};
+function patAutoSave(id){
+  if(_patTimers[id])clearTimeout(_patTimers[id]);
+  _patTimers[id]=setTimeout(async function(){
+    var p=_pat.find(function(x){return x.id===id;});if(!p)return;
+    function v(k){var e=document.getElementById(k+'-'+id);return e?e.value.trim():'';}
+    var pr=v('pat-preis');
+    var upd={beachten:v('pat-beachten')||null,telefon:v('pat-tel')||null,email:v('pat-mail')||null,preis:pr===''?null:+pr,bexio_id:v('pat-bexio')||null,adresse:v('pat-adr')||null};
+    try{
+      var res=await patFetch('patienten','PATCH','?id=eq.'+id,upd);
+      if(!res.ok){alert('Speichern fehlgeschlagen (Fehler '+res.status+').');return;}
+      Object.assign(p,upd);
+      var sv=document.getElementById('pat-sv-'+id);if(sv){sv.style.opacity='1';setTimeout(function(){sv.style.opacity='0';},1500);}
+    }catch(e){alert('Keine Verbindung – nicht gespeichert.');}
+  },800);
+}
+async function patAddSitzung(id){
+  var p=_pat.find(function(x){return x.id===id;});if(!p)return;
+  var bef=document.getElementById('pat-bef-'+id).value.trim();
+  var beh=document.getElementById('pat-beh-'+id).value.trim();
+  var dat=document.getElementById('pat-dat-'+id).value||tbToday();
+  var anz=Math.max(1,parseInt(document.getElementById('pat-anz-'+id).value,10)||1);
+  if(!bef&&!beh&&!confirm('Sitzung ohne Text eintragen?'))return;
+  try{
+    var res=await patFetch('patienten_sitzungen','POST','',{patient_id:id,patient_name:p.name,datum:dat,befund:bef||null,behandlung:beh||null,anzahl:anz,quelle:'app'});
+    if(!res.ok){alert('Sitzung konnte nicht gespeichert werden (Fehler '+res.status+').');return;}
+    var rows=await res.json();if(rows&&rows.length)_patS.push(rows[0]);
+    _patS.sort(function(x,y){return y.datum>x.datum?1:y.datum<x.datum?-1:(y.created_at>x.created_at?1:-1);});
+    rPatienten();
+  }catch(e){alert('Keine Verbindung – Sitzung nicht gespeichert.');}
+}
+async function patDelSitzung(pid,sid){
+  if(!confirm('Diese Sitzung löschen?'))return;
+  try{
+    var res=await patFetch('patienten_sitzungen','DELETE','?id=eq.'+sid);
+    if(!res.ok){alert('Löschen fehlgeschlagen (Fehler '+res.status+').');return;}
+    _patS=_patS.filter(function(s){return s.id!==sid;});rPatienten();
+  }catch(e){alert('Keine Verbindung.');}
+}
+async function patArchiv(id){
+  if(!confirm('Patient archivieren? Die Sitzungen bleiben gespeichert.'))return;
+  try{
+    var res=await patFetch('patienten','PATCH','?id=eq.'+id,{aktiv:false});
+    if(!res.ok){alert('Fehler '+res.status);return;}
+    var p=_pat.find(function(x){return x.id===id;});if(p)p.aktiv=false;rPatienten();
+  }catch(e){alert('Keine Verbindung.');}
+}
+function showAddPatient(){
+  modal('<h3>Neuer Patient</h3>'
+    +'<div class="frow"><label>Name</label><input type="text" id="m-patn" placeholder="Nachname Vorname"></div>'
+    +'<div class="mbtns"><button onclick="closeM()">Abbrechen</button><button class="primary" onclick="confAddPatient()">Hinzufügen</button></div>');
+}
+async function confAddPatient(){
+  var name=document.getElementById('m-patn').value.trim();
+  if(!name){alert('Bitte Name eingeben.');return;}
+  try{
+    var res=await patFetch('patienten','POST','',{name:name});
+    if(!res.ok){alert('Fehler '+res.status);return;}
+    var rows=await res.json();closeM();
+    if(rows&&rows.length){_pat.push(rows[0]);_pat.sort(function(a,b){return a.name.localeCompare(b.name);});_patOpen[rows[0].id]=true;}
+    rPatienten();
+  }catch(e){alert('Keine Verbindung.');}
+}
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&_patLoaded)loadPatienten();});
+</script>
+
 </body>
 </html>
