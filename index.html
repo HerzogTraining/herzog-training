@@ -221,6 +221,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--border2);}
     <button class="tab" onclick="switchTab('personal',this)">Personal</button>
     <button class="tab" onclick="switchTab('ideen',this)">Ideen</button>
     <button class="tab" onclick="switchTab('extern',this)">Extern</button>
+    <button class="tab" onclick="switchTab('patienten',this)">Patienten</button>
   </div>
   <div id="view-uebersicht" class="view active"></div>
   <div id="view-training" class="view"></div>
@@ -230,6 +231,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--border2);}
   <div id="view-personal" class="view"></div>
   <div id="view-ideen" class="view"></div>
   <div id="view-extern" class="view"></div>
+  <div id="view-patienten" class="view"></div>
 </div>
 <div id="modal-wrap"></div>
 
@@ -4893,6 +4895,7 @@ function switchTab(t,btn){
   else if(t==='personal')rPersonal();
   else if(t==='ideen')rIdeen();
   else if(t==='extern')rExtern();
+  else if(t==='patienten')rPatienten();
 }
 
 // ---- ASYNC INIT ----
@@ -5493,5 +5496,190 @@ init();
   };
 })();
 </script>
+<script>
+/* ---- PATIENTEN (Supabase-Tabellen patienten + patienten_sitzungen, unabhängig vom trainer_state) ---- */
+var _pat=[], _patS=[], _patLoaded=false, _patOpen={}, _patAlle={};
+async function patFetch(tab,method,path,body,_retry){
+  var token=await getToken();
+  if(!token){await requireLogin();token=await getToken();}
+  var opts={method:method,cache:'no-store',headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+(token||SUPABASE_ANON_KEY),'Prefer':'return=representation'}};
+  if(body)opts.body=JSON.stringify(body);
+  var res=await fetch(SUPABASE_URL+'/rest/v1/'+tab+path,opts);
+  if(res.status===401&&!_retry){
+    var ok=await refreshAuth();
+    if(ok!==true){clearAuth();await requireLogin('Bitte erneut anmelden.');}
+    return patFetch(tab,method,path,body,true);
+  }
+  return res;
+}
+async function loadPatienten(){
+  try{
+    var r1=await patFetch('patienten','GET','?select=*&order=name.asc');
+    var r2=await patFetch('patienten_sitzungen','GET','?select=*&order=datum.desc,created_at.desc');
+    if(!r1.ok||!r2.ok){console.error('Patienten load',r1.status,r2.status);return;}
+    _pat=await r1.json();_patS=await r2.json();_patLoaded=true;
+  }catch(e){console.error('Patienten',e);return;}
+  var v=document.getElementById('view-patienten');
+  if(v&&v.classList.contains('active'))rPatienten();
+}
+function patEsc(s){return tbEsc(s);}
+function patSitz(p){
+  var nm=tbNorm(p.name);
+  return _patS.filter(function(s){return s.patient_id===p.id||(s.patient_id==null&&tbNorm(s.patient_name)===nm);});
+}
+function patMonat(d){return String(d).substring(0,7);}
+function patMonatName(m){var p=m.split('-');return ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'][(+p[1])-1]+' '+p[0];}
+function patAnz(list){return list.reduce(function(a,s){return a+(+s.anzahl||1);},0);}
+function rPatienten(){
+  var el=document.getElementById('view-patienten');if(!el)return;
+  var h='<button class="addbtn" onclick="showAddPatient()">+ Neuer Patient</button>';
+  if(!_patLoaded){el.innerHTML=h+'<div class="empty">Lädt…</div>';loadPatienten();return;}
+  var aktiv=_pat.filter(function(p){return p.aktiv!==false;});
+  if(!aktiv.length){el.innerHTML=h+'<div class="empty">Noch keine Patienten.</div>';return;}
+  var mNow=patMonat(tbToday());
+  aktiv.forEach(function(p){
+    var isO=!!_patOpen[p.id];
+    var sz=patSitz(p);
+    var nMon=patAnz(sz.filter(function(s){return patMonat(s.datum)===mNow;}));
+    var last=sz[0];
+    var initials=p.name.split(' ').map(function(x){return x[0];}).join('');
+    var badge='<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:#E3F0F7;color:#0C447C;font-weight:600;">'+patMonatName(mNow)+': '+nMon+'×</span>';
+    var lastB=last?'<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:#F3E9D2;color:#7A5C1E;margin-left:4px;">'+tbDateStr(last.datum)+'</span>':'';
+    var inner=isO?patInner(p,sz):'';
+    h+='<div style="background:#FFFFFF;border:2px solid '+(isO?'#0C447C':'#D0D0D0')+';border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer;" onclick="togPat('+p.id+')">'
+      +'<div style="display:flex;align-items:center;gap:10px;">'
+      +'<div class="avatar" style="width:36px;height:36px;font-size:13px;flex-shrink:0;background:#E3F0F7;color:#0C447C;">'+patEsc(initials)+'</div>'
+      +'<div style="flex:1;"><div style="font-size:14px;font-weight:500;">'+patEsc(p.name)+'</div>'
+      +(p.beachten?'<div style="font-size:11px;color:#854F0B;">&#9888; '+patEsc(p.beachten.split('\n')[0].substring(0,40))+'</div>':'')
+      +'<div style="margin-top:3px;">'+badge+lastB+'</div></div>'
+      +'<span style="font-size:18px;color:#555555;">'+(isO?'&#9650;':'&#9660;')+'</span></div>'
+      +inner+'</div>';
+  });
+  el.innerHTML=h;
+  setTimeout(function(){document.querySelectorAll('#view-patienten textarea').forEach(function(ta){autoResize(ta);});},0);
+}
+function patInner(p,sz){
+  var id=p.id;
+  var inp='font-family:\'DM Sans\',sans-serif;font-size:13px;border-radius:6px;padding:7px 10px;box-sizing:border-box;';
+  var lab='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;';
+  var h='<div style="border-top:1px solid #D8D8D8;margin-top:10px;padding-top:10px;cursor:default;" onclick="event.stopPropagation()">';
+  // Beachten / Anamnese
+  h+='<div style="margin-bottom:10px;"><div style="'+lab+'color:#854F0B;">&#9888; Beachten / Anamnese</div>'
+    +'<textarea id="pat-beachten-'+id+'" rows="2" style="width:100%;resize:none;border:1px solid #EF9F27;background:#FAEEDA;color:#633806;'+inp+'" placeholder="Vorgeschichte, Diagnose vom Arzt, Ziele…" oninput="autoResize(this);patAutoSave('+id+')">'+patEsc(p.beachten||'')+'</textarea></div>';
+  // Sitzung erfassen
+  h+='<div style="border:1.5px solid #9CC3DD;border-radius:10px;background:#F2F8FC;padding:10px;margin-bottom:10px;">'
+    +'<div style="'+lab+'color:#0C447C;">&#129658; Sitzung erfassen</div>'
+    +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0;">'
+    +'<input type="date" id="pat-dat-'+id+'" value="'+tbToday()+'" style="border:1px solid #9CC3DD;background:#fff;'+inp+'">'
+    +'<label style="font-size:12px;display:flex;align-items:center;gap:5px;color:#0C447C;">Anzahl <input type="number" id="pat-anz-'+id+'" value="1" min="1" step="1" style="width:56px;border:1px solid #9CC3DD;background:#fff;'+inp+'"></label>'
+    +'</div>'
+    +'<textarea id="pat-bef-'+id+'" rows="1" placeholder="Befund" style="width:100%;resize:none;margin-bottom:6px;border:1px solid #9CC3DD;background:#fff;'+inp+'" oninput="autoResize(this)"></textarea>'
+    +'<textarea id="pat-beh-'+id+'" rows="1" placeholder="Was wir gemacht haben" style="width:100%;resize:none;margin-bottom:6px;border:1px solid #9CC3DD;background:#fff;'+inp+'" oninput="autoResize(this)"></textarea>'
+    +'<button onclick="patAddSitzung('+id+')" style="font-size:12px;font-weight:600;padding:7px 14px;border-radius:6px;border:1px solid #0C447C;background:#0C447C;color:#fff;cursor:pointer;">Eintragen</button>'
+    +'</div>';
+  // Monate
+  var monate={};sz.forEach(function(s){var m=patMonat(s.datum);(monate[m]=monate[m]||[]).push(s);});
+  var keys=Object.keys(monate).sort().reverse();
+  var showAll=!!_patAlle[id];var shownKeys=showAll?keys:keys.slice(0,2);
+  if(!sz.length)h+='<div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Noch keine Sitzungen.</div>';
+  shownKeys.forEach(function(m){
+    var l=monate[m];var n=patAnz(l);
+    var betrag=(p.preis!=null&&p.preis!=='')?' · CHF '+(n*(+p.preis)).toFixed(0):'';
+    h+='<div style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:700;color:#0C447C;padding:4px 0;border-bottom:2px solid #9CC3DD;">'
+      +'<span>'+patMonatName(m)+'</span><span>'+n+' Sitzung'+(n===1?'':'en')+betrag+'</span></div>';
+    l.forEach(function(s){
+      var body='';
+      if(s.befund&&s.befund.trim())body+='<div style="white-space:pre-wrap;"><b style="font-size:11px;color:#0C447C;">Befund:</b> '+patEsc(s.befund)+'</div>';
+      if(s.behandlung&&s.behandlung.trim())body+='<div style="white-space:pre-wrap;margin-top:3px;"><b style="font-size:11px;color:#3B6D11;">Gemacht:</b> '+patEsc(s.behandlung)+'</div>';
+      h+='<div style="display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:1px solid #E3EDF3;">'
+        +'<div style="font-size:11px;font-weight:600;color:#0C447C;white-space:nowrap;min-width:92px;padding-top:1px;font-family:\'DM Mono\',monospace;">'+tbDateStr(s.datum)+((+s.anzahl||1)>1?' ('+s.anzahl+'×)':'')+'</div>'
+        +'<div style="flex:1;font-size:13px;line-height:1.4;">'+(body||'<span style="color:var(--muted);">–</span>')+'</div>'
+        +'<button onclick="patDelSitzung('+id+','+s.id+')" title="Sitzung löschen" style="background:none;border:none;cursor:pointer;font-size:12px;opacity:.4;padding:0 2px;">🗑</button></div>';
+    });
+    h+='</div>';
+  });
+  if(keys.length>2)h+='<button onclick="_patAlle['+id+']=!_patAlle['+id+'];rPatienten()" style="width:100%;margin-bottom:10px;font-size:11px;padding:5px;border-radius:6px;border:1px solid #9CC3DD;background:#fff;color:#0C447C;cursor:pointer;">'+(showAll?'Nur die letzten 2 Monate':'Ältere Monate anzeigen ('+keys.length+')')+'</button>';
+  // Stammdaten
+  h+='<div style="'+lab+'color:#555;margin-top:6px;">Kontakt &amp; Verrechnung (intern)</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:6px;">'
+    +'<input type="text" id="pat-tel-'+id+'" placeholder="Telefon" value="'+patEsc(p.telefon||'')+'" oninput="patAutoSave('+id+')" style="border:1px solid #CCC;'+inp+'">'
+    +'<input type="email" id="pat-mail-'+id+'" placeholder="E-Mail" value="'+patEsc(p.email||'')+'" oninput="patAutoSave('+id+')" style="border:1px solid #CCC;'+inp+'">'
+    +'<input type="number" id="pat-preis-'+id+'" placeholder="CHF / Sitzung" min="0" step="5" value="'+(p.preis!=null?p.preis:'')+'" oninput="patAutoSave('+id+')" style="border:1px solid #CCC;'+inp+'">'
+    +'<input type="text" id="pat-bexio-'+id+'" placeholder="Bexio-Kontakt-Nr." value="'+patEsc(p.bexio_id||'')+'" oninput="patAutoSave('+id+')" style="border:1px solid #CCC;'+inp+'">'
+    +'</div>'
+    +'<textarea id="pat-adr-'+id+'" rows="2" placeholder="Adresse (Strasse, PLZ Ort)" oninput="autoResize(this);patAutoSave('+id+')" style="width:100%;resize:none;margin-top:6px;border:1px solid #CCC;'+inp+'">'+patEsc(p.adresse||'')+'</textarea>'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;">'
+    +'<span id="pat-sv-'+id+'" style="font-size:11px;color:#3B6D11;opacity:0;transition:opacity .3s;">&#10003; Gespeichert</span>'
+    +'<button onclick="patArchiv('+id+')" style="font-size:12px;color:#C0392B;background:none;border:none;cursor:pointer;text-decoration:underline;">Patient archivieren</button></div>';
+  h+='</div>';
+  return h;
+}
+function togPat(id){_patOpen[id]=!_patOpen[id];rPatienten();}
+var _patTimers={};
+function patAutoSave(id){
+  if(_patTimers[id])clearTimeout(_patTimers[id]);
+  _patTimers[id]=setTimeout(async function(){
+    var p=_pat.find(function(x){return x.id===id;});if(!p)return;
+    function v(k){var e=document.getElementById(k+'-'+id);return e?e.value.trim():'';}
+    var pr=v('pat-preis');
+    var upd={beachten:v('pat-beachten')||null,telefon:v('pat-tel')||null,email:v('pat-mail')||null,preis:pr===''?null:+pr,bexio_id:v('pat-bexio')||null,adresse:v('pat-adr')||null};
+    try{
+      var res=await patFetch('patienten','PATCH','?id=eq.'+id,upd);
+      if(!res.ok){alert('Speichern fehlgeschlagen (Fehler '+res.status+').');return;}
+      Object.assign(p,upd);
+      var sv=document.getElementById('pat-sv-'+id);if(sv){sv.style.opacity='1';setTimeout(function(){sv.style.opacity='0';},1500);}
+    }catch(e){alert('Keine Verbindung – nicht gespeichert.');}
+  },800);
+}
+async function patAddSitzung(id){
+  var p=_pat.find(function(x){return x.id===id;});if(!p)return;
+  var bef=document.getElementById('pat-bef-'+id).value.trim();
+  var beh=document.getElementById('pat-beh-'+id).value.trim();
+  var dat=document.getElementById('pat-dat-'+id).value||tbToday();
+  var anz=Math.max(1,parseInt(document.getElementById('pat-anz-'+id).value,10)||1);
+  if(!bef&&!beh&&!confirm('Sitzung ohne Text eintragen?'))return;
+  try{
+    var res=await patFetch('patienten_sitzungen','POST','',{patient_id:id,patient_name:p.name,datum:dat,befund:bef||null,behandlung:beh||null,anzahl:anz,quelle:'app'});
+    if(!res.ok){alert('Sitzung konnte nicht gespeichert werden (Fehler '+res.status+').');return;}
+    var rows=await res.json();if(rows&&rows.length)_patS.push(rows[0]);
+    _patS.sort(function(x,y){return y.datum>x.datum?1:y.datum<x.datum?-1:(y.created_at>x.created_at?1:-1);});
+    rPatienten();
+  }catch(e){alert('Keine Verbindung – Sitzung nicht gespeichert.');}
+}
+async function patDelSitzung(pid,sid){
+  if(!confirm('Diese Sitzung löschen?'))return;
+  try{
+    var res=await patFetch('patienten_sitzungen','DELETE','?id=eq.'+sid);
+    if(!res.ok){alert('Löschen fehlgeschlagen (Fehler '+res.status+').');return;}
+    _patS=_patS.filter(function(s){return s.id!==sid;});rPatienten();
+  }catch(e){alert('Keine Verbindung.');}
+}
+async function patArchiv(id){
+  if(!confirm('Patient archivieren? Die Sitzungen bleiben gespeichert.'))return;
+  try{
+    var res=await patFetch('patienten','PATCH','?id=eq.'+id,{aktiv:false});
+    if(!res.ok){alert('Fehler '+res.status);return;}
+    var p=_pat.find(function(x){return x.id===id;});if(p)p.aktiv=false;rPatienten();
+  }catch(e){alert('Keine Verbindung.');}
+}
+function showAddPatient(){
+  modal('<h3>Neuer Patient</h3>'
+    +'<div class="frow"><label>Name</label><input type="text" id="m-patn" placeholder="Nachname Vorname"></div>'
+    +'<div class="mbtns"><button onclick="closeM()">Abbrechen</button><button class="primary" onclick="confAddPatient()">Hinzufügen</button></div>');
+}
+async function confAddPatient(){
+  var name=document.getElementById('m-patn').value.trim();
+  if(!name){alert('Bitte Name eingeben.');return;}
+  try{
+    var res=await patFetch('patienten','POST','',{name:name});
+    if(!res.ok){alert('Fehler '+res.status);return;}
+    var rows=await res.json();closeM();
+    if(rows&&rows.length){_pat.push(rows[0]);_pat.sort(function(a,b){return a.name.localeCompare(b.name);});_patOpen[rows[0].id]=true;}
+    rPatienten();
+  }catch(e){alert('Keine Verbindung.');}
+}
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&_patLoaded)loadPatienten();});
+</script>
+
 </body>
 </html>
