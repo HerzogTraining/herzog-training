@@ -2789,7 +2789,7 @@ function tbEntries(typ,id){
 }
 /* ---- ABRECHNUNG (pro Athlet / Personal-Kunde / Patient) ---- */
 var ABR_ARTEN=[['rechnung','Rechnung pro Training'],['bar','Bar'],['pauschale','Monatliche Pauschale'],['guthaben','Guthaben'],['sponsor','Sponsor'],['keine','Nicht verrechnen']];
-var ABR_TYPEN=['Athletiktraining','Personaltraining','Selbststaendiges freies Training'];
+var ABR_TYPEN=['Athletiktraining','Personaltraining','Selbststaendiges freies Training','Bewegungstherapie'];
 function abrArtLabel(v){for(var i=0;i<ABR_ARTEN.length;i++){if(ABR_ARTEN[i][0]===v)return ABR_ARTEN[i][1];}return '';}
 function abrFieldsHtml(idp,o,oninp,full){
   o=o||{};
@@ -2802,7 +2802,7 @@ function abrFieldsHtml(idp,o,oninp,full){
     +'<select id="'+idp+'art" style="'+st+'"'+ev+'>'+opts+'</select>';
   if(full)h+='<input type="number" id="'+idp+'pau" min="0" step="10" placeholder="Pauschale CHF/Monat" style="'+st+'" value="'+e(o.abrPauschale)+'"'+ev+'>';
   h+='<input type="text" id="'+idp+'kontakt" placeholder="Rechnungskontakt (Bexio)" style="'+st+'" value="'+e(o.abrKontakt)+'"'+ev+'>'
-    +'<input type="text" id="'+idp+'anrede" placeholder="Anrede (z.B. Hoi Irma)" style="'+st+'" value="'+e(o.abrAnrede)+'"'+ev+'>';
+    +'<input type="text" id="'+idp+'anrede" placeholder="Gruss-Name (z.B. Irma)" style="'+st+'" value="'+e(o.abrAnrede)+'"'+ev+'>';
   if(full){
     var topts='<option value="">– Trainingstyp –</option>';
     ABR_TYPEN.forEach(function(t){topts+='<option'+(o.abrTyp===t?' selected':'')+'>'+t+'</option>';});
