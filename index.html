@@ -2185,7 +2185,10 @@ function rPersonal(){
         +'<div style="display:flex;gap:6px;flex-wrap:wrap;">'
         +'<input type="number" id="pt-preis-'+k.id+'" min="0" step="5" placeholder="CHF/Training" style="width:120px;font-size:13px;" value="'+(k.preis!=null?k.preis:'')+'" onclick="event.stopPropagation()" oninput="autoSavePTPreis('+k.id+')">'
         +'<input type="text" id="pt-preisnotiz-'+k.id+'" placeholder="Notiz, z.B. zahlt bar" style="flex:1;min-width:140px;font-size:13px;" value="'+String(k.preisNotiz||'').replace(/"/g,'&quot;')+'" onclick="event.stopPropagation()" oninput="autoSavePTPreis('+k.id+')">'
-        +'</div></div>';
+        +'</div>'
+        +'<div style="font-size:10px;font-weight:600;color:#3B6D11;text-transform:uppercase;margin:10px 0 0;">&#129534; Abrechnung (intern)</div>'
+        +abrFieldsHtml('pt-abr-'+k.id+'-',k,'autoSavePTPreis('+k.id+')',true)
+        +'</div>';
       inner='<div style="border-top:1px solid #D8D8D8;margin-top:10px;padding-top:10px;">'+beachtenBlock+ptWorkoutsBlock(k)+tbBoxHtml('personal',k.id)+ptGuthabenBlock(k)+urlaubBlock+preisBlock+delBlock+'</div>';
     }
     const initials=k.name.split(' ').map(x=>x[0]).join('');
@@ -2250,6 +2253,7 @@ function autoSavePTPreis(id){
   const pn=document.getElementById('pt-preisnotiz-'+id);
   if(pr){const v=pr.value.trim();k.preis=v===''?null:Number(v);}
   if(pn)k.preisNotiz=pn.value;
+  abrRead('pt-abr-'+id+'-',k,true);
   if(_ptTimers['p'+id])clearTimeout(_ptTimers['p'+id]);
   _ptTimers['p'+id]=setTimeout(()=>save(),1500);
 }
@@ -2782,6 +2786,42 @@ function tbPerson(typ,id){
 function tbEntries(typ,id){
   const p=tbPerson(typ,id);const nm=p?tbNorm(p.name):'';
   return _tb.filter(e=>(e.typ||'athlet')===typ&&(e.athlet_id===id||(e.athlet_id==null&&nm&&tbNorm(e.athlet_name)===nm)));
+}
+/* ---- ABRECHNUNG (pro Athlet / Personal-Kunde / Patient) ---- */
+var ABR_ARTEN=[['rechnung','Rechnung pro Training'],['bar','Bar'],['pauschale','Monatliche Pauschale'],['guthaben','Guthaben'],['sponsor','Sponsor'],['keine','Nicht verrechnen']];
+var ABR_TYPEN=['Athletiktraining','Personaltraining','Selbststaendiges freies Training'];
+function abrArtLabel(v){for(var i=0;i<ABR_ARTEN.length;i++){if(ABR_ARTEN[i][0]===v)return ABR_ARTEN[i][1];}return '';}
+function abrFieldsHtml(idp,o,oninp,full){
+  o=o||{};
+  var e=function(x){return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');};
+  var st='font-size:13px;';
+  var ev=oninp?' onclick="event.stopPropagation()" oninput="'+oninp+'" onchange="'+oninp+'"':'';
+  var opts='<option value="">– Abrechnungsart –</option>';
+  ABR_ARTEN.forEach(function(a){opts+='<option value="'+a[0]+'"'+(o.abrArt===a[0]?' selected':'')+'>'+a[1]+'</option>';});
+  var h='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px;margin-top:6px;">'
+    +'<select id="'+idp+'art" style="'+st+'"'+ev+'>'+opts+'</select>';
+  if(full)h+='<input type="number" id="'+idp+'pau" min="0" step="10" placeholder="Pauschale CHF/Monat" style="'+st+'" value="'+e(o.abrPauschale)+'"'+ev+'>';
+  h+='<input type="text" id="'+idp+'kontakt" placeholder="Rechnungskontakt (Bexio)" style="'+st+'" value="'+e(o.abrKontakt)+'"'+ev+'>'
+    +'<input type="text" id="'+idp+'anrede" placeholder="Anrede (z.B. Hoi Irma)" style="'+st+'" value="'+e(o.abrAnrede)+'"'+ev+'>';
+  if(full){
+    var topts='<option value="">– Trainingstyp –</option>';
+    ABR_TYPEN.forEach(function(t){topts+='<option'+(o.abrTyp===t?' selected':'')+'>'+t+'</option>';});
+    h+='<input type="text" id="'+idp+'liste" placeholder="Name in Anwesenheitsliste" style="'+st+'" value="'+e(o.abrListe)+'"'+ev+'>'
+      +'<select id="'+idp+'typ" style="'+st+'"'+ev+'>'+topts+'</select>';
+  }
+  return h+'</div>';
+}
+function abrRead(idp,o,full){
+  var g=function(k){var el=document.getElementById(idp+k);return el?el.value.trim():null;};
+  var v=g('art');if(v!==null)o.abrArt=v||null;
+  v=g('kontakt');if(v!==null)o.abrKontakt=v||null;
+  v=g('anrede');if(v!==null)o.abrAnrede=v||null;
+  if(full){
+    v=g('pau');if(v!==null)o.abrPauschale=v===''?null:Number(v);
+    v=g('liste');if(v!==null)o.abrListe=v||null;
+    v=g('typ');if(v!==null)o.abrTyp=v||null;
+  }
+  return o;
 }
 function tbEsc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function tbDateStr(d){ // 'YYYY-MM-DD' -> 'Mo 19.10.2026'
@@ -3882,6 +3922,7 @@ function showEditAthlet(aid){
       <div class="frow"><label>💰 Preis/Training (CHF, intern)</label><input type="number" id="m-preis" min="0" step="5" placeholder="z.B. 150" value="${a.preis!=null?a.preis:''}"></div>
       <div class="frow"><label>Preis-Notiz (intern)</label><input type="text" id="m-preisnotiz" placeholder="z.B. zahlt monatlich" value="${(a.preisNotiz||'').replace(/"/g,'&quot;')}"></div>
     </div>
+    <div class="frow"><label>🧾 Abrechnung (intern)</label>${abrFieldsHtml('m-abr-',a,'',true)}</div>
     <div class="frow"><label>Verletzt seit (KW/Jahr)</label>
       <div style="display:flex;gap:6px;">
         <input type="number" id="m-vkw" min="1" max="53" placeholder="KW" style="width:60px;" value="${a.verletzt?a.verletzt.kw:''}">
@@ -3940,6 +3981,7 @@ function confEditAthlet(aid){
   if(_pr){const v=_pr.value.trim();a.preis=v===''?null:Number(v);}
   const _pn=document.getElementById('m-preisnotiz');
   if(_pn)a.preisNotiz=_pn.value.trim();
+  abrRead('m-abr-',a,true);
   const vkw=document.getElementById('m-vkw').value;
   const vyr=document.getElementById('m-vyr').value;
   a.verletzt=(vkw&&vyr)?{kw:parseInt(vkw),yr:parseInt(vyr)}:null;
@@ -5607,6 +5649,7 @@ function patInner(p,sz){
     +'<input type="number" id="pat-preis-'+id+'" placeholder="CHF / Sitzung" min="0" step="5" value="'+(p.preis!=null?p.preis:'')+'" oninput="patAutoSave('+id+')" style="border:1px solid #CCC;'+inp+'">'
     +'<input type="text" id="pat-bexio-'+id+'" placeholder="Bexio-Kontakt-Nr." value="'+patEsc(p.bexio_id||'')+'" oninput="patAutoSave('+id+')" style="border:1px solid #CCC;'+inp+'">'
     +'</div>'
+    +abrFieldsHtml('pat-abr-'+id+'-',{abrArt:p.abrechnungsart,abrKontakt:p.rechnungskontakt,abrAnrede:p.anrede},'patAutoSave('+id+')',false)
     +'<textarea id="pat-adr-'+id+'" rows="2" placeholder="Adresse (Strasse, PLZ Ort)" oninput="autoResize(this);patAutoSave('+id+')" style="width:100%;resize:none;margin-top:6px;border:1px solid #CCC;'+inp+'">'+patEsc(p.adresse||'')+'</textarea>'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;">'
     +'<span id="pat-sv-'+id+'" style="font-size:11px;color:#3B6D11;opacity:0;transition:opacity .3s;">&#10003; Gespeichert</span>'
@@ -5623,6 +5666,7 @@ function patAutoSave(id){
     function v(k){var e=document.getElementById(k+'-'+id);return e?e.value.trim():'';}
     var pr=v('pat-preis');
     var upd={beachten:v('pat-beachten')||null,telefon:v('pat-tel')||null,email:v('pat-mail')||null,preis:pr===''?null:+pr,bexio_id:v('pat-bexio')||null,adresse:v('pat-adr')||null};
+    var _ab=abrRead('pat-abr-'+id+'-',{},false);upd.abrechnungsart=_ab.abrArt||null;upd.rechnungskontakt=_ab.abrKontakt||null;upd.anrede=_ab.abrAnrede||null;
     try{
       var res=await patFetch('patienten','PATCH','?id=eq.'+id,upd);
       if(!res.ok){alert('Speichern fehlgeschlagen (Fehler '+res.status+').');return;}
