@@ -2188,6 +2188,8 @@ function rPersonal(){
         +'</div>'
         +'<div style="font-size:10px;font-weight:600;color:#3B6D11;text-transform:uppercase;margin:10px 0 0;">&#129534; Abrechnung (intern)</div>'
         +abrFieldsHtml('pt-abr-'+k.id+'-',k,'autoSavePTPreis('+k.id+')',true)
+        +'<div style="font-size:10px;font-weight:600;color:#3B6D11;text-transform:uppercase;margin:10px 0 0;">&#128199; Kontakt</div>'
+        +kontaktFieldsHtml('pt-k-'+k.id+'-',k,'autoSavePTPreis('+k.id+')')
         +'</div>';
       inner='<div style="border-top:1px solid #D8D8D8;margin-top:10px;padding-top:10px;">'+beachtenBlock+ptWorkoutsBlock(k)+tbBoxHtml('personal',k.id)+ptGuthabenBlock(k)+urlaubBlock+preisBlock+delBlock+'</div>';
     }
@@ -2196,7 +2198,7 @@ function rPersonal(){
     h+='<div style="background:#FFFFFF;border:2px solid '+(isO?'#E8000F':'#D0D0D0')+';border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer;" onclick="togPT('+k.id+')">'
       +'<div style="display:flex;align-items:center;gap:10px;">'
       +'<div class="avatar" style="width:36px;height:36px;font-size:13px;flex-shrink:0;background:#EAF3DE;color:#3B6D11;">'+initials+'</div>'
-      +'<div style="flex:1;"><div style="font-size:14px;font-weight:500;">'+k.name+'</div>'+beachtenPreview+(ptGuthabenBadge(k)?'<div style="margin-top:3px;">'+ptGuthabenBadge(k)+'</div>':'')+(tbBadge('personal',k.id)?'<div style="margin-top:3px;">'+tbBadge('personal',k.id)+'</div>':'')+'</div>'
+      +'<div style="flex:1;"><div style="font-size:14px;font-weight:500;">'+k.name+'</div>'+beachtenPreview+(ptGuthabenBadge(k)?'<div style="margin-top:3px;">'+ptGuthabenBadge(k)+'</div>':'')+((ltBadge(k)||tbBadge('personal',k.id))?'<div style="margin-top:3px;display:flex;flex-wrap:wrap;gap:4px;">'+ltBadge(k)+tbBadge('personal',k.id)+'</div>':'')+'</div>'
       +'<span style="font-size:18px;color:#555555;">'+(isO?'&#9650;':'&#9660;')+'</span>'
       +'</div>'
       +inner+'</div>';
@@ -2207,15 +2209,17 @@ function rPersonal(){
 
 function showAddPTKunde(){
   modal('<h3>Neuer Personal-Kunde</h3>'
-    +'<div class="frow"><label>Name</label><input type="text" id="m-ptn" placeholder="Vorname Nachname"></div>'
+    +'<div class="frow"><label>Name</label><input type="text" id="m-ptn" placeholder="Nachname Vorname"></div>'
+    +neuKundeFieldsHtml('Personaltraining')
     +'<div class="mbtns"><button onclick="closeM()">Abbrechen</button><button class="primary" onclick="confAddPTKunde()">Hinzuf\u00fcgen</button></div>');
 }
 function confAddPTKunde(){
   const name=document.getElementById('m-ptn').value.trim();
   if(!name){alert('Bitte Name eingeben.');return;}
+  const _nk=neuKundeRead({});if(!_nk)return;
   if(!S.personal)S.personal=[];
   const id=Date.now();
-  S.personal.push({id,name,beachten:'',urlaub:[],wochen:{}});
+  S.personal.push(Object.assign({id,name,beachten:'',urlaub:[],wochen:{}},_nk));
   save();closeM();rPersonal();
 }
 function confirmDeletePT(id){
@@ -2254,6 +2258,7 @@ function autoSavePTPreis(id){
   if(pr){const v=pr.value.trim();k.preis=v===''?null:Number(v);}
   if(pn)k.preisNotiz=pn.value;
   abrRead('pt-abr-'+id+'-',k,true);
+  kontaktRead('pt-k-'+id+'-',k);
   if(_ptTimers['p'+id])clearTimeout(_ptTimers['p'+id]);
   _ptTimers['p'+id]=setTimeout(()=>save(),1500);
 }
@@ -2823,6 +2828,41 @@ function abrRead(idp,o,full){
   }
   return o;
 }
+function kontaktFieldsHtml(idp,o,oninp){
+  o=o||{};
+  var e=function(x){return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');};
+  var ev=oninp?' onclick="event.stopPropagation()" oninput="'+oninp+'"':'';
+  return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px;margin-top:6px;">'
+    +'<input type="tel" id="'+idp+'tel" placeholder="Telefon" style="font-size:13px;" value="'+e(o.kTel)+'"'+ev+'>'
+    +'<input type="email" id="'+idp+'mail" placeholder="E-Mail" style="font-size:13px;" value="'+e(o.kMail)+'"'+ev+'>'
+    +'<input type="text" id="'+idp+'adr" placeholder="Adresse (Strasse, PLZ Ort)" style="font-size:13px;" value="'+e(o.kAdr)+'"'+ev+'>'
+    +'</div>';
+}
+function kontaktRead(idp,o){
+  var g=function(k){var el=document.getElementById(idp+k);return el?el.value.trim():null;};
+  var v=g('tel');if(v!==null)o.kTel=v||null;
+  v=g('mail');if(v!==null)o.kMail=v||null;
+  v=g('adr');if(v!==null)o.kAdr=v||null;
+  return o;
+}
+function neuKundeFieldsHtml(defTyp){
+  return '<div class="frow"><label>💰 Preis pro Training (CHF)</label><input type="number" id="m-nk-preis" min="0" step="5" placeholder="z.B. 150"></div>'
+    +'<div class="frow"><label>Preis-Notiz (Sonderregel, optional)</label><input type="text" id="m-nk-pn" placeholder="z.B. zu zweit 200"></div>'
+    +'<div class="frow"><label>🧾 Abrechnung</label>'+abrFieldsHtml('m-nk-abr-',{abrArt:'rechnung',abrTyp:defTyp},'',true)+'</div>'
+    +'<div class="frow"><label>📇 Kontakt</label>'+kontaktFieldsHtml('m-nk-k-',{},'')+'</div>'
+    +'<div style="font-size:11px;color:#555;margin:-2px 0 8px;">Bei «Rechnung» oder «Sponsor»: Kunde braucht in Bexio einen Kontakt (Name wie bei Rechnungskontakt bzw. wie hier).</div>';
+}
+function neuKundeRead(o){
+  var pr=document.getElementById('m-nk-preis');if(pr){var v=pr.value.trim();o.preis=v===''?null:Number(v);}
+  var pn=document.getElementById('m-nk-pn');if(pn)o.preisNotiz=pn.value.trim();
+  abrRead('m-nk-abr-',o,true);
+  kontaktRead('m-nk-k-',o);
+  if((o.abrArt==='rechnung'||(o.abrArt==='sponsor'&&!o.abrPauschale))&&(o.preis==null||isNaN(o.preis))){
+    if(!confirm('Kein Preis eingetragen – der Abend-Abgleich wird jedes Mal nachfragen. Trotzdem speichern?'))return null;
+  }
+  if(!o.abrArt){if(!confirm('Keine Abrechnungsart gewählt – trotzdem speichern?'))return null;}
+  return o;
+}
 function tbEsc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function tbDateStr(d){ // 'YYYY-MM-DD' -> 'Mo 19.10.2026'
   const p=String(d).split('-');if(p.length<3)return d;
@@ -2831,6 +2871,15 @@ function tbDateStr(d){ // 'YYYY-MM-DD' -> 'Mo 19.10.2026'
 }
 function tbToday(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function tbFirstLine(e){const t=(e.erzaehlt&&e.erzaehlt.trim())?('💬 '+e.erzaehlt):(e.text||'');return t.split('\n')[0];}
+function ltBadge(o){
+  var d=o&&o.letztesTraining;if(!d)return '';
+  var p=String(d).split('-');if(p.length<3)return '';
+  var dt=new Date(+p[0],+p[1]-1,+p[2]);var now=new Date();now.setHours(0,0,0,0);
+  var tage=Math.round((now-dt)/86400000);
+  var wt=['So','Mo','Di','Mi','Do','Fr','Sa'][dt.getDay()];
+  var alt=tage>14;
+  return '<span title="Letztes Training laut Kalender" style="font-size:10px;padding:2px 7px;border-radius:10px;background:'+(alt?'#FDECD8':'#E8EEF5')+';color:'+(alt?'#9A4A00':'#2C4A6B')+';font-weight:500;">🗓 '+wt+' '+p[2]+'.'+p[1]+'.'+(tage>0?' ('+(tage===1?'gestern':'vor '+tage+' Tagen')+')':' (heute)')+'</span>';
+}
 function tbBadge(typ,id){
   const e=tbEntries(typ,id)[0];if(!e)return '';
   const t=tbFirstLine(e);
@@ -3254,7 +3303,7 @@ function rUebersicht(){
         <span style="font-size:18px;color:var(--muted);">▲</span>
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">
-        ${wkBadge}${periodBadge}${milBadgeW}${bdBadge}${notizBadge}${tbBadge('athlet',a.id)}
+        ${wkBadge}${periodBadge}${milBadgeW}${bdBadge}${notizBadge}${ltBadge(a)}${tbBadge('athlet',a.id)}
       </div>
       ${prevBox}
       <div style="position:relative;margin-top:8px;margin-bottom:6px;" onclick="event.stopPropagation()">
@@ -3879,6 +3928,7 @@ function showAddAthlet(){
       <div class="frow"><label>Start Jahr</label><input type="number" id="m-sy" min="2020" max="2035" value="${YRN}"></div>
     </div>
     <div class="frow"><label>Vorlage anwenden</label><select id="m-vl">${vOpts}</select></div>
+    ${neuKundeFieldsHtml('Athletiktraining')}
     <div class="mbtns"><button onclick="closeM()">Abbrechen</button><button class="primary" onclick="confAthlet()">Hinzufügen</button></div>`);
 }
 function confAthlet(){
@@ -3888,9 +3938,10 @@ function confAthlet(){
   const sy=parseInt(document.getElementById('m-sy').value);
   const vlId=document.getElementById('m-vl').value;
   if(!name){alert('Bitte Name eingeben.');return;}
+  const _nk=neuKundeRead({});if(!_nk)return;
   const id=S.nxtId++;
-  S.athleten.push({id,name,sport,avIdx:id%AVC.length,startKW:sk,startYr:sy,
-    letzteNotiz:null,naechstes:null,tests:{},plan:[],notiz:{zustand:null,text:''}});
+  S.athleten.push(Object.assign({id,name,sport,avIdx:id%AVC.length,startKW:sk,startYr:sy,
+    letzteNotiz:null,naechstes:null,tests:{},plan:[],notiz:{zustand:null,text:''}},_nk));
   if(vlId){applyVorlage(parseInt(vlId),id);}
   S.edId=id;save();closeM();rEditor();rUebersicht();
 }
@@ -3923,6 +3974,7 @@ function showEditAthlet(aid){
       <div class="frow"><label>Preis-Notiz (intern)</label><input type="text" id="m-preisnotiz" placeholder="z.B. zahlt monatlich" value="${(a.preisNotiz||'').replace(/"/g,'&quot;')}"></div>
     </div>
     <div class="frow"><label>🧾 Abrechnung (intern)</label>${abrFieldsHtml('m-abr-',a,'',true)}</div>
+    <div class="frow"><label>📇 Kontakt</label>${kontaktFieldsHtml('m-k-',a,'')}</div>
     <div class="frow"><label>Verletzt seit (KW/Jahr)</label>
       <div style="display:flex;gap:6px;">
         <input type="number" id="m-vkw" min="1" max="53" placeholder="KW" style="width:60px;" value="${a.verletzt?a.verletzt.kw:''}">
@@ -3982,6 +4034,7 @@ function confEditAthlet(aid){
   const _pn=document.getElementById('m-preisnotiz');
   if(_pn)a.preisNotiz=_pn.value.trim();
   abrRead('m-abr-',a,true);
+  kontaktRead('m-k-',a);
   const vkw=document.getElementById('m-vkw').value;
   const vyr=document.getElementById('m-vyr').value;
   a.verletzt=(vkw&&vyr)?{kw:parseInt(vkw),yr:parseInt(vyr)}:null;
