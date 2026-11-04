@@ -1074,6 +1074,7 @@ function buildLegend(a){
 }
 
 const histOpen={};
+function escNote(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function histId(aid,key){return aid+'_'+key;}
 function toggleHist(aid,key){histOpen[histId(aid,key)]=!histOpen[histId(aid,key)];rUebersicht();}
 
@@ -1082,12 +1083,12 @@ function buildKrafttests(a){
     const cur=getCurrent(a,t.key);
     const hist=getHistory(a,t.key);
     const hid=histId(a.id,t.key);
-    const histItems=hist.length?[...hist].reverse().map((h,hi)=>`<div class="hist-item"><span>${h.dat}</span><span class="hist-val">${h.val} ${t.unit}</span><button onclick="showEditHistItem(${a.id},'${t.key}',${[...hist].reverse().indexOf(h)},'${t.label}','${t.unit}')" style="font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;margin-left:6px;padding:0;font-family:'DM Sans',sans-serif;">✎</button></div>${h.note?'<div class="hist-note">📝 '+esc(h.note)+'</div>':''}`).join(''):'';
+    const histItems=hist.length?[...hist].reverse().map((h,hi)=>`<div class="hist-item"><span>${h.dat}</span><span class="hist-val">${h.val} ${t.unit}</span><button onclick="showEditHistItem(${a.id},'${t.key}',${[...hist].reverse().indexOf(h)},'${t.label}','${t.unit}')" style="font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;margin-left:6px;padding:0;font-family:'DM Sans',sans-serif;">✎</button></div>${h.note?'<div class="hist-note">📝 '+escNote(h.note)+'</div>':''}`).join(''):'';
     const histBlock=hist.length?`<div class="hist-list${histOpen[hid]?' open':''}">${histItems}</div>`:'';
     return `<div class="main-test-box">
       <div class="mt-label">${t.label}</div>
       <div class="mt-val">${cur.val!==null?cur.val:'—'}<span class="mt-unit"> ${t.unit}</span></div>
-      <div class="mt-date">${cur.dat}</div>${cur.note?'<div class="mt-note">📝 '+esc(cur.note)+'</div>':''}
+      <div class="mt-date">${cur.dat}</div>${cur.note?'<div class="mt-note">📝 '+escNote(cur.note)+'</div>':''}
       <div class="mt-actions" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
         <input type="number" id="qi-${a.id}-${t.key}" placeholder="${t.label}…" step="0.5" style="width:80px;font-size:13px;padding:4px 7px;border:1px solid var(--border2);border-radius:6px;background:var(--bg);color:var(--text);" onkeydown="if(event.key==='Enter')quickSaveTest(${a.id},'${t.key}','${t.unit}')">
         <button class="mt-btn" onclick="quickSaveTest(${a.id},'${t.key}','${t.unit}')">✓</button>
@@ -1099,13 +1100,13 @@ function buildKrafttests(a){
     const cur=getCurrent(a,t.key);
     const hist=getHistory(a,t.key);
     const hid=histId(a.id,t.key);
-    const histItems=hist.length?[...hist].reverse().map((h,hi)=>`<div class="hist-item"><span>${h.dat}</span><span class="hist-val">${h.val}${t.unit?' '+t.unit:''}</span><button onclick="showEditHistItem(${a.id},'${t.key}',${[...hist].reverse().indexOf(h)},'${t.label}','${t.unit}')" style="font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;margin-left:6px;padding:0;font-family:'DM Sans',sans-serif;">✎</button></div>${h.note?'<div class="hist-note">📝 '+esc(h.note)+'</div>':''}`).join(''):'';
+    const histItems=hist.length?[...hist].reverse().map((h,hi)=>`<div class="hist-item"><span>${h.dat}</span><span class="hist-val">${h.val}${t.unit?' '+t.unit:''}</span><button onclick="showEditHistItem(${a.id},'${t.key}',${[...hist].reverse().indexOf(h)},'${t.label}','${t.unit}')" style="font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;margin-left:6px;padding:0;font-family:'DM Sans',sans-serif;">✎</button></div>${h.note?'<div class="hist-note">📝 '+escNote(h.note)+'</div>':''}`).join(''):'';
     const histBlock=hist.length?`<div class="hist-list${histOpen[hid]?' open':''}">${histItems}</div>`:'';
     return `<div class="sub-test-box">
       <div class="st-top">
         <span class="st-label">${t.label}</span>
         <div><div class="st-val">${cur.val!==null?cur.val:'—'}${t.unit?' '+t.unit:''}</div><div class="st-date">${cur.dat}</div></div>
-      </div>${cur.note?'<div class="mt-note">📝 '+esc(cur.note)+'</div>':''}
+      </div>${cur.note?'<div class="mt-note">📝 '+escNote(cur.note)+'</div>':''}
       <div class="st-actions">
         <button class="st-btn" onclick="showEditTest(${a.id},'${t.key}','${t.label}','${t.unit}')">+ Neu</button>
         ${cur.val!==null?'<button class="st-btn" onclick="showEditCurTest('+a.id+',\''+t.key+'\',\''+t.label+'\',\''+t.unit+'\')">'+(cur.note?'Notiz ✎':'+ Notiz')+'</button>':''}
@@ -4140,7 +4141,7 @@ function showEditHistItem(aid,key,idx,label,unit){
   modal(`<h3>${label} – Eintrag bearbeiten</h3>
     <div class="frow"><label>Wert${unit?' ('+unit+')':''}</label><input type="number" id="m-tv" step="0.1" value="${([...((S.athleten.find(x=>x.id===aid)||{}).tests||{})[key]?.history||[]]).reverse()[idx]?.val||''}"></div>
     <div class="frow"><label>Datum</label><input type="text" id="m-td" value="${([...((S.athleten.find(x=>x.id===aid)||{}).tests||{})[key]?.history||[]]).reverse()[idx]?.dat||''}"></div>
-    <div class="frow"><label>Notiz (optional)</label><textarea id="m-tn" rows="3" style="width:100%;font-size:13px;resize:vertical;border-radius:6px;border:1px solid var(--border2);padding:8px;" placeholder="z.B. Knie gespürt, darum weniger Gewicht und weniger Wiederholungen">${esc(([...((S.athleten.find(x=>x.id===aid)||{}).tests||{})[key]?.history||[]]).reverse()[idx]?.note||'')}</textarea></div>
+    <div class="frow"><label>Notiz (optional)</label><textarea id="m-tn" rows="3" style="width:100%;font-size:13px;resize:vertical;border-radius:6px;border:1px solid var(--border2);padding:8px;" placeholder="z.B. Knie gespürt, darum weniger Gewicht und weniger Wiederholungen">${escNote(([...((S.athleten.find(x=>x.id===aid)||{}).tests||{})[key]?.history||[]]).reverse()[idx]?.note||'')}</textarea></div>
     <div class="mbtns"><button onclick="closeM()">Abbrechen</button><button class="primary" onclick="confEditHistItem(${aid},'${key}',${idx})">Speichern</button>
     <button onclick="confDelHistItem(${aid},'${key}',${idx})" style="color:var(--red);border-color:var(--red);">Löschen</button></div>`);
 }
@@ -4162,8 +4163,8 @@ function showEditCurTest(aid,key,label,unit){
   if(!cur||cur.val===null)return;
   modal(`<h3>${label} – Notiz</h3>
     <div class="frow"><label>Wert${unit?' ('+unit+')':''}</label><input type="number" id="m-tv" step="0.1" value="${cur.val}"></div>
-    <div class="frow"><label>Datum</label><input type="text" id="m-td" value="${esc(cur.dat||'')}" placeholder="TT.MM.JJJJ"></div>
-    <div class="frow"><label>Notiz</label><textarea id="m-tn" rows="3" style="width:100%;font-size:13px;resize:vertical;border-radius:6px;border:1px solid var(--border2);padding:8px;" placeholder="z.B. Knie gespürt, darum weniger Gewicht und weniger Wiederholungen">${esc(cur.note||'')}</textarea></div>
+    <div class="frow"><label>Datum</label><input type="text" id="m-td" value="${escNote(cur.dat||'')}" placeholder="TT.MM.JJJJ"></div>
+    <div class="frow"><label>Notiz</label><textarea id="m-tn" rows="3" style="width:100%;font-size:13px;resize:vertical;border-radius:6px;border:1px solid var(--border2);padding:8px;" placeholder="z.B. Knie gespürt, darum weniger Gewicht und weniger Wiederholungen">${escNote(cur.note||'')}</textarea></div>
     <div class="mbtns"><button onclick="closeM()">Abbrechen</button><button class="primary" onclick="confEditCurTest(${aid},'${key}')">Speichern</button></div>`);
   setTimeout(()=>{const t=document.getElementById('m-tn');if(t){t.focus();t.selectionStart=t.selectionEnd=t.value.length;}},50);
 }
