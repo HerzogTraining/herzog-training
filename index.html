@@ -96,6 +96,8 @@ input:focus,select:focus,textarea:focus{border-color:var(--border2);}
 .mt-val{font-size:22px;font-weight:500;line-height:1.2;font-family:'DM Mono',monospace;}
 .mt-unit{font-size:12px;font-weight:400;color:var(--muted);}
 .mt-date{font-size:11px;color:var(--hint);margin-top:4px;}
+.mt-note{font-size:12px;color:var(--muted);margin-top:4px;white-space:pre-wrap;line-height:1.35;}
+.hist-note{font-size:11px;color:var(--muted);padding:0 0 5px;margin-top:-2px;white-space:pre-wrap;line-height:1.35;border-bottom:1px solid #E0E0E0;}
 .mt-actions{display:flex;gap:10px;margin-top:8px;}
 .mt-btn{font-size:11px;color:var(--muted);cursor:pointer;background:none;border:none;padding:0;text-decoration:underline;font-family:'DM Sans',sans-serif;}
 .sub-tests{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:1rem;}
@@ -1080,15 +1082,16 @@ function buildKrafttests(a){
     const cur=getCurrent(a,t.key);
     const hist=getHistory(a,t.key);
     const hid=histId(a.id,t.key);
-    const histItems=hist.length?[...hist].reverse().map((h,hi)=>`<div class="hist-item"><span>${h.dat}</span><span class="hist-val">${h.val} ${t.unit}</span><button onclick="showEditHistItem(${a.id},'${t.key}',${[...hist].reverse().indexOf(h)},'${t.label}','${t.unit}')" style="font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;margin-left:6px;padding:0;font-family:'DM Sans',sans-serif;">✎</button></div>`).join(''):'';
+    const histItems=hist.length?[...hist].reverse().map((h,hi)=>`<div class="hist-item"><span>${h.dat}</span><span class="hist-val">${h.val} ${t.unit}</span><button onclick="showEditHistItem(${a.id},'${t.key}',${[...hist].reverse().indexOf(h)},'${t.label}','${t.unit}')" style="font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;margin-left:6px;padding:0;font-family:'DM Sans',sans-serif;">✎</button></div>${h.note?'<div class="hist-note">📝 '+esc(h.note)+'</div>':''}`).join(''):'';
     const histBlock=hist.length?`<div class="hist-list${histOpen[hid]?' open':''}">${histItems}</div>`:'';
     return `<div class="main-test-box">
       <div class="mt-label">${t.label}</div>
       <div class="mt-val">${cur.val!==null?cur.val:'—'}<span class="mt-unit"> ${t.unit}</span></div>
-      <div class="mt-date">${cur.dat}</div>
+      <div class="mt-date">${cur.dat}</div>${cur.note?'<div class="mt-note">📝 '+esc(cur.note)+'</div>':''}
       <div class="mt-actions" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
         <input type="number" id="qi-${a.id}-${t.key}" placeholder="${t.label}…" step="0.5" style="width:80px;font-size:13px;padding:4px 7px;border:1px solid var(--border2);border-radius:6px;background:var(--bg);color:var(--text);" onkeydown="if(event.key==='Enter')quickSaveTest(${a.id},'${t.key}','${t.unit}')">
         <button class="mt-btn" onclick="quickSaveTest(${a.id},'${t.key}','${t.unit}')">✓</button>
+        ${cur.val!==null?'<button class="mt-btn" onclick="showEditCurTest('+a.id+',\''+t.key+'\',\''+t.label+'\',\''+t.unit+'\')">'+(cur.note?'Notiz ✎':'+ Notiz')+'</button>':''}
         ${hist.length?`<button class="mt-btn" onclick="toggleHist(${a.id},'${t.key}')">${histOpen[hid]?'Schliessen':'Verlauf ('+hist.length+')'}</button>`:''}
       </div>${histBlock}</div>`;
   }).join('');
@@ -1096,15 +1099,16 @@ function buildKrafttests(a){
     const cur=getCurrent(a,t.key);
     const hist=getHistory(a,t.key);
     const hid=histId(a.id,t.key);
-    const histItems=hist.length?[...hist].reverse().map((h,hi)=>`<div class="hist-item"><span>${h.dat}</span><span class="hist-val">${h.val}${t.unit?' '+t.unit:''}</span><button onclick="showEditHistItem(${a.id},'${t.key}',${[...hist].reverse().indexOf(h)},'${t.label}','${t.unit}')" style="font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;margin-left:6px;padding:0;font-family:'DM Sans',sans-serif;">✎</button></div>`).join(''):'';
+    const histItems=hist.length?[...hist].reverse().map((h,hi)=>`<div class="hist-item"><span>${h.dat}</span><span class="hist-val">${h.val}${t.unit?' '+t.unit:''}</span><button onclick="showEditHistItem(${a.id},'${t.key}',${[...hist].reverse().indexOf(h)},'${t.label}','${t.unit}')" style="font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;margin-left:6px;padding:0;font-family:'DM Sans',sans-serif;">✎</button></div>${h.note?'<div class="hist-note">📝 '+esc(h.note)+'</div>':''}`).join(''):'';
     const histBlock=hist.length?`<div class="hist-list${histOpen[hid]?' open':''}">${histItems}</div>`:'';
     return `<div class="sub-test-box">
       <div class="st-top">
         <span class="st-label">${t.label}</span>
         <div><div class="st-val">${cur.val!==null?cur.val:'—'}${t.unit?' '+t.unit:''}</div><div class="st-date">${cur.dat}</div></div>
-      </div>
+      </div>${cur.note?'<div class="mt-note">📝 '+esc(cur.note)+'</div>':''}
       <div class="st-actions">
         <button class="st-btn" onclick="showEditTest(${a.id},'${t.key}','${t.label}','${t.unit}')">+ Neu</button>
+        ${cur.val!==null?'<button class="st-btn" onclick="showEditCurTest('+a.id+',\''+t.key+'\',\''+t.label+'\',\''+t.unit+'\')">'+(cur.note?'Notiz ✎':'+ Notiz')+'</button>':''}
         ${hist.length?`<button class="st-btn" onclick="toggleHist(${a.id},'${t.key}')">${histOpen[hid]?'Schliessen':'Verlauf ('+hist.length+')'}</button>`:''}
       </div>${histBlock}</div>`;
   }).join('');
@@ -4075,6 +4079,7 @@ function showEditTest(aid,key,label,unit){
   modal(`<h3>${label} – neuer Wert</h3>
     <div class="frow"><label>Wert${unit?' ('+unit+')':''}</label><input type="number" id="m-tv" step="0.1" placeholder="z.B. 145"></div>
     <div class="frow"><label>Datum</label><input type="text" id="m-td" value="${todayStr}" placeholder="TT.MM.JJJJ"></div>
+    <div class="frow"><label>Notiz (optional)</label><textarea id="m-tn" rows="3" style="width:100%;font-size:13px;resize:vertical;border-radius:6px;border:1px solid var(--border2);padding:8px;" placeholder="z.B. Knie gespürt, darum weniger Gewicht und weniger Wiederholungen"></textarea></div>
     <div class="mbtns"><button onclick="closeM()">Abbrechen</button><button class="primary" onclick="confTest(${aid},'${key}')">Speichern</button></div>`);
 }
 function confTest(aid,key){
@@ -4086,8 +4091,9 @@ function confTest(aid,key){
     if(!a.tests)a.tests={};
     if(!a.tests[key])a.tests[key]={current:{val:null,dat:'—'},history:[]};
     const cur=a.tests[key].current;
-    if(cur.val!==null)a.tests[key].history.push({val:cur.val,dat:cur.dat});
-    a.tests[key].current={val,dat};
+    if(cur&&cur.val!==null)a.tests[key].history.push({...cur});
+    const note=(document.getElementById('m-tn')||{}).value;
+    a.tests[key].current=note&&note.trim()?{val,dat,note:note.trim()}:{val,dat};
   }
   save();closeM();rUebersicht();
 }
@@ -4134,6 +4140,7 @@ function showEditHistItem(aid,key,idx,label,unit){
   modal(`<h3>${label} – Eintrag bearbeiten</h3>
     <div class="frow"><label>Wert${unit?' ('+unit+')':''}</label><input type="number" id="m-tv" step="0.1" value="${([...((S.athleten.find(x=>x.id===aid)||{}).tests||{})[key]?.history||[]]).reverse()[idx]?.val||''}"></div>
     <div class="frow"><label>Datum</label><input type="text" id="m-td" value="${([...((S.athleten.find(x=>x.id===aid)||{}).tests||{})[key]?.history||[]]).reverse()[idx]?.dat||''}"></div>
+    <div class="frow"><label>Notiz (optional)</label><textarea id="m-tn" rows="3" style="width:100%;font-size:13px;resize:vertical;border-radius:6px;border:1px solid var(--border2);padding:8px;" placeholder="z.B. Knie gespürt, darum weniger Gewicht und weniger Wiederholungen">${esc(([...((S.athleten.find(x=>x.id===aid)||{}).tests||{})[key]?.history||[]]).reverse()[idx]?.note||'')}</textarea></div>
     <div class="mbtns"><button onclick="closeM()">Abbrechen</button><button class="primary" onclick="confEditHistItem(${aid},'${key}',${idx})">Speichern</button>
     <button onclick="confDelHistItem(${aid},'${key}',${idx})" style="color:var(--red);border-color:var(--red);">Löschen</button></div>`);
 }
@@ -4145,7 +4152,29 @@ function confEditHistItem(aid,key,idx){
   const val=parseFloat(document.getElementById('m-tv').value);
   const dat=document.getElementById('m-td').value.trim();
   if(isNaN(val)){alert('Ungültiger Wert.');return;}
-  a.tests[key].history[origIdx]={val,dat};
+  const note=((document.getElementById('m-tn')||{}).value||'').trim();
+  a.tests[key].history[origIdx]=note?{val,dat,note}:{val,dat};
+  save();closeM();rUebersicht();
+}
+function showEditCurTest(aid,key,label,unit){
+  const a=S.athleten.find(x=>x.id===aid);
+  const cur=a&&a.tests&&a.tests[key]&&a.tests[key].current;
+  if(!cur||cur.val===null)return;
+  modal(`<h3>${label} – Notiz</h3>
+    <div class="frow"><label>Wert${unit?' ('+unit+')':''}</label><input type="number" id="m-tv" step="0.1" value="${cur.val}"></div>
+    <div class="frow"><label>Datum</label><input type="text" id="m-td" value="${esc(cur.dat||'')}" placeholder="TT.MM.JJJJ"></div>
+    <div class="frow"><label>Notiz</label><textarea id="m-tn" rows="3" style="width:100%;font-size:13px;resize:vertical;border-radius:6px;border:1px solid var(--border2);padding:8px;" placeholder="z.B. Knie gespürt, darum weniger Gewicht und weniger Wiederholungen">${esc(cur.note||'')}</textarea></div>
+    <div class="mbtns"><button onclick="closeM()">Abbrechen</button><button class="primary" onclick="confEditCurTest(${aid},'${key}')">Speichern</button></div>`);
+  setTimeout(()=>{const t=document.getElementById('m-tn');if(t){t.focus();t.selectionStart=t.selectionEnd=t.value.length;}},50);
+}
+function confEditCurTest(aid,key){
+  const a=S.athleten.find(x=>x.id===aid);
+  if(!a||!a.tests||!a.tests[key]||!a.tests[key].current)return;
+  const val=parseFloat(document.getElementById('m-tv').value);
+  const dat=document.getElementById('m-td').value.trim()||'—';
+  if(isNaN(val)){alert('Ungültiger Wert.');return;}
+  const note=(document.getElementById('m-tn').value||'').trim();
+  a.tests[key].current=note?{val,dat,note}:{val,dat};
   save();closeM();rUebersicht();
 }
 function confDelHistItem(aid,key,idx){
