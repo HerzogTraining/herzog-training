@@ -1798,7 +1798,7 @@ function rKatalog(){
       const origIdx=orig.indexOf(u);
       const bb=i===ubs.length-1?'border-bottom:none;':'';
       const vid=(S.katalogVideos||{})[u];
-      const vidHtml=vid?'<a href="'+vid+'" target="_blank" rel="noopener" style="font-size:11px;color:#E8000F;text-decoration:none;margin-top:2px;display:block;">▶ Video</a>':'';
+      const vidHtml=vid?'<a href="'+vid+'" target="_blank" rel="noopener" style="font-size:11px;color:#E8000F;text-decoration:none;margin-top:2px;display:block;">▶ Video</a>':(u.indexOf('\n')!==-1?planVidsHtml(u):'');
       const esc=u.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
       rows+='<div class="kat-row" style="display:flex;align-items:flex-start;gap:8px;padding:8px 12px;border-bottom:1px solid #E8E8E8;'+bb+'">'
         +'<input type="checkbox" class="kat-sel" data-name="'+esc+'" '+(window._kSel.has(u)?'checked':'')+' title="Zum Senden auswählen" style="margin-top:2px;width:16px;height:16px;flex-shrink:0;cursor:pointer;">'
