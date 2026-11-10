@@ -1078,6 +1078,47 @@ function escNote(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/<
 function histId(aid,key){return aid+'_'+key;}
 function toggleHist(aid,key){histOpen[histId(aid,key)]=!histOpen[histId(aid,key)];rUebersicht();}
 
+function ktParseDat(d){var m=String(d||'').match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);return m?new Date(+m[3],+m[2]-1,+m[1]).getTime():null;}
+function ktBwAt(a,dat){
+  var bw=(a.tests||{}).koerpergewicht;if(!bw)return null;
+  var all=(bw.history||[]).concat(bw.current?[bw.current]:[]).filter(function(x){return x&&x.val!==null&&x.val!==undefined&&x.val!==''&&!isNaN(+x.val);});
+  if(!all.length)return null;
+  var t=ktParseDat(dat);
+  if(t===null)return +((bw.current||all[all.length-1]).val);
+  var best=null,bt=-Infinity,first=null,ft=Infinity;
+  all.forEach(function(x){var xt=ktParseDat(x.dat);if(xt===null)return;if(xt<=t&&xt>bt){bt=xt;best=x;}if(xt<ft){ft=xt;first=x;}});
+  return +((best||first||all[all.length-1]).val);
+}
+function ktRel(a,key){
+  var t=(a.tests||{})[key];if(!t||!t.current||t.current.val===null||t.current.val===undefined||t.current.val==='')return null;
+  var bw=ktBwAt(a,t.current.dat);if(!bw)return null;
+  var r={v:(+t.current.val)/bw,bw:bw,prev:null};
+  var h=(t.history||[]).filter(function(x){return x&&x.val!==null&&x.val!==''&&!isNaN(+x.val);});
+  if(h.length){var p=h[h.length-1];var pbw=ktBwAt(a,p.dat);if(pbw)r.prev=(+p.val)/pbw;}
+  return r;
+}
+// Kniebeuge pro kg nach Suchomel 2016: unter 1.5 Kraft hat Vorrang, 1.5-1.99 Kraft bringt noch viel, ab 2.0 Kraftreserve
+function ktRelHtml(a,key){
+  if(key!=='kniebeuge'&&key!=='kreuzheben')return '';
+  var r=ktRel(a,key);if(!r)return '';
+  var pill='';
+  if(key==='kniebeuge'){
+    var c=r.v>=2?['#E3F4EC','#1D7A55','Kraftreserve']:(r.v>=1.5?['#FDECD8','#9A4A00','Kraft bringt noch viel']:['#FCEAEA','#C0392B','Kraft hat Vorrang']);
+    pill=' <span style="font-size:10px;padding:1px 6px;border-radius:8px;background:'+c[0]+';color:'+c[1]+';font-weight:600;">'+c[2]+'</span>';
+  }
+  var d='';
+  if(r.prev!==null){var dv=r.v-r.prev;d=' <span style="color:var(--muted);">(vorher '+r.prev.toFixed(2)+', '+(dv>=0?'+':'')+dv.toFixed(2)+')</span>';}
+  return '<div style="font-size:12px;margin-top:3px;">pro kg <strong>'+r.v.toFixed(2)+'</strong> x KG'+pill+d+'</div>';
+}
+// Sprungleistung nach Sayers 1999: W = 60.7 x Sprunghoehe (cm) + 45.3 x Koerpergewicht (kg) - 2055
+function ktWatt(a,x){if(!x||x.val===null||x.val===undefined||x.val===''||isNaN(+x.val))return null;var bw=ktBwAt(a,x.dat);if(!bw)return null;return 60.7*(+x.val)+45.3*bw-2055;}
+function ktWattHtml(a){
+  var t=(a.tests||{}).sprunghoehe;if(!t||!t.current)return '';
+  var w=ktWatt(a,t.current);if(w===null)return '';
+  var h=(t.history||[]);var pw=h.length?ktWatt(a,h[h.length-1]):null;
+  var d=pw!==null?' <span style="color:var(--muted);">(vorher '+Math.round(pw)+' W, '+(w-pw>=0?'+':'')+Math.round(w-pw)+' W)</span>':'';
+  return '<div style="font-size:12px;margin-top:3px;">Sprungleistung <strong>'+Math.round(w)+' W</strong>'+d+'</div>';
+}
 function buildKrafttests(a){
   const mainHTML=MAIN_TESTS.map(t=>{
     const cur=getCurrent(a,t.key);
@@ -1088,7 +1129,7 @@ function buildKrafttests(a){
     return `<div class="main-test-box">
       <div class="mt-label">${t.label}</div>
       <div class="mt-val">${cur.val!==null?cur.val:'—'}<span class="mt-unit"> ${t.unit}</span></div>
-      <div class="mt-date">${cur.dat}</div>${cur.note?'<div class="mt-note">📝 '+escNote(cur.note)+'</div>':''}
+      <div class="mt-date">${cur.dat}</div>${ktRelHtml(a,t.key)}${cur.note?'<div class="mt-note">📝 '+escNote(cur.note)+'</div>':''}
       <div class="mt-actions" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
         <input type="number" id="qi-${a.id}-${t.key}" placeholder="${t.label}…" step="0.5" style="width:80px;font-size:13px;padding:4px 7px;border:1px solid var(--border2);border-radius:6px;background:var(--bg);color:var(--text);" onkeydown="if(event.key==='Enter')quickSaveTest(${a.id},'${t.key}','${t.unit}')">
         <button class="mt-btn" onclick="quickSaveTest(${a.id},'${t.key}','${t.unit}')">✓</button>
@@ -1106,7 +1147,7 @@ function buildKrafttests(a){
       <div class="st-top">
         <span class="st-label">${t.label}</span>
         <div><div class="st-val">${cur.val!==null?cur.val:'—'}${t.unit?' '+t.unit:''}</div><div class="st-date">${cur.dat}</div></div>
-      </div>${cur.note?'<div class="mt-note">📝 '+escNote(cur.note)+'</div>':''}
+      </div>${t.key==='sprunghoehe'?ktWattHtml(a):''}${cur.note?'<div class="mt-note">📝 '+escNote(cur.note)+'</div>':''}
       <div class="st-actions">
         <button class="st-btn" onclick="showEditTest(${a.id},'${t.key}','${t.label}','${t.unit}')">+ Neu</button>
         ${cur.val!==null?'<button class="st-btn" onclick="showEditCurTest('+a.id+',\''+t.key+'\',\''+t.label+'\',\''+t.unit+'\')">'+(cur.note?'Notiz ✎':'+ Notiz')+'</button>':''}
