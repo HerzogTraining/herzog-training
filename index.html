@@ -1097,18 +1097,19 @@ function ktRel(a,key){
   if(h.length){var p=h[h.length-1];var pbw=ktBwAt(a,p.dat);if(pbw)r.prev=(+p.val)/pbw;}
   return r;
 }
-// Kniebeuge pro kg nach Suchomel 2016: unter 1.5 Kraft hat Vorrang, 1.5-1.99 Kraft bringt noch viel, ab 2.0 Kraftreserve
+// Kraft pro kg: Grenzen nach Suchomel 2016 (gut ab 1.5, sehr gut ab 2.0 x KG), ueber 100 kg an das Koerpergewicht angepasst
+// (Kraft waechst mit KG hoch 0.67, Jaric 2002): Faktor (100/KG)^0.33. Kreuzheben gleiche Grenzen, Erfahrungswert.
 function ktRelHtml(a,key){
   if(key!=='kniebeuge'&&key!=='kreuzheben')return '';
   var r=ktRel(a,key);if(!r)return '';
-  var pill='';
-  if(key==='kniebeuge'){
-    var c=r.v>=2?['#E3F4EC','#1D7A55','Kraftreserve']:(r.v>=1.5?['#FDECD8','#9A4A00','Kraft bringt noch viel']:['#FCEAEA','#C0392B','Kraft hat Vorrang']);
-    pill=' <span style="font-size:10px;padding:1px 6px;border-radius:8px;background:'+c[0]+';color:'+c[1]+';font-weight:600;">'+c[2]+'</span>';
-  }
+  var fk=r.bw>100?Math.pow(100/r.bw,0.33):1;
+  var g=2.0*fk,o=1.5*fk;
+  var c=r.v>=g?['#E3F4EC','#1D7A55','Kraft reicht, halten']:(r.v>=o?['#FDECD8','#9A4A00','Kraft bringt noch viel']:['#FCEAEA','#C0392B','Kraft hat Vorrang']);
+  var pill=' <span style="font-size:10px;padding:1px 6px;border-radius:8px;background:'+c[0]+';color:'+c[1]+';font-weight:600;">'+c[2]+'</span>';
   var d='';
   if(r.prev!==null){var dv=r.v-r.prev;d=' <span style="color:var(--muted);">(vorher '+r.prev.toFixed(2)+', '+(dv>=0?'+':'')+dv.toFixed(2)+')</span>';}
-  return '<div style="font-size:12px;margin-top:3px;">pro kg <strong>'+r.v.toFixed(2)+'</strong> x KG'+pill+d+'</div>';
+  var gr='<div style="font-size:10px;color:var(--muted);margin-top:1px;">gut ab '+o.toFixed(2)+' · sehr gut ab '+g.toFixed(2)+(key==='kreuzheben'?' · Erfahrungswert':'')+'</div>';
+  return '<div style="font-size:12px;margin-top:3px;">pro kg <strong>'+r.v.toFixed(2)+'</strong> x KG'+pill+d+'</div>'+gr;
 }
 // Sprungleistung nach Sayers 1999: W = 60.7 x Sprunghoehe (cm) + 45.3 x Koerpergewicht (kg) - 2055
 function ktWatt(a,x){if(!x||x.val===null||x.val===undefined||x.val===''||isNaN(+x.val))return null;var bw=ktBwAt(a,x.dat);if(!bw)return null;return 60.7*(+x.val)+45.3*bw-2055;}
