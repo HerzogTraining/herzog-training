@@ -2840,25 +2840,30 @@ function sjEntries(id){
 }
 function sjMean(w){var v=(w||[]).map(Number).filter(function(x){return !isNaN(x)&&x>0;});if(!v.length)return null;var s=0;v.forEach(function(x){s+=x;});return s/v.length;}
 function sjR1(x){return Math.round(x*10)/10;}
+function sjIsKT(e){return (e.quelle||'')==='krafttest';}
 function sjStats(id){
-  var ent=sjEntries(id).map(function(e){return {e:e,m:sjMean(e.werte)};}).filter(function(x){return x.m!==null;});
-  var st={list:ent,base:null,grenze:null,n:ent.length};
-  if(ent.length>=4){
-    var b=ent.slice(0,4).map(function(x){return x.m;});
+  var ent=sjEntries(id).map(function(e){return {e:e,m:sjMean(e.werte),kt:sjIsKT(e)};}).filter(function(x){return x.m!==null;});
+  var mo=ent.filter(function(x){return !x.kt;});
+  var st={list:ent,base:null,grenze:null,n:ent.length,nMo:mo.length};
+  if(mo.length>=4){
+    var b=mo.slice(0,4).map(function(x){return x.m;});
     var mu=(b[0]+b[1]+b[2]+b[3])/4;
     var sd=Math.sqrt(b.reduce(function(s,x){return s+(x-mu)*(x-mu);},0)/3);
     st.base=mu;st.grenze=Math.max(5,2*(sd/mu*100));
   }
-  ent.forEach(function(x,i){
-    if(st.base===null){x.pct=null;x.stufe='';return;}
+  var prevMo=null;
+  ent.forEach(function(x){
+    if(st.base===null){x.pct=null;x.stufe=x.kt?'kt':'';return;}
     x.pct=(x.m-st.base)/st.base*100;
+    if(x.kt){x.stufe='kt';return;}
     var tief=x.pct<-st.grenze;
-    var prevTief=i>0&&ent[i-1].pct!==null&&ent[i-1].pct<-st.grenze;
+    var prevTief=prevMo&&prevMo.pct!==null&&prevMo.pct<-st.grenze;
     x.stufe=tief?(prevTief?'rot':'orange'):'gruen';
+    prevMo=x;
   });
   return st;
 }
-var SJ_COL={gruen:['#E3F4EC','#1D7A55'],orange:['#FDECD8','#9A4A00'],rot:['#FCEAEA','#C0392B']};
+var SJ_COL={kt:['#ECEFF3','#2C4A6B'],gruen:['#E3F4EC','#1D7A55'],orange:['#FDECD8','#9A4A00'],rot:['#FCEAEA','#C0392B']};
 function sjBadge(x){
   if(x.pct===null||x.pct===undefined)return '';
   var c=SJ_COL[x.stufe]||SJ_COL.gruen;
@@ -2881,7 +2886,7 @@ function sjChart(st){
   }
   var d='';pts.forEach(function(x,i){d+=(i?'L':'M')+X(i).toFixed(1)+' '+Y(x.m).toFixed(1);});
   s+='<path d="'+d+'" fill="none" stroke="#2C4A6B" stroke-width="1.8"/>';
-  pts.forEach(function(x,i){var c=(SJ_COL[x.stufe]||['','#2C4A6B'])[1];s+='<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(x.m).toFixed(1)+'" r="3" fill="'+c+'"/>';});
+  pts.forEach(function(x,i){var c=(SJ_COL[x.stufe]||['','#2C4A6B'])[1];if(x.kt)s+='<rect x="'+(X(i)-3.5).toFixed(1)+'" y="'+(Y(x.m)-3.5).toFixed(1)+'" width="7" height="7" fill="'+c+'"/>';else s+='<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(x.m).toFixed(1)+'" r="3" fill="'+c+'"/>';});
   return s+'</svg>';
 }
 function sjInner(id){
@@ -2896,13 +2901,14 @@ function sjInner(id){
       +'<input type="date" id="'+p+'d" value="'+tbToday()+'" onclick="event.stopPropagation()" style="font-size:13px;padding:4px 6px;">';
     for(var i=0;i<5;i++)h+='<input type="number" inputmode="decimal" step="0.1" min="0" id="'+p+'v'+i+'" placeholder="'+(i+1)+'." onclick="event.stopPropagation()" style="width:58px;font-size:13px;padding:4px 6px;">';
     h+='<span style="font-size:11px;color:var(--muted);">cm</span>'
+      +'<label onclick="event.stopPropagation()" style="font-size:12px;display:inline-flex;align-items:center;gap:3px;"><input type="checkbox" id="'+p+'kt">Krafttest</label>'
       +'<button onclick="event.stopPropagation();sjSave('+id+')" style="font-size:12px;padding:4px 12px;border-radius:6px;border:1px solid #1D7A55;background:#1D7A55;color:#fff;cursor:pointer;font-weight:600;">Speichern</button></div>';
   }
   if(!_sjLoaded){return h+'<div style="font-size:12px;color:var(--muted);margin-top:6px;">Lädt…</div></div>';}
   if(!st.n){return h+'<div style="font-size:12px;color:var(--muted);margin-top:6px;">Noch keine Tests.</div></div>';}
   var last=st.list[st.list.length-1];
   if(st.base===null){
-    h+='<div style="font-size:12px;margin-top:6px;">Basis wird gebildet ('+st.n+'/4 Tests). Letzter Mittelwert <strong>'+sjR1(last.m).toFixed(1)+' cm</strong></div>';
+    h+='<div style="font-size:12px;margin-top:6px;">Basis wird gebildet ('+st.nMo+'/4 Montagstests). Letzter Mittelwert <strong>'+sjR1(last.m).toFixed(1)+' cm</strong></div>';
   }else{
     h+='<div style="font-size:12px;margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;">Letzter <strong>'+sjR1(last.m).toFixed(1)+' cm</strong> '+sjBadge(last)
       +'<span style="color:var(--muted);">Basis '+sjR1(st.base).toFixed(1)+' cm · Grenze −'+sjR1(st.grenze).toFixed(1)+' %</span></div>';
@@ -2917,7 +2923,7 @@ function sjInner(id){
     var w=(x.e.werte||[]).map(function(v){return String(sjR1(Number(v)));}).join(' / ');
     h+='<div style="display:flex;align-items:center;gap:6px;font-size:12px;padding:3px 0;border-top:1px solid var(--border);">'
       +'<span style="min-width:92px;">'+tbDateStr(x.e.datum)+'</span>'
-      +'<strong style="min-width:56px;">'+sjR1(x.m).toFixed(1)+' cm</strong>'+sjBadge(x)
+      +'<strong style="min-width:56px;">'+sjR1(x.m).toFixed(1)+' cm</strong>'+sjBadge(x)+(x.kt?'<span style="font-size:10px;padding:1px 6px;border-radius:8px;background:#ECEFF3;color:#2C4A6B;font-weight:600;">Krafttest</span>':'')
       +'<span style="flex:1;color:var(--muted);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+tbEsc(w)+'</span>'
       +'<button onclick="event.stopPropagation();sjDel('+id+','+x.e.id+')" title="Test löschen" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:12px;">✕</button></div>';
   });
@@ -2933,7 +2939,8 @@ async function sjSave(id){
   if(!w.length){alert('Bitte mindestens einen Sprung eintragen.');return;}
   var a=S.athleten.find(function(x){return x.id===id;});
   try{
-    var res=await sjFetch('POST','',{athlet_id:id,athlet_name:a?a.name:null,datum:d,werte:w,quelle:'app'});
+    var kt=document.getElementById(p+'kt');
+    var res=await sjFetch('POST','',{athlet_id:id,athlet_name:a?a.name:null,datum:d,werte:w,quelle:(kt&&kt.checked)?'krafttest':'app'});
     if(!res.ok){alert('Speichern fehlgeschlagen ('+res.status+')');return;}
   }catch(e){alert('Speichern fehlgeschlagen: '+e.message);return;}
   _sjForm[id]=false;
