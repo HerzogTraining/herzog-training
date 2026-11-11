@@ -1111,12 +1111,15 @@ function ktRelHtml(a,key){
   var gr='<div style="font-size:10px;color:var(--muted);margin-top:1px;">gut ab '+o.toFixed(2)+' · sehr gut ab '+g.toFixed(2)+(key==='kreuzheben'?' · Erfahrungswert':'')+'</div>';
   return '<div style="font-size:12px;margin-top:3px;">pro kg <strong>'+r.v.toFixed(2)+'</strong> x KG'+pill+d+'</div>'+gr;
 }
+// Sprunghoehe: ab 10.11.2026 CMJ mit OVR (Haende in der Huefte, ausgeruht vor der Kniebeuge). Aeltere Werte anders gemessen, nicht vergleichbar.
+var CMJ_AB='10.11.2026';
+function ktIsCmj(dat){var t=ktParseDat(dat),c=ktParseDat(CMJ_AB);return t!==null&&t>=c;}
 // Sprungleistung nach Sayers 1999: W = 60.7 x Sprunghoehe (cm) + 45.3 x Koerpergewicht (kg) - 2055
 function ktWatt(a,x){if(!x||x.val===null||x.val===undefined||x.val===''||isNaN(+x.val))return null;var bw=ktBwAt(a,x.dat);if(!bw)return null;return 60.7*(+x.val)+45.3*bw-2055;}
 function ktWattHtml(a){
   var t=(a.tests||{}).sprunghoehe;if(!t||!t.current)return '';
   var w=ktWatt(a,t.current);if(w===null)return '';
-  var h=(t.history||[]);var pw=h.length?ktWatt(a,h[h.length-1]):null;
+  var h=(t.history||[]);var ph=h.length?h[h.length-1]:null;var pw=(ph&&ktIsCmj(ph.dat)===ktIsCmj(t.current.dat))?ktWatt(a,ph):null;
   var d=pw!==null?' <span style="color:var(--muted);">(vorher '+Math.round(pw)+' W, '+(w-pw>=0?'+':'')+Math.round(w-pw)+' W)</span>':'';
   return '<div style="font-size:12px;margin-top:3px;">Sprungleistung <strong>'+Math.round(w)+' W</strong>'+d+'</div>';
 }
@@ -1142,13 +1145,13 @@ function buildKrafttests(a){
     const cur=getCurrent(a,t.key);
     const hist=getHistory(a,t.key);
     const hid=histId(a.id,t.key);
-    const histItems=hist.length?[...hist].reverse().map((h,hi)=>`<div class="hist-item"><span>${h.dat}</span><span class="hist-val">${h.val}${t.unit?' '+t.unit:''}</span><button onclick="showEditHistItem(${a.id},'${t.key}',${[...hist].reverse().indexOf(h)},'${t.label}','${t.unit}')" style="font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;margin-left:6px;padding:0;font-family:'DM Sans',sans-serif;">✎</button></div>${h.note?'<div class="hist-note">📝 '+escNote(h.note)+'</div>':''}`).join(''):'';
+    const histItems=hist.length?[...hist].reverse().map((h,hi)=>`<div class="hist-item"><span>${h.dat}${(t.key==='sprunghoehe'&&!ktIsCmj(h.dat))?' <span style="font-size:10px;color:var(--muted);">alte Messung</span>':''}</span><span class="hist-val">${h.val}${t.unit?' '+t.unit:''}</span><button onclick="showEditHistItem(${a.id},'${t.key}',${[...hist].reverse().indexOf(h)},'${t.label}','${t.unit}')" style="font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;margin-left:6px;padding:0;font-family:'DM Sans',sans-serif;">✎</button></div>${h.note?'<div class="hist-note">📝 '+escNote(h.note)+'</div>':''}`).join(''):'';
     const histBlock=hist.length?`<div class="hist-list${histOpen[hid]?' open':''}">${histItems}</div>`:'';
     return `<div class="sub-test-box">
       <div class="st-top">
         <span class="st-label">${t.label}</span>
         <div><div class="st-val">${cur.val!==null?cur.val:'—'}${t.unit?' '+t.unit:''}</div><div class="st-date">${cur.dat}</div></div>
-      </div>${t.key==='sprunghoehe'?ktWattHtml(a):''}${cur.note?'<div class="mt-note">📝 '+escNote(cur.note)+'</div>':''}
+      </div>${t.key==='sprunghoehe'?ktWattHtml(a)+'<div style="font-size:10px;color:var(--muted);margin-top:2px;">Ab '+CMJ_AB+' CMJ mit OVR. Ältere Werte anders gemessen, nicht vergleichbar.</div>':''}${cur.note?'<div class="mt-note">📝 '+escNote(cur.note)+'</div>':''}
       <div class="st-actions">
         <button class="st-btn" onclick="showEditTest(${a.id},'${t.key}','${t.label}','${t.unit}')">+ Neu</button>
         ${cur.val!==null?'<button class="st-btn" onclick="showEditCurTest('+a.id+',\''+t.key+'\',\''+t.label+'\',\''+t.unit+'\')">'+(cur.note?'Notiz ✎':'+ Notiz')+'</button>':''}
