@@ -2843,7 +2843,7 @@ function tbEntries(typ,id){
   return _tb.filter(e=>(e.typ||'athlet')===typ&&(e.athlet_id===id||(e.athlet_id==null&&nm&&tbNorm(e.athlet_name)===nm)));
 }
 // ---- SPRUNGTEST CMJ (eigene Supabase-Tabelle sprungtests, unabhängig vom trainer_state) ----
-// Pro Test bis 5 Sprunghöhen (cm). Mittelwert pro Test. Basis = Mittel der ersten 4 Tests.
+// Pro Test bis 5 Sprunghöhen (cm). Mittelwert pro Test. Basis = Mittel der ersten 4 Tests, getrennt für Training 1 und Training 2.
 // Grenze = max(5 %, 2 x Schwankung der Basis). Unter der Grenze: orange, zweimal in Folge: rot.
 var _sj=[];
 var _sjLoaded=false;
@@ -2865,7 +2865,7 @@ async function sjFetch(method,path,body,_retry){
 }
 async function loadSprungtests(){
   try{
-    var res=await sjFetch('GET','?select=id,athlet_id,athlet_name,datum,werte,quelle,created_at&order=datum.asc,created_at.asc');
+    var res=await sjFetch('GET','?select=id,athlet_id,athlet_name,datum,werte,quelle,training,created_at&order=datum.asc,created_at.asc');
     if(!res.ok){console.error('Sprungtest load',res.status);return;}
     _sj=await res.json();_sjLoaded=true;
   }catch(e){console.error('Sprungtest',e);return;}
@@ -2886,25 +2886,42 @@ function sjEntries(id){
 function sjMean(w){var v=(w||[]).map(Number).filter(function(x){return !isNaN(x)&&x>0;});if(!v.length)return null;var s=0;v.forEach(function(x){s+=x;});return s/v.length;}
 function sjR1(x){return Math.round(x*10)/10;}
 function sjIsKT(e){return (e.quelle||'')==='krafttest';}
+var SJ_EIN=['lemmenmeier lukas','reichmuth marco','bieri marcel','grod pascal','stocker luca','wüthrich jonas'];
+function sjEinmal(id){var a=S.athleten.find(function(x){return x.id===id;});return !!(a&&SJ_EIN.indexOf(tbNorm(a.name))>=0);}
+function sjWeek(ds){var d=new Date(ds+'T12:00:00');var t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));var n=t.getUTCDay()||7;t.setUTCDate(t.getUTCDate()+4-n);var y=new Date(Date.UTC(t.getUTCFullYear(),0,1));return t.getUTCFullYear()+'-'+Math.ceil(((t-y)/86400000+1)/7);}
+function sjInferT(id,ds,ent,skipId){
+  if(sjEinmal(id))return 1;
+  var w=sjWeek(ds);
+  var fr=(ent||sjEntries(id)).some(function(e){return e.id!==skipId&&e.datum<ds&&sjWeek(e.datum)===w;});
+  return fr?2:1;
+}
+function sjT(id,e,ent){return (e.training===1||e.training===2)?e.training:sjInferT(id,e.datum,ent,e.id);}
 function sjStats(id){
-  var ent=sjEntries(id).map(function(e){return {e:e,m:sjMean(e.werte),kt:sjIsKT(e)};}).filter(function(x){return x.m!==null;});
-  var mo=ent.filter(function(x){return !x.kt;});
-  var st={list:ent,base:null,grenze:null,n:ent.length,nMo:mo.length};
-  if(mo.length>=4){
-    var b=mo.slice(0,4).map(function(x){return x.m;});
-    var mu=(b[0]+b[1]+b[2]+b[3])/4;
-    var sd=Math.sqrt(b.reduce(function(s,x){return s+(x-mu)*(x-mu);},0)/3);
-    st.base=mu;st.grenze=Math.max(5,2*(sd/mu*100));
-  }
-  var prevMo=null;
+  var all=sjEntries(id);
+  var ent=all.map(function(e){return {e:e,m:sjMean(e.werte),kt:sjIsKT(e),t:sjT(id,e,all)};}).filter(function(x){return x.m!==null;});
+  var st={list:ent,n:ent.length,T:{}};
+  [1,2].forEach(function(t){
+    var mo=ent.filter(function(x){return !x.kt&&x.t===t;});
+    var b0={base:null,grenze:null,nMo:mo.length};
+    if(mo.length>=4){
+      var b=mo.slice(0,4).map(function(x){return x.m;});
+      var mu=(b[0]+b[1]+b[2]+b[3])/4;
+      var sd=Math.sqrt(b.reduce(function(s,x){return s+(x-mu)*(x-mu);},0)/3);
+      b0.base=mu;b0.grenze=Math.max(5,2*(sd/mu*100));
+    }
+    st.T[t]=b0;
+  });
+  var prevMo={1:null,2:null};
   ent.forEach(function(x){
-    if(st.base===null){x.pct=null;x.stufe=x.kt?'kt':'';return;}
-    x.pct=(x.m-st.base)/st.base*100;
+    var B=st.T[x.t];
+    if(B.base===null){x.pct=null;x.stufe=x.kt?'kt':'';return;}
+    x.pct=(x.m-B.base)/B.base*100;
     if(x.kt){x.stufe='kt';return;}
-    var tief=x.pct<-st.grenze;
-    var prevTief=prevMo&&prevMo.pct!==null&&prevMo.pct<-st.grenze;
+    var pm=prevMo[x.t];
+    var tief=x.pct<-B.grenze;
+    var prevTief=pm&&pm.pct!==null&&pm.pct<-B.grenze;
     x.stufe=tief?(prevTief?'rot':'orange'):'gruen';
-    prevMo=x;
+    prevMo[x.t]=x;
   });
   return st;
 }
@@ -2915,25 +2932,33 @@ function sjBadge(x){
   return '<span style="font-size:10px;padding:1px 6px;border-radius:8px;background:'+c[0]+';color:'+c[1]+';font-weight:600;">'+(x.pct>=0?'+':'')+sjR1(x.pct).toFixed(1)+' %</span>';
 }
 function sjBoxHtml(id){return '<div data-sj="'+id+'" onclick="event.stopPropagation()">'+sjInner(id)+'</div>';}
+var SJ_TCOL={1:'#2C4A6B',2:'#7B5EA7'};
 function sjChart(st){
   var pts=st.list;if(pts.length<2)return '';
   var W=300,H=70,P=6;
   var vals=pts.map(function(x){return x.m;});
-  if(st.base!==null){vals.push(st.base);vals.push(st.base*(1-st.grenze/100));}
+  [1,2].forEach(function(t){var B=st.T[t];if(B.base!==null){vals.push(B.base);vals.push(B.base*(1-B.grenze/100));}});
   var lo=Math.min.apply(null,vals),hi=Math.max.apply(null,vals);if(hi-lo<1){hi+=0.5;lo-=0.5;}
   var X=function(i){return P+i*(W-2*P)/(pts.length-1);};
   var Y=function(v){return H-P-(v-lo)/(hi-lo)*(H-2*P);};
-  var s='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:70px;display:block;margin:4px 0 6px;">';
-  if(st.base!==null){
-    s+='<line x1="'+P+'" x2="'+(W-P)+'" y1="'+Y(st.base)+'" y2="'+Y(st.base)+'" stroke="#1D7A55" stroke-width="1" opacity=".6"/>';
-    var g=st.base*(1-st.grenze/100);
-    s+='<line x1="'+P+'" x2="'+(W-P)+'" y1="'+Y(g)+'" y2="'+Y(g)+'" stroke="#C0392B" stroke-width="1" stroke-dasharray="4 3" opacity=".6"/>';
-  }
-  var d='';pts.forEach(function(x,i){d+=(i?'L':'M')+X(i).toFixed(1)+' '+Y(x.m).toFixed(1);});
-  s+='<path d="'+d+'" fill="none" stroke="#2C4A6B" stroke-width="1.8"/>';
-  pts.forEach(function(x,i){var c=(SJ_COL[x.stufe]||['','#2C4A6B'])[1];if(x.kt)s+='<rect x="'+(X(i)-3.5).toFixed(1)+'" y="'+(Y(x.m)-3.5).toFixed(1)+'" width="7" height="7" fill="'+c+'"/>';else s+='<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(x.m).toFixed(1)+'" r="3" fill="'+c+'"/>';});
-  return s+'</svg>';
+  var s='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:70px;display:block;margin:4px 0 2px;">';
+  [1,2].forEach(function(t){
+    var B=st.T[t];if(B.base===null)return;
+    s+='<line x1="'+P+'" x2="'+(W-P)+'" y1="'+Y(B.base)+'" y2="'+Y(B.base)+'" stroke="'+SJ_TCOL[t]+'" stroke-width="1" opacity=".6"/>';
+    var g=B.base*(1-B.grenze/100);
+    s+='<line x1="'+P+'" x2="'+(W-P)+'" y1="'+Y(g)+'" y2="'+Y(g)+'" stroke="'+SJ_TCOL[t]+'" stroke-width="1" stroke-dasharray="4 3" opacity=".6"/>';
+  });
+  [1,2].forEach(function(t){
+    var d='';var k=0;pts.forEach(function(x,i){if(x.t!==t)return;d+=(k++?'L':'M')+X(i).toFixed(1)+' '+Y(x.m).toFixed(1);});
+    if(k>1)s+='<path d="'+d+'" fill="none" stroke="'+SJ_TCOL[t]+'" stroke-width="1.8"/>';
+  });
+  pts.forEach(function(x,i){var c=(SJ_COL[x.stufe]||['',SJ_TCOL[x.t]])[1]||SJ_TCOL[x.t];if(x.kt)s+='<rect x="'+(X(i)-3.5).toFixed(1)+'" y="'+(Y(x.m)-3.5).toFixed(1)+'" width="7" height="7" fill="'+c+'"/>';else s+='<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(x.m).toFixed(1)+'" r="3" fill="'+c+'"/>';});
+  s+='</svg>';
+  var hasT2=pts.some(function(x){return x.t===2;});
+  if(hasT2)s+='<div style="font-size:10px;color:var(--muted);margin-bottom:4px;"><span style="color:'+SJ_TCOL[1]+';font-weight:600;">━ Training 1</span> &nbsp; <span style="color:'+SJ_TCOL[2]+';font-weight:600;">━ Training 2</span> &nbsp; Linie = Basis, gestrichelt = Grenze</div>';
+  return s;
 }
+function sjTTag(t){return '<span style="font-size:10px;padding:1px 5px;border-radius:8px;border:1px solid '+SJ_TCOL[t]+';color:'+SJ_TCOL[t]+';font-weight:600;">T'+t+'</span>';}
 function sjInner(id){
   var st=sjStats(id);
   var h='<div style="margin-top:10px;border:1px solid var(--border2);border-radius:8px;padding:8px 10px;background:var(--bg);">';
@@ -2946,19 +2971,24 @@ function sjInner(id){
       +'<input type="date" id="'+p+'d" value="'+tbToday()+'" onclick="event.stopPropagation()" style="font-size:13px;padding:4px 6px;">';
     for(var i=0;i<5;i++)h+='<input type="number" inputmode="decimal" step="0.1" min="0" id="'+p+'v'+i+'" placeholder="'+(i+1)+'." onclick="event.stopPropagation()" style="width:58px;font-size:13px;padding:4px 6px;">';
     h+='<span style="font-size:11px;color:var(--muted);">cm</span>'
+      +'<select id="'+p+'t" onclick="event.stopPropagation()" style="font-size:13px;padding:4px 6px;"><option value="1"'+(sjInferT(id,tbToday())===1?' selected':'')+'>Training 1</option><option value="2"'+(sjInferT(id,tbToday())===2?' selected':'')+'>Training 2</option></select>'
       +'<label onclick="event.stopPropagation()" style="font-size:12px;display:inline-flex;align-items:center;gap:3px;"><input type="checkbox" id="'+p+'kt">Krafttest</label>'
       +'<button onclick="event.stopPropagation();sjSave('+id+')" style="font-size:12px;padding:4px 12px;border-radius:6px;border:1px solid #1D7A55;background:#1D7A55;color:#fff;cursor:pointer;font-weight:600;">Speichern</button></div>';
   }
   if(!_sjLoaded){return h+'<div style="font-size:12px;color:var(--muted);margin-top:6px;">Lädt…</div></div>';}
   if(!st.n){return h+'<div style="font-size:12px;color:var(--muted);margin-top:6px;">Noch keine Tests.</div></div>';}
   var last=st.list[st.list.length-1];
-  if(st.base===null){
-    h+='<div style="font-size:12px;margin-top:6px;">Basis wird gebildet ('+st.nMo+'/4 Montagstests). Letzter Mittelwert <strong>'+sjR1(last.m).toFixed(1)+' cm</strong></div>';
-  }else{
-    h+='<div style="font-size:12px;margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;">Letzter <strong>'+sjR1(last.m).toFixed(1)+' cm</strong> '+sjBadge(last)
-      +'<span style="color:var(--muted);">Basis '+sjR1(st.base).toFixed(1)+' cm · Grenze −'+sjR1(st.grenze).toFixed(1)+' %</span></div>';
-    if(last.stufe==='rot')h+='<div style="font-size:12px;color:#C0392B;font-weight:600;margin-top:3px;">Zweimal in Folge deutlich unter der Basis</div>';
-    else if(last.stufe==='orange')h+='<div style="font-size:12px;color:#9A4A00;margin-top:3px;">Deutlich unter der Basis</div>';
+  var LB=st.T[last.t];
+  h+='<div style="font-size:12px;margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;">Letzter '+sjTTag(last.t)+' <strong>'+sjR1(last.m).toFixed(1)+' cm</strong> '+sjBadge(last)+'</div>';
+  [1,2].forEach(function(t){
+    var B=st.T[t];
+    if(!B.nMo&&B.base===null&&!st.list.some(function(x){return x.t===t;}))return;
+    if(B.base===null)h+='<div style="font-size:11px;color:var(--muted);margin-top:2px;">'+sjTTag(t)+' Basis wird gebildet ('+B.nMo+'/4 Tests)</div>';
+    else h+='<div style="font-size:11px;color:var(--muted);margin-top:2px;">'+sjTTag(t)+' Basis '+sjR1(B.base).toFixed(1)+' cm · Grenze −'+sjR1(B.grenze).toFixed(1)+' %</div>';
+  });
+  if(LB.base!==null){
+    if(last.stufe==='rot')h+='<div style="font-size:12px;color:#C0392B;font-weight:600;margin-top:3px;">Zweimal in Folge deutlich unter der Basis von Training '+last.t+'</div>';
+    else if(last.stufe==='orange')h+='<div style="font-size:12px;color:#9A4A00;margin-top:3px;">Deutlich unter der Basis von Training '+last.t+'</div>';
   }
   h+=sjChart(st);
   var rows=st.list.slice().reverse();
@@ -2967,7 +2997,7 @@ function sjInner(id){
   vis.forEach(function(x){
     var w=(x.e.werte||[]).map(function(v){return String(sjR1(Number(v)));}).join(' / ');
     h+='<div style="display:flex;align-items:center;gap:6px;font-size:12px;padding:3px 0;border-top:1px solid var(--border);">'
-      +'<span style="min-width:92px;">'+tbDateStr(x.e.datum)+'</span>'
+      +'<span style="min-width:92px;">'+tbDateStr(x.e.datum)+'</span>'+sjTTag(x.t)
       +'<strong style="min-width:56px;">'+sjR1(x.m).toFixed(1)+' cm</strong>'+sjBadge(x)+(x.kt?'<span style="font-size:10px;padding:1px 6px;border-radius:8px;background:#ECEFF3;color:#2C4A6B;font-weight:600;">Krafttest</span>':'')
       +'<span style="flex:1;color:var(--muted);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+tbEsc(w)+'</span>'
       +'<button onclick="event.stopPropagation();sjDel('+id+','+x.e.id+')" title="Test löschen" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:12px;">✕</button></div>';
@@ -2985,7 +3015,8 @@ async function sjSave(id){
   var a=S.athleten.find(function(x){return x.id===id;});
   try{
     var kt=document.getElementById(p+'kt');
-    var res=await sjFetch('POST','',{athlet_id:id,athlet_name:a?a.name:null,datum:d,werte:w,quelle:(kt&&kt.checked)?'krafttest':'app'});
+    var tsel=document.getElementById(p+'t');var tv=tsel?Number(tsel.value):sjInferT(id,d);
+    var res=await sjFetch('POST','',{athlet_id:id,athlet_name:a?a.name:null,datum:d,werte:w,quelle:(kt&&kt.checked)?'krafttest':'app',training:(tv===2?2:1)});
     if(!res.ok){alert('Speichern fehlgeschlagen ('+res.status+')');return;}
   }catch(e){alert('Speichern fehlgeschlagen: '+e.message);return;}
   _sjForm[id]=false;
