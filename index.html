@@ -6058,35 +6058,40 @@ document.addEventListener('visibilitychange',function(){if(document.visibilitySt
 /* ---- THERAPIE-TAB: Übungen von Andreas Leib (Heilende Bewegung) und Omnibody Academy ----
    Daten in eigener Supabase-Tabelle therapie_uebungen (nur lesen in der App). */
 (function(){
-  var TH={rows:[],loaded:false,loading:false,q:'',quelle:'alle',typen:null,region:'',limit:150,sel:{}};
+  var TH={rows:[],loaded:false,loading:false,q:'',quelle:'alle',typ:'',region:'',limit:150,sel:{}};
   var TYPEN=['Test','Lösen','Mobilisation','Dehnen','Stabilität','Kraft','Plyometrie','Flossing','Übung','Theorie'];
   var TYP_ICON={'Test':'🔎','Lösen':'🤲','Mobilisation':'🔄','Dehnen':'↔️','Stabilität':'⚖️','Kraft':'🏋️','Plyometrie':'⚡','Flossing':'🩹','Übung':'•','Theorie':'📖'};
   var REGIONEN=['Schulter','Nacken/HWS','BWS','Ellbogen/Hand','Kiefer','LWS/Rücken','Rumpf','Hüfte/Becken','Leiste/Adduktoren','Oberschenkel hinten','Knie','Fuss/Sprunggelenk','Haltung','Ganzkörper/Athletik'];
-  // Suchbegriffe -> Konzepte (jedes Konzept ist eine Liste von Treffer-Wörtern im Eintrag)
-  var SYN=[
-    [['schulter','schultern','shoulder','rotatorenmanschette','rotator','impingement','supraspinatus','infraspinatus','schulterblatt','scapula'],['schulter','shoulder','rotator','scapula','schulterblatt','supraspinatus','infraspinatus','subscapularis','impingement']],
-    [['nacken','hws','halswirbelsaule','hals','genick','neck','kopfschmerz','kopfschmerzen','migrane','kopfweh'],['nacken','hws','neck','cervical','kopfschmerz','headache','scalen','skalenus','trapez','levator','scm']],
-    [['bws','brustwirbelsaule','thorakal','thoracic','rundrucken','brustkorb','rippen','atmung'],['bws','thorac','brustkorb','rundrucken','rib','diaphragma','zwerchfell','atmung']],
-    [['ellbogen','ellenbogen','tennisellbogen','golferellbogen','elbow','unterarm','handgelenk','hand','finger','daumen','karpaltunnel','wrist','bizeps','bizepssehne'],['ellbogen','elbow','unterarm','forearm','handgelenk','wrist','hand','finger','daumen','karpal','bizeps','bicep','medianus','ulnaris','radialis']],
-    [['kiefer','jaw','zahne','knirschen','masseter','kaumuskel'],['kiefer','jaw','masseter','kau']],
-    [['rucken','ruckenschmerz','ruckenschmerzen','kreuz','kreuzschmerzen','lws','lendenwirbelsaule','hexenschuss','bandscheibe','bandscheibenvorfall','ischias','isg','iliosakral','lower','back'],['lws','rucken','back','lumbar','ql','quadratus','bandscheib','disc','ischias','sciatic','isg','sij','hexenschuss','erector','ruckenstrecker']],
-    [['rumpf','core','bauch','bauchmuskeln','beckenboden','inkontinenz'],['rumpf','core','bauch','abdominal','plank','beckenboden','pelvic floor','transversus']],
-    [['hufte','huften','huftschmerz','huftschmerzen','hip','gesass','po','glute','piriformis','psoas','labrum','becken'],['huft','hip','gesass','glute','gluteus','piriformis','psoas','labr','becken','pelvi']],
-    [['leiste','leisten','leistenschmerzen','adduktoren','adduktor','groin','schambein'],['leiste','adduktor','adductor','groin','copenhagen']],
-    [['hamstring','hamstrings','beinruckseite','oberschenkel','zerrung','nordic'],['hamstring','beinruckseite','oberschenkel hinten','zerrung']],
-    [['knie','knieschmerzen','patella','patellasehne','meniskus','kreuzband','laufer','springerknie','itb','knee','quadrizeps'],['knie','knee','patell','menisk','menisc','kreuzband','itb','quadrizeps','quad','vastus']],
-    [['fuss','fusse','sprunggelenk','knochel','achilles','achillessehne','wade','waden','ferse','plantar','plantarfasziitis','zehen','zehe','umknicken','schienbein','shin','ankle','foot','plattfuss'],['fuss','sprunggelenk','ankle','foot','feet','achilles','wade','calf','ferse','heel','plantar','zeh','toe','schienbein','shin','tibialis','peron','umknick']],
-    [['haltung','posture','hohlkreuz','flachrucken','rundrucken','xbeine','obeine'],['haltung','posture','hohlkreuz','flachrucken','rundrucken','beine']],
-    [['test','tests','testen','befund'],['test']],
-    [['losen','triggern','trigger','massage','faszien','ausrollen','blackroll','release'],['losen','trigger','ausroll','release','treat']],
-    [['mobilisieren','mobilisation','mobilitat','beweglichkeit','mobility'],['mobil','beweglich']],
-    [['dehnen','dehnung','stretch','stretching'],['dehn','stretch','flexib']],
-    [['kraft','kraftigen','starken','strength'],['kraft','strength']],
-    [['stabilitat','stabilisieren','stabil'],['stabil']],
-    [['flossing','flossen'],['floss']],
-    [['nerv','nerven','nervenmobilisation','kribbeln','taub'],['nerv','nerve','neural','tos']]
-  ];
-  var STOP={'alle':1,'brauche':1,'ich':1,'fur':1,'bei':1,'mit':1,'und':1,'die':1,'der':1,'das':1,'den':1,'dem':1,'ubungen':1,'ubung':1,'gegen':1,'zeig':1,'mir':1,'von':1,'zum':1,'zur':1,'eine':1,'einen':1,'ein':1,'was':1,'gibt':1,'es':1,'hilft':1,'schmerzen':1,'schmerz':1,'beschwerden':1,'problem':1,'probleme':1,'am':1,'im':1,'an':1,'auf':1,'oder':1,'bitte':1};
+  // Suchwörter -> Region (nur exakte Wörter, Endungen wie «-schmerzen» werden vorher entfernt)
+  var REGW={
+    'Schulter':['schulter','schultern','shoulder','rotatorenmanschette','rotator','schulterblatt','schulterblatter','scapula','supraspinatus','infraspinatus','subscapularis','deltamuskel','delta'],
+    'Nacken/HWS':['nacken','hws','halswirbelsaule','hals','genick','neck','kopf','kopfweh','migrane','schleudertrauma'],
+    'BWS':['bws','brustwirbelsaule','thorakal','thoracic','brustkorb','rippen','rippe','zwerchfell','atmung'],
+    'Ellbogen/Hand':['ellbogen','ellenbogen','elbow','tennisellbogen','golferellbogen','unterarm','unterarme','handgelenk','handgelenke','hand','hande','finger','daumen','karpaltunnel','wrist','trizeps'],
+    'Kiefer':['kiefer','jaw','zahne','knirschen','zahneknirschen','kaumuskel','masseter','cmd'],
+    'LWS/Rücken':['rucken','kreuz','lws','lendenwirbelsaule','unterer','hexenschuss','bandscheibe','bandscheiben','bandscheibenvorfall','back','ql'],
+    'Rumpf':['rumpf','core','bauch','bauchmuskeln','beckenboden','inkontinenz'],
+    'Hüfte/Becken':['hufte','huften','huft','hip','gesass','po','glute','gluteus','becken','isg','iliosakral','iliosakralgelenk','labrum','psoas','piriformis'],
+    'Leiste/Adduktoren':['leiste','leisten','adduktoren','adduktor','groin','schambein'],
+    'Oberschenkel hinten':['hamstring','hamstrings','beinruckseite','oberschenkelruckseite','zerrung','nordic'],
+    'Knie':['knie','knee','patella','kniescheibe','meniskus','menisken','kreuzband','quadrizeps','quads','kniekehle'],
+    'Fuss/Sprunggelenk':['fuss','fusse','sprunggelenk','sprunggelenke','knochel','achilles','wade','waden','ferse','fersen','plantar','zehen','zehe','grosszehe','schienbein','shin','ankle','foot','plattfuss','mittelfuss'],
+    'Haltung':['haltung','posture','hohlkreuz','flachrucken','rundrucken','xbeine','obeine'],
+    'Ganzkörper/Athletik':['ganzkorper','athletik']
+  };
+  var TYPW={
+    'Test':['test','tests','testen','befund','diagnose'],
+    'Lösen':['losen','release','trigger','triggern','triggerpunkt','ausrollen','blackroll','massage','faszien'],
+    'Mobilisation':['mobilisation','mobilisieren','mobilitat','mobility','beweglichkeit','gapping'],
+    'Dehnen':['dehnen','dehnung','dehnungen','stretch','stretching','dehnubung','dehnubungen'],
+    'Stabilität':['stabilitat','stabilisieren','stabilisation','stabil'],
+    'Kraft':['kraft','krafttraining','kraftigen','kraftigung','starken','strength'],
+    'Plyometrie':['plyo','plyometrie','sprung','sprunge','springen','sprungkraft'],
+    'Flossing':['flossing','flossen'],
+    'Theorie':['theorie','anatomie','erklarung']
+  };
+  var SUFFIX=['schmerzen','schmerz','beschwerden','probleme','problem','verletzung','verletzungen','gelenk','en','n','e','s'];
+  var STOP={'alle':1,'brauche':1,'ich':1,'fur':1,'bei':1,'mit':1,'und':1,'die':1,'der':1,'das':1,'den':1,'dem':1,'des':1,'ubungen':1,'ubung':1,'gegen':1,'zeig':1,'zeige':1,'mir':1,'von':1,'zum':1,'zur':1,'eine':1,'einen':1,'ein':1,'was':1,'gibt':1,'es':1,'hilft':1,'schmerzen':1,'schmerz':1,'beschwerden':1,'problem':1,'probleme':1,'am':1,'im':1,'an':1,'auf':1,'oder':1,'bitte':1,'meine':1,'mein':1,'ubungen':1,'videos':1,'video':1};
   function norm(s){return String(s||'').toLowerCase().replace(/ä/g,'a').replace(/ö/g,'o').replace(/ü/g,'u').replace(/ß/g,'ss').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();}
   function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
   function mmss(s){s=+s||0;var m=Math.floor(s/60),x=s%60;return m+':'+(x<10?'0':'')+x;}
@@ -6109,50 +6114,71 @@ document.addEventListener('visibilitychange',function(){if(document.visibilitySt
       }
       all.forEach(function(e){
         var reg=(e.regionen||[]).join(' '),bes=(e.beschwerden||[]).join(' ');
-        e._h=norm(e.name+' '+reg+' '+bes+' '+(e.typ||'')+' '+(e.kurs||'')+' '+(e.pfad||'')+' '+(e.notiz||''));
-        e._hk=norm(e.name+' '+reg+' '+bes);
-        e._hr=norm(reg+' '+bes);
+        e._nt=norm(e.name).split(' ');
+        e._bt=norm(bes).split(' ').filter(Boolean);
+        e._pt=norm((e.kurs||'')+' '+(e.pfad||'')+' '+(e.notiz||'')).split(' ');
       });
       TH.rows=all;TH.loaded=true;
     }catch(e){console.error('Therapie',e);}
     TH.loading=false;
     thPaint();
   }
+  var _rw=null,_tw=null;
+  function wordMaps(){
+    if(_rw)return;_rw={};_tw={};
+    Object.keys(REGW).forEach(function(r){REGW[r].forEach(function(w){_rw[w]=r;});});
+    Object.keys(TYPW).forEach(function(t){TYPW[t].forEach(function(w){_tw[w]=t;});});
+  }
+  function lookup(map,w){
+    if(map[w])return map[w];
+    for(var i=0;i<SUFFIX.length;i++){var sf=SUFFIX[i];if(w.length>sf.length+2&&w.slice(-sf.length)===sf){var b=w.slice(0,-sf.length);if(map[b])return map[b];}}
+    return null;
+  }
+  function hasPrefix(toks,t){for(var i=0;i<toks.length;i++){if(toks[i].indexOf(t)===0)return true;}return false;}
+  // Jedes Suchwort wird zu genau einer Bedingung: Region, Übungsart, Beschwerde oder Wortanfang im Namen
   function concepts(q){
+    wordMaps();
     var words=norm(q).split(' ').filter(function(w){return w&&!STOP[w];});
-    var out=[];
-    words.forEach(function(w){
-      var hit=null;
-      for(var i=0;i<SYN.length;i++){
-        var keys=SYN[i][0];
-        for(var k=0;k<keys.length;k++){if(w===keys[k]||(w.length>4&&(w.indexOf(keys[k])===0||keys[k].indexOf(w)===0))){hit=SYN[i][1];break;}}
-        if(hit)break;
-      }
-      // Wörter wie "schulterschmerzen" -> "schulter"
-      if(!hit){var w2=w.replace(/(schmerzen|schmerz|beschwerden|probleme|verletzung)$/,'');if(w2!==w&&w2.length>2)return out.push(concepts(w2)[0]||[w2]);}
-      // Wort kommt selbst oft genug vor (z.B. «Patellasehne», «Impingement»): genau danach suchen
-      if(w.length>4){var n=0;for(var r=0;r<TH.rows.length&&n<2;r++){if(TH.rows[r]._hk.indexOf(w)!==-1)n++;}if(n>=2)hit=[w];}
-      out.push(hit||[w]);
+    return words.map(function(w){
+      var r=lookup(_rw,w);if(r)return {k:'reg',r:r,w:w};
+      var t=lookup(_tw,w);if(t)return {k:'typ',t:t,w:w};
+      if(w.length>=4){for(var i=0;i<TH.rows.length;i++){if(hasPrefix(TH.rows[i]._bt,w))return {k:'bes',w:w};}}
+      return {k:'txt',w:w};
     });
-    return out;
+  }
+  function match(e,c){
+    if(c.k==='reg')return (e.regionen||[]).indexOf(c.r)!==-1;
+    if(c.k==='typ')return (e.typ||'Übung')===c.t;
+    if(c.k==='bes')return hasPrefix(e._bt,c.w)||hasPrefix(e._nt,c.w);
+    return hasPrefix(e._nt,c.w)||hasPrefix(e._pt,c.w);
+  }
+  function baseList(){
+    var cs=concepts(TH.q);
+    var list=TH.rows.filter(function(e){
+      if(TH.quelle!=='alle'&&e.quelle!==TH.quelle)return false;
+      if(TH.region&&(e.regionen||[]).indexOf(TH.region)===-1)return false;
+      for(var i=0;i<cs.length;i++){if(!match(e,cs[i]))return false;}
+      return true;
+    });
+    list.forEach(function(e){
+      var sc=0,nr=(e.regionen||[]).length||1;
+      cs.forEach(function(c){
+        if(c.k==='reg'){sc+=3+(e.regionen[0]===c.r?1:0)+1/nr;}
+        else if(c.k==='bes'){sc+=hasPrefix(e._bt,c.w)?3:1;}
+        else if(c.k==='txt'){sc+=hasPrefix(e._nt,c.w)?2:1;}
+      });
+      if(TH.region)sc+=1/nr;
+      e._sc=sc;
+    });
+    return {list:list,cs:cs};
   }
   function filtered(){
-    var cs=concepts(TH.q);
-    var typen=TH.typen||TYPEN.filter(function(t){return t!=='Theorie';});
-    return TH.rows.filter(function(e){
-      if(TH.quelle!=='alle'&&e.quelle!==TH.quelle)return false;
-      if(typen.indexOf(e.typ||'Übung')===-1)return false;
-      if(TH.region&&(e.regionen||[]).indexOf(TH.region)===-1)return false;
-      for(var i=0;i<cs.length;i++){
-        var ok=false;
-        for(var j=0;j<cs[i].length;j++){var t=norm(cs[i][j]);if(t&&e._h.indexOf(t)!==-1){ok=true;break;}}
-        if(!ok)return false;
-      }
-      return true;
-    }).map(function(e){
-      // Treffer in Name/Region/Beschwerden zählen mehr als Treffer nur im Kurspfad
-      var sc=0;cs.forEach(function(c){var best=0;c.forEach(function(t){t=norm(t);if(e._hr.indexOf(t)!==-1)best=Math.max(best,3);else if(e._hk.indexOf(t)!==-1)best=Math.max(best,1);});sc+=best;});
-      e._sc=sc;return e;
+    var b=baseList(),typInQ=b.cs.some(function(c){return c.k==='typ';});
+    return b.list.filter(function(e){
+      var t=e.typ||'Übung';
+      if(TH.typ)return t===TH.typ;
+      if(typInQ)return true;
+      return t!=='Theorie';
     });
   }
   function rowHtml(e){
@@ -6172,14 +6198,20 @@ document.addEventListener('visibilitychange',function(){if(document.visibilitySt
       +pf+'</div>'
       +'<div style="flex-shrink:0;">'+vid+'</div></div>';
   }
+  function chip(lbl,on,fn,dim){return '<button onclick="'+fn+'" style="font-size:12px;padding:5px 10px;border-radius:14px;border:1px solid '+(on?'#E8000F':'var(--border)')+';background:'+(on?'#E8000F':'var(--surface)')+';color:'+(on?'#fff':(dim?'var(--hint)':'var(--text)'))+';cursor:pointer;">'+lbl+'</button>';}
   function thPaint(){
     var v=document.getElementById('view-therapie');if(!v)return;
     var box=document.getElementById('th-list');
     if(!box)return;
     if(!TH.loaded){box.innerHTML='<div style="padding:16px;color:var(--muted);font-size:13px;">Übungen werden geladen…</div>';return;}
+    // Arten-Knöpfe mit Anzahl für die aktuelle Suche
+    var base=baseList().list,cnt={},nAll=0;
+    base.forEach(function(e){var t=e.typ||'Übung';cnt[t]=(cnt[t]||0)+1;if(t!=='Theorie')nAll++;});
+    var tb=document.getElementById('th-typen');
+    if(tb){tb.innerHTML=chip('Alle ('+nAll+')',!TH.typ,"thTyp('')")+TYPEN.filter(function(t){return cnt[t]||TH.typ===t;}).map(function(t){return chip((TYP_ICON[t]||'')+' '+t+' ('+(cnt[t]||0)+')',TH.typ===t,"thTyp('"+t+"')");}).join('');}
     var list=filtered();
     var groups={};list.forEach(function(e){var t=e.typ||'Übung';(groups[t]=groups[t]||[]).push(e);});
-    var h='<div style="font-size:12px;color:var(--muted);margin:4px 2px 8px;">'+list.length+' Treffer'+(TH.q?' für «'+esc(TH.q)+'»':'')+'</div>';
+    var h='<div style="font-size:12px;color:var(--muted);margin:4px 2px 8px;">'+list.length+' Treffer'+(TH.q?' für «'+esc(TH.q)+'»':'')+(TH.typ?' · nur '+esc(TH.typ):'')+(!TH.typ&&cnt['Theorie']?' · Theorie-Videos über den Knopf «📖 Theorie»':'')+'</div>';
     var shown=0;
     TYPEN.forEach(function(t){
       var g=groups[t];if(!g||!g.length)return;
@@ -6197,29 +6229,43 @@ document.addEventListener('visibilitychange',function(){if(document.visibilitySt
   function thSelBar(){
     var b=document.getElementById('th-selbar');if(!b)return;
     var ids=Object.keys(TH.sel).filter(function(k){return TH.sel[k];});
-    b.innerHTML=ids.length?'<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size:13px;"><b>'+ids.length+' ausgewählt</b><button class="addbtn" style="margin:0;" onclick="thCopy()">Liste kopieren</button><button class="addbtn" style="margin:0;" onclick="thSelClear()">Auswahl leeren</button></div>':'';
+    b.style.display=ids.length?'flex':'none';
+    b.innerHTML=ids.length?'<b style="flex:1;">'+ids.length+' Übung'+(ids.length===1?'':'en')+' ausgewählt</b><button onclick="thSend()" style="background:#E8000F;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;">Senden</button><button onclick="thSelClear()" style="background:none;color:#fff;border:1px solid #777;border-radius:8px;padding:8px 10px;font-size:13px;cursor:pointer;">Leeren</button>':'';
   }
+  function thText(){
+    var bem=(document.getElementById('th-bem')||{}).value||'';
+    var sel=TH.rows.filter(function(e){return TH.sel[e.id];});
+    var t='Hoi, hier deine Übung'+(sel.length===1?'':'en')+':\n\n';
+    sel.forEach(function(e,i){
+      var u=e.video?(e.video.indexOf('player.vimeo.com')!==-1?e.video:e.video):'';
+      t+=(sel.length>1?(i+1)+'. ':'')+e.name+(e.quelle==='Leib'&&e.start_s!=null&&e.link===e.video?' (ab '+mmss(e.start_s)+')':'')+'\n'+(u?'▶ '+u+'\n':'')+'\n';
+    });
+    if(bem.trim())t+=bem.trim()+'\n\n';
+    return t+'Gruss Tommy';
+  }
+  window.thSend=function(){
+    var sel=TH.rows.filter(function(e){return TH.sel[e.id];});if(!sel.length)return;
+    var list=sel.map(function(e){return '<div style="padding:6px 0;border-bottom:1px solid var(--border2);font-size:13px;">'+esc(e.name)+'</div>';}).join('');
+    modal('<h3>Übungen senden</h3><div style="max-height:220px;overflow-y:auto;margin:6px 0 10px;">'+list+'</div>'
+      +'<div class="frow"><label>Bemerkung (optional, z.B. 3x10, 2x pro Woche)</label><textarea id="th-bem" rows="3" style="width:100%;font-size:13px;"></textarea></div>'
+      +'<div style="font-size:11px;color:var(--muted);margin-bottom:8px;">Hinweis: Leib-Videos liegen in deiner Dropbox und Omnibody-Videos im Kurs. Der Empfänger kann sie nur öffnen, wenn er Zugriff hat.</div>'
+      +'<div class="mbtns" style="flex-wrap:wrap;"><button onclick="closeM()">Abbrechen</button>'
+      +'<button onclick="thSendWA()" style="border-color:#25D366;color:#128C7E;">WhatsApp</button>'
+      +'<button onclick="thSendCopy()">Kopieren</button>'
+      +(navigator.share?'<button class="primary" onclick="thSendShare()">Teilen…</button>':'')+'</div>');
+  };
+  window.thSendWA=function(){window.open('https://wa.me/?text='+encodeURIComponent(thText()),'_blank');};
+  window.thSendCopy=function(){var t=thText();if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(function(){alertSoft('Kopiert');},function(){prompt('Text kopieren:',t);});else prompt('Text kopieren:',t);};
+  window.thSendShare=function(){navigator.share({text:thText()}).then(function(){closeM();}).catch(function(e){if(e&&e.name!=='AbortError')thSendCopy();});};
   window.thSel=function(id,on){TH.sel[id]=on;thSelBar();};
   window.thSelClear=function(){TH.sel={};thPaint();};
-  window.thCopy=function(){
-    var lines=TH.rows.filter(function(e){return TH.sel[e.id];}).map(function(e){
-      var l=e.name;if(e.quelle==='Leib'&&e.start_s!=null&&e.link&&e.link!==e.video)l+=' (ab '+mmss(e.start_s)+')';
-      return l+(e.video?'\n'+(e.video.indexOf('player.vimeo.com')!==-1?e.link:e.video):'');
-    });
-    var txt=lines.join('\n\n');
-    if(navigator.clipboard)navigator.clipboard.writeText(txt).then(function(){alertSoft('Kopiert');},function(){alertSoft('Kopieren nicht möglich');});
-  };
   function alertSoft(m){var d=document.createElement('div');d.textContent=m;d.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:8px 14px;border-radius:8px;font-size:13px;z-index:99999;';document.body.appendChild(d);setTimeout(function(){d.remove();},1500);}
   window.thMore=function(){TH.limit+=150;thPaint();};
   var _tq=null;
   window.thSearch=function(v){TH.q=v;TH.limit=150;clearTimeout(_tq);_tq=setTimeout(thPaint,200);};
   window.thQuelle=function(q){TH.quelle=q;TH.limit=150;rTherapie();};
   window.thRegion=function(r){TH.region=r;TH.limit=150;thPaint();};
-  window.thTyp=function(t){
-    var cur=TH.typen||TYPEN.filter(function(x){return x!=='Theorie';});
-    var i=cur.indexOf(t);if(i===-1)cur=cur.concat([t]);else cur=cur.filter(function(x){return x!==t;});
-    TH.typen=cur;TH.limit=150;rTherapie();
-  };
+  window.thTyp=function(t){TH.typ=(TH.typ===t?'':t);TH.limit=150;thPaint();var l=document.getElementById('th-typen');if(l)l.scrollIntoView({block:'nearest'});};
   window.thPlay=function(id){
     var e=TH.rows.find(function(x){return x.id===id;});if(!e)return;
     var o=document.createElement('div');o.id='th-modal';
@@ -6241,16 +6287,15 @@ document.addEventListener('visibilitychange',function(){if(document.visibilitySt
   };
   window.rTherapie=function(){
     var v=document.getElementById('view-therapie');if(!v)return;
-    var cur=TH.typen||TYPEN.filter(function(x){return x!=='Theorie';});
-    var chip=function(lbl,on,fn){return '<button onclick="'+fn+'" style="font-size:12px;padding:4px 10px;border-radius:14px;border:1px solid '+(on?'#E8000F':'var(--border)')+';background:'+(on?'#FCEAEA':'var(--surface)')+';color:var(--text);cursor:pointer;">'+lbl+'</button>';};
     var h='<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">'
       +'<input id="th-search" type="search" placeholder="Was brauchst du? z.B. «Schulterschmerzen», «Ischias Test», «Knie lösen»" value="'+esc(TH.q)+'" oninput="thSearch(this.value)" style="flex:1;min-width:220px;font-size:14px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;">'
       +'<select onchange="thRegion(this.value)" style="font-size:13px;padding:7px;border:1px solid var(--border);border-radius:8px;"><option value="">Alle Regionen</option>'+REGIONEN.map(function(r){return '<option'+(TH.region===r?' selected':'')+'>'+esc(r)+'</option>';}).join('')+'</select></div>'
       +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">'
       +chip('Alle Quellen',TH.quelle==='alle',"thQuelle('alle')")+chip('Andreas Leib',TH.quelle==='Leib',"thQuelle('Leib')")+chip('Omnibody',TH.quelle==='Omnibody',"thQuelle('Omnibody')")+'</div>'
-      +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">'
-      +TYPEN.map(function(t){return chip((TYP_ICON[t]||'')+' '+t,cur.indexOf(t)!==-1,"thTyp('"+t+"')");}).join('')+'</div>'
-      +'<div id="th-selbar"></div><div id="th-list"></div>';
+      +'<div id="th-typen" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;"></div>'
+      +'<div style="font-size:11px;color:var(--hint);margin:0 2px 10px;">Tipp: Antippen einer Art zeigt nur diese Übungen. Häkchen setzen, um Übungen zu sammeln und per WhatsApp zu schicken.</div>'
+      +'<div id="th-list" style="padding-bottom:70px;"></div>'
+      +'<div id="th-selbar" style="display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:9000;width:calc(100% - 24px);max-width:560px;gap:8px;align-items:center;background:#111;color:#fff;border-radius:12px;padding:10px 12px;font-size:13px;box-shadow:0 4px 16px rgba(0,0,0,.3);"></div>';
     v.innerHTML=h;
     if(!TH.loaded)thLoad();else thPaint();
   };
