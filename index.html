@@ -6089,7 +6089,7 @@ document.addEventListener('visibilitychange',function(){if(document.visibilitySt
 /* ---- THERAPIE-TAB: Übungen von Andreas Leib (Heilende Bewegung) und Omnibody Academy ----
    Daten in eigener Supabase-Tabelle therapie_uebungen (nur lesen in der App). */
 (function(){
-  var TH={rows:[],loaded:false,loading:false,q:'',quelle:'alle',typ:'',region:'',limit:150,sel:{}};
+  var TH={rows:[],loaded:false,loading:false,q:'',quelle:'alle',typ:'',region:'',limit:150,sel:{},lsg:{}};
   var TYPEN=['Test','Lösen','Mobilisation','Dehnen','Stabilität','Kraft','Plyometrie','Flossing','Übung','Theorie'];
   var TYP_ICON={'Test':'🔎','Lösen':'🤲','Mobilisation':'🔄','Dehnen':'↔️','Stabilität':'⚖️','Kraft':'🏋️','Plyometrie':'⚡','Flossing':'🩹','Übung':'•','Theorie':'📖'};
   var REGIONEN=['Schulter','Nacken/HWS','BWS','Ellbogen/Hand','Kiefer','LWS/Rücken','Rumpf','Hüfte/Becken','Leiste/Adduktoren','Oberschenkel hinten','Knie','Fuss/Sprunggelenk','Haltung','Ganzkörper/Athletik'];
@@ -6141,7 +6141,7 @@ document.addEventListener('visibilitychange',function(){if(document.visibilitySt
     try{
       var all=[],off=0;
       while(true){
-        var r=await thFetch('?select=id,quelle,name,typ,regionen,beschwerden,kurs,pfad,video,start_s,end_s,link,notiz,sort,mm_link&order=quelle.asc,sort.asc&limit=1000&offset='+off);
+        var r=await thFetch('?select=id,quelle,name,typ,regionen,beschwerden,kurs,pfad,video,start_s,end_s,link,notiz,sort,mm_link,test_zweck,loesung&order=quelle.asc,sort.asc&limit=1000&offset='+off);
         if(!r.ok){console.error('Therapie load',r.status);break;}
         var j=await r.json();all=all.concat(j);if(j.length<1000)break;off+=1000;
       }
@@ -6228,11 +6228,32 @@ document.addEventListener('visibilitychange',function(){if(document.visibilitySt
       +'<div style="font-size:13px;">'+esc(e.name)+'</div>'
       +'<div style="font-size:11px;color:var(--muted);margin-top:2px;">'+esc(meta.join(' · '))+(reg?' · '+esc(reg):'')+'</div>'
       +(bes?'<div style="font-size:11px;color:var(--hint);margin-top:1px;">'+esc(bes)+'</div>':'')
-      +pf+'</div>'
+      +pf+lsgHtml(e)+'</div>'
       +'<div style="flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:4px;">'+vid
       +(function(){var own=e.mm_link,auto=(['Test','Theorie','Flossing'].indexOf(e.typ)===-1)&&typeof mmUrl==='function';var u=own||(auto?mmUrl(e.quelle==='Leib'?String(e.name).replace(/\s*\([^)]*\)\s*$/,''):e.name,''):'');return '<span style="white-space:nowrap;">'+(u?'<a href="'+esc(u)+'" target="_blank" rel="noopener" title="'+(own?'Eigener M&amp;M-Link':'Suche in Muscle &amp; Motion')+'" style="font-size:12px;color:#1D5FD6;text-decoration:none;">🧠 M&amp;M</a> ':'')+'<a href="#" onclick="thMM('+e.id+');return false;" title="Genauen M&amp;M-Link hinterlegen" style="font-size:11px;color:var(--hint);text-decoration:none;">'+(u?'✎':'+ M&amp;M')+'</a></span>';})()
       +'</div></div>';
   }
+  function lsgHtml(e){
+    if(!e.test_zweck&&!(e.loesung&&e.loesung.length))return '';
+    var h='';
+    if(e.test_zweck)h+='<div style="font-size:12px;color:var(--text);background:#F6F8FC;border-left:3px solid #1D5FD6;border-radius:4px;padding:5px 8px;margin-top:5px;line-height:1.4;"><b>Wofür:</b> '+esc(e.test_zweck)+'</div>';
+    var L=(e.loesung||[]).map(function(id){return TH.rows.filter(function(x){return x.id===id;})[0];}).filter(Boolean);
+    if(L.length){
+      var open=!!TH.lsg[e.id];
+      h+='<a href="#" onclick="thLsg('+e.id+');return false;" style="display:inline-block;margin-top:5px;font-size:12px;font-weight:600;color:#1A8F3C;text-decoration:none;">'+(open?'▾':'▸')+' Lösung: '+L.length+' Übung'+(L.length===1?'':'en')+'</a>';
+      if(open){
+        h+='<div style="margin-top:4px;border:1px solid #CDE8D5;background:#F4FBF6;border-radius:6px;">'+L.map(function(x,i){
+          return '<div style="display:flex;gap:8px;align-items:center;padding:6px 8px;'+(i?'border-top:1px solid #DDEFE2;':'')+'">'
+            +'<input type="checkbox" '+(TH.sel[x.id]?'checked':'')+' onchange="thSel('+x.id+',this.checked)" title="Zum Senden auswählen" style="width:15px;height:15px;flex-shrink:0;cursor:pointer;">'
+            +'<div style="flex:1;min-width:0;font-size:12px;">'+esc(x.name)+' <span style="color:var(--muted);">· '+esc(x.typ||'')+'</span></div>'
+            +(x.video?'<a href="#" onclick="thPlay('+x.id+');return false;" style="font-size:12px;color:#E8000F;text-decoration:none;white-space:nowrap;">▶ Video</a>':'')
+            +'</div>';
+        }).join('')+'</div>';
+      }
+    }
+    return h;
+  }
+  window.thLsg=function(id){TH.lsg[id]=!TH.lsg[id];thPaint();};
   window.thMM=function(id){
     var e=TH.rows.filter(function(x){return x.id===id;})[0];if(!e)return;
     modal('<h3>M&amp;M-Link</h3><div style="font-size:13px;margin-bottom:8px;">'+esc(e.name)+'</div>'
