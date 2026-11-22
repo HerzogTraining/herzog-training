@@ -1677,6 +1677,23 @@ const _katMap={};
 function setKat(key,val){_katMap[key]=val;return key;}
 function getKatByKey(key){return _katMap[key];}
 
+// Muscle & Motion: Suche mit dem englischen Übungsnamen öffnen (eigener Link hat Vorrang)
+function mmSearchTerm(name){
+  const full=String(name||'').split('\n')[0].trim();
+  const m=full.match(/\(([^()]*(?:\([^()]*\)[^()]*)*)\)\s*$/);
+  const de=/[äöüß]|\b(mit|und|oder|der|die|das|den|im|am|zum|auf|nach|vorne|hinten|seitlich|links|rechts)\b/i;
+  let n=full;
+  if(m&&!de.test(m[1])&&!/^(weeks?\b|after week|plan [a-d]\b|stage\b)/i.test(m[1].trim()))n=m[1];
+  else if(m)n=full.slice(0,m.index);
+  n=n.replace(/\([^)]*\)/g,' ').replace(/#\s*\d+/g,' ').replace(/\b(P|Part|Stage|Level|Variation|Variante|Teil|Version)\s*\d+\b/gi,' ')
+     .replace(/\s[-–]\s/g,' ').replace(/^test\s+[^:]*:\s*/i,'').replace(/[:,;]+$/,'').replace(/\s+/g,' ').trim();
+  return n;
+}
+function mmUrl(name,own){
+  if(own)return own;
+  const q=mmSearchTerm(name);
+  return q.length>=3?'https://app.strength.muscleandmotion.com/search-result?query='+encodeURIComponent(q):'';
+}
 function vidBase(line){return String(line||'').split(' / ')[0].trim();}
 function videoForLine(line){
   const vids=S.katalogVideos||{};
@@ -1849,7 +1866,9 @@ function rKatalog(){
       const origIdx=orig.indexOf(u);
       const bb=i===ubs.length-1?'border-bottom:none;':'';
       const vid=(S.katalogVideos||{})[u];
-      const vidHtml=vid?'<a href="'+vid+'" target="_blank" rel="noopener" style="font-size:11px;color:#E8000F;text-decoration:none;margin-top:2px;display:block;">▶ Video</a>':(u.indexOf('\n')!==-1?planVidsHtml(u):'');
+      const mmL=(S.katalogMM||{})[u];
+      const vidHtml=(vid?'<a href="'+vid+'" target="_blank" rel="noopener" style="font-size:11px;color:#E8000F;text-decoration:none;margin-top:2px;display:inline-block;margin-right:10px;">▶ Video</a>':(u.indexOf('\n')!==-1?planVidsHtml(u):''))
+        +((u.indexOf('\n')===-1&&mmUrl(u,mmL))?'<a href="'+mmUrl(u,mmL).replace(/"/g,'&quot;')+'" target="_blank" rel="noopener" title="'+(mmL?'Eigener M&amp;M-Link':'Suche in Muscle &amp; Motion')+'" style="font-size:11px;color:#1D5FD6;text-decoration:none;margin-top:2px;display:inline-block;">🧠 M&amp;M</a>':'');
       const esc=u.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
       rows+='<div class="kat-row" style="display:flex;align-items:flex-start;gap:8px;padding:8px 12px;border-bottom:1px solid #E8E8E8;'+bb+'">'
         +'<input type="checkbox" class="kat-sel" data-name="'+esc+'" '+(window._kSel.has(u)?'checked':'')+' title="Zum Senden auswählen" style="margin-top:2px;width:16px;height:16px;flex-shrink:0;cursor:pointer;">'
@@ -1924,6 +1943,8 @@ function showAddUebung(){
     +'<textarea id="m-un" rows="4" style="width:100%;font-size:13px;resize:vertical;border-radius:6px;border:1px solid var(--border2);padding:8px;"></textarea></div>'
     +'<div class="frow"><label>Video-Link (YouTube / Instagram, optional)</label>'
     +'<input id="m-uvid" type="url" placeholder="https://..." style="width:100%;font-size:13px;border-radius:6px;border:1px solid var(--border2);padding:8px;"></div>'
+    +'<div class="frow"><label>M&amp;M-Link (optional, ohne Link öffnet 🧠 M&amp;M die Suche mit dem englischen Namen)</label>'
+    +'<input id="m-umm" type="url" placeholder="https://..." style="width:100%;font-size:13px;border-radius:6px;border:1px solid var(--border2);padding:8px;"></div>'
     +'<div class="mbtns"><button onclick="closeM()">Abbrechen</button>'
     +'<button class="primary" onclick="confAddUebung()">Speichern</button></div>');
 }
@@ -1938,6 +1959,9 @@ function confAddUebung(){
   S.katalog[cat].push(val);
   if(!S.katalogVideos)S.katalogVideos={};
   if(vid.trim())S.katalogVideos[val]=vid.trim();
+  const mm=((document.getElementById('m-umm')||{}).value||'').trim();
+  if(!S.katalogMM)S.katalogMM={};
+  if(mm)S.katalogMM[val]=mm;
   saveKatalog();closeM();
 }
 function showEditUebung(){
@@ -1947,11 +1971,14 @@ function showEditUebung(){
   const raw=(k[cat]&&k[cat][idx])||'';
   const val=raw.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const vidVal=((S.katalogVideos||{})[raw]||'').replace(/"/g,'&quot;');
+  const mmVal=((S.katalogMM||{})[raw]||'').replace(/"/g,'&quot;');
   modal('<h3>Übung bearbeiten \u2013 '+cat+'</h3>'
     +'<div class="frow"><label>Name / Beschreibung</label>'
     +'<textarea id="m-ue" rows="4" style="width:100%;font-size:13px;resize:vertical;border-radius:6px;border:1px solid var(--border2);padding:8px;">'+val+'</textarea></div>'
     +'<div class="frow"><label>Video-Link (YouTube / Instagram, optional)</label>'
     +'<input id="m-uvid" type="url" placeholder="https://..." value="'+vidVal+'" style="width:100%;font-size:13px;border-radius:6px;border:1px solid var(--border2);padding:8px;"></div>'
+    +'<div class="frow"><label>M&amp;M-Link (optional, ohne Link öffnet 🧠 M&amp;M die Suche mit dem englischen Namen)</label>'
+    +'<input id="m-umm" type="url" placeholder="https://..." value="'+mmVal+'" style="width:100%;font-size:13px;border-radius:6px;border:1px solid var(--border2);padding:8px;"></div>'
     +'<div class="mbtns"><button onclick="closeM()">Abbrechen</button>'
     +'<button class="primary" onclick="confEditUebung()">Speichern</button>'
     +'<button onclick="delUebung();closeM();" style="color:var(--red);border-color:var(--red);">Löschen</button></div>');
@@ -1973,6 +2000,10 @@ function confEditUebung(){
   }
   if(vid.trim())S.katalogVideos[val]=vid.trim();
   else delete S.katalogVideos[val];
+  if(!S.katalogMM)S.katalogMM={};
+  if(oldVal&&oldVal!==val)delete S.katalogMM[oldVal];
+  const mm=((document.getElementById('m-umm')||{}).value||'').trim();
+  if(mm)S.katalogMM[val]=mm;else delete S.katalogMM[val];
   S.katalog[cat][idx]=val;
   saveKatalog();closeM();
 }
@@ -6096,11 +6127,13 @@ document.addEventListener('visibilitychange',function(){if(document.visibilitySt
   function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
   function mmss(s){s=+s||0;var m=Math.floor(s/60),x=s%60;return m+':'+(x<10?'0':'')+x;}
 
-  async function thFetch(path,_retry){
+  async function thFetch(path,_retry,opt){
     var token=await getToken();
     if(!token){await requireLogin();token=await getToken();}
-    var res=await fetch(SUPABASE_URL+'/rest/v1/therapie_uebungen'+path,{headers:{'apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+(token||SUPABASE_ANON_KEY)},cache:'no-store'});
-    if(res.status===401&&!_retry){var ok=await refreshAuth();if(ok!==true){clearAuth();await requireLogin('Bitte erneut anmelden.');}return thFetch(path,true);}
+    var o={headers:{'apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+(token||SUPABASE_ANON_KEY)},cache:'no-store'};
+    if(opt){o.method=opt.method;o.body=opt.body;o.headers['Content-Type']='application/json';o.headers['Prefer']='return=minimal';}
+    var res=await fetch(SUPABASE_URL+'/rest/v1/therapie_uebungen'+path,o);
+    if(res.status===401&&!_retry){var ok=await refreshAuth();if(ok!==true){clearAuth();await requireLogin('Bitte erneut anmelden.');}return thFetch(path,true,opt);}
     return res;
   }
   async function thLoad(){
@@ -6108,7 +6141,7 @@ document.addEventListener('visibilitychange',function(){if(document.visibilitySt
     try{
       var all=[],off=0;
       while(true){
-        var r=await thFetch('?select=id,quelle,name,typ,regionen,beschwerden,kurs,pfad,video,start_s,end_s,link,notiz,sort&order=quelle.asc,sort.asc&limit=1000&offset='+off);
+        var r=await thFetch('?select=id,quelle,name,typ,regionen,beschwerden,kurs,pfad,video,start_s,end_s,link,notiz,sort,mm_link&order=quelle.asc,sort.asc&limit=1000&offset='+off);
         if(!r.ok){console.error('Therapie load',r.status);break;}
         var j=await r.json();all=all.concat(j);if(j.length<1000)break;off+=1000;
       }
@@ -6196,8 +6229,25 @@ document.addEventListener('visibilitychange',function(){if(document.visibilitySt
       +'<div style="font-size:11px;color:var(--muted);margin-top:2px;">'+esc(meta.join(' · '))+(reg?' · '+esc(reg):'')+'</div>'
       +(bes?'<div style="font-size:11px;color:var(--hint);margin-top:1px;">'+esc(bes)+'</div>':'')
       +pf+'</div>'
-      +'<div style="flex-shrink:0;">'+vid+'</div></div>';
+      +'<div style="flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:4px;">'+vid
+      +(function(){var own=e.mm_link,auto=(['Test','Theorie','Flossing'].indexOf(e.typ)===-1)&&typeof mmUrl==='function';var u=own||(auto?mmUrl(e.quelle==='Leib'?String(e.name).replace(/\s*\([^)]*\)\s*$/,''):e.name,''):'');return '<span style="white-space:nowrap;">'+(u?'<a href="'+esc(u)+'" target="_blank" rel="noopener" title="'+(own?'Eigener M&amp;M-Link':'Suche in Muscle &amp; Motion')+'" style="font-size:12px;color:#1D5FD6;text-decoration:none;">🧠 M&amp;M</a> ':'')+'<a href="#" onclick="thMM('+e.id+');return false;" title="Genauen M&amp;M-Link hinterlegen" style="font-size:11px;color:var(--hint);text-decoration:none;">'+(u?'✎':'+ M&amp;M')+'</a></span>';})()
+      +'</div></div>';
   }
+  window.thMM=function(id){
+    var e=TH.rows.filter(function(x){return x.id===id;})[0];if(!e)return;
+    modal('<h3>M&amp;M-Link</h3><div style="font-size:13px;margin-bottom:8px;">'+esc(e.name)+'</div>'
+      +'<div style="font-size:11px;color:var(--muted);margin-bottom:8px;">Ohne Link öffnet «🧠 M&amp;M» die Suche mit dem englischen Namen. Willst du direkt auf eine bestimmte Übung: in M&amp;M die Übung öffnen, Adresse kopieren und hier einfügen. Leer lassen und speichern = wieder Suche.</div>'
+      +'<div class="frow"><input id="th-mm" type="url" placeholder="https://..." value="'+esc(e.mm_link||'')+'" style="width:100%;font-size:13px;border-radius:6px;border:1px solid var(--border2);padding:8px;"></div>'
+      +'<div class="mbtns"><button onclick="closeM()">Abbrechen</button><button class="primary" onclick="thMMSave('+id+')">Speichern</button></div>');
+  };
+  window.thMMSave=async function(id){
+    var v=((document.getElementById('th-mm')||{}).value||'').trim();
+    if(v&&!/^https?:\/\//i.test(v)){alert('Bitte einen Link einfügen, der mit https:// beginnt.');return;}
+    var r=await thFetch('?id=eq.'+id,false,{method:'PATCH',body:JSON.stringify({mm_link:v||null})});
+    if(!r.ok){alert('Speichern hat nicht geklappt ('+r.status+').');return;}
+    TH.rows.forEach(function(x){if(x.id===id)x.mm_link=v||null;});
+    closeM();thPaint();
+  };
   function chip(lbl,on,fn,dim){return '<button onclick="'+fn+'" style="font-size:12px;padding:5px 10px;border-radius:14px;border:1px solid '+(on?'#E8000F':'var(--border)')+';background:'+(on?'#E8000F':'var(--surface)')+';color:'+(on?'#fff':(dim?'var(--hint)':'var(--text)'))+';cursor:pointer;">'+lbl+'</button>';}
   function thPaint(){
     var v=document.getElementById('view-therapie');if(!v)return;
