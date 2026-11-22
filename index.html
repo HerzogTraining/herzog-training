@@ -6113,6 +6113,8 @@ function patInner(p,sz){
   // Beachten / Anamnese
   h+='<div style="margin-bottom:10px;"><div style="'+lab+'color:#854F0B;">&#9888; Beachten / Anamnese</div>'
     +'<textarea id="pat-beachten-'+id+'" rows="2" style="width:100%;resize:none;border:1px solid #EF9F27;background:#FAEEDA;color:#633806;'+inp+'" placeholder="Vorgeschichte, Diagnose vom Arzt, Ziele…" oninput="autoResize(this);patAutoSave('+id+')">'+patEsc(p.beachten||'')+'</textarea></div>';
+  // Therapieplan mit Videos
+  h+=patPlanHtml(p);
   // Sitzung erfassen
   h+='<div style="border:1.5px solid #9CC3DD;border-radius:10px;background:#F2F8FC;padding:10px;margin-bottom:10px;">'
     +'<div style="'+lab+'color:#0C447C;">&#129658; Sitzung erfassen</div>'
@@ -6163,6 +6165,39 @@ function patInner(p,sz){
   return h;
 }
 function togPat(id){_patOpen[id]=!_patOpen[id];rPatienten();}
+var _patPlanWait=false;
+function patPlanHtml(p){
+  var plan=p.plan;
+  if(!plan||!plan.length)return '';
+  var lab='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;';
+  var ok=(typeof window.thIsLoaded==='function')&&window.thIsLoaded();
+  if(!ok&&typeof window.thEnsure==='function'&&!_patPlanWait){
+    _patPlanWait=true;
+    window.thEnsure().then(function(){_patPlanWait=false;rPatienten();});
+  }
+  var h='<div style="border:1.5px solid #CDE8D5;border-radius:10px;background:#F4FBF6;padding:10px;margin-bottom:10px;">'
+    +'<div style="'+lab+'color:#1A8F3C;">&#127916; Therapieplan</div>';
+  if(!ok)h+='<div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Videos werden geladen…</div>';
+  plan.forEach(function(g){
+    h+='<div style="font-size:12px;font-weight:700;color:#1A8F3C;margin-top:8px;padding-bottom:3px;border-bottom:1px solid #CDE8D5;">'+patEsc(g.titel||'')+'</div>';
+    (g.items||[]).forEach(function(it){
+      if(it.id==null){
+        h+='<div style="font-size:12px;padding:5px 0;border-bottom:1px solid #DDEFE2;line-height:1.4;">&#8226; '+patEsc(it.text||'')+'</div>';
+        return;
+      }
+      var e=ok?window.thRow(it.id):null;
+      var nm=e?e.name:('Übung #'+it.id);
+      var typ=e&&e.typ?' <span style="color:var(--muted);font-size:11px;">· '+patEsc(e.typ)+'</span>':'';
+      var vid=(e&&e.video)?'<a href="#" onclick="event.stopPropagation();thPlay('+it.id+');return false;" style="font-size:12px;color:#E8000F;text-decoration:none;white-space:nowrap;">&#9654; Video</a>':'';
+      h+='<div style="display:flex;gap:8px;align-items:flex-start;padding:5px 0;border-bottom:1px solid #DDEFE2;">'
+        +'<div style="flex:1;min-width:0;font-size:12px;line-height:1.4;">'+patEsc(nm)+typ
+        +(it.hinweis?'<div style="font-size:11px;color:#3B6D11;">'+patEsc(it.hinweis)+'</div>':'')+'</div>'
+        +vid+'</div>';
+    });
+  });
+  h+='</div>';
+  return h;
+}
 var _patTimers={};
 function patAutoSave(id){
   if(_patTimers[id])clearTimeout(_patTimers[id]);
@@ -6515,6 +6550,12 @@ document.addEventListener('visibilitychange',function(){if(document.visibilitySt
       +'<div id="th-selbar" style="display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:9000;width:calc(100% - 24px);max-width:560px;gap:8px;align-items:center;background:#111;color:#fff;border-radius:12px;padding:10px 12px;font-size:13px;box-shadow:0 4px 16px rgba(0,0,0,.3);"></div>';
     v.innerHTML=h;
     if(!TH.loaded)thLoad();else thPaint();
+  };
+  window.thRow=function(id){return TH.rows.find(function(x){return x.id===id;})||null;};
+  window.thIsLoaded=function(){return TH.loaded;};
+  window.thEnsure=function(){
+    if(!TH.loaded&&!TH.loading)thLoad();
+    return new Promise(function(res){var n=0;var t=setInterval(function(){n++;if(TH.loaded||n>150){clearInterval(t);res(TH.loaded);}},200);});
   };
 })();
 </script>
