@@ -1694,6 +1694,150 @@ function mmUrl(name,own){
   const q=mmSearchTerm(name);
   return q.length>=3?'https://app.strength.muscleandmotion.com/search-result?query='+encodeURIComponent(q):'';
 }
+// Anatomy-/Posture-Links (Muscle & Motion): Suchbegriff aus Muskel/Bewegung, Beschwerde, Region
+// [Muskel/Körper-Wörter, Bewegungs-Wörter (nicht bei Tests), Suchbegriff] – Reihenfolge = Vorrang
+var MM_NAME_KW=[
+ [null,/^\d+x |\d+ runden|\bamrap\b|\bemom\b|planche|burpee|umsetzen|\bclean\b|reissen|snatch|ausstossen|\bjerk\b|thruster/,'-'],
+ [/beckenboden|pelvic floor/,null,'pelvis'],
+ [/jefferson/,null,'erector spinae'],
+ [/femoral|saphen/,null,'femoral'],
+ [/obturator/,null,'obturator'],
+ [/ulnaris|ulnar/,null,'ulnar'],[/radialis|radial nerve/,null,'radial'],[/axillar/,null,'axillary'],[/musculocutan/,null,'musculocutaneous'],
+ [/plexus brachialis|brachial plexus/,null,'brachial plexus'],
+ [/tennisell|golferell|anconeus/,null,['wrist extensor','elbow']],
+ [/\bisg\b|\bsi[- ]joint|sacroiliac|iliosakral/,null,'sacroiliac'],
+ [/popliteus/,null,'popliteus'],
+ [/ischiasnerv|sciatic/,null,'sciatic'],
+ [/medianus|median nerve/,null,'median nerve'],
+ [/piriformis/,null,'piriformis'],
+ [/psoas|hüftbeuger|hip[- ]?flexor|hüftbeugung|hip flexion/,null,'psoas'],
+ [/(hüft|hip)[^,(]{0,25}rotat|external rotators/,null,'hip'],
+ [/\btos\b/,null,'scalene'],
+ [/infraspinatus/,null,'infraspinatus'],[/supraspinatus/,null,'supraspinatus'],[/subscapularis/,null,'subscapularis'],
+ [/gesäss[^,(]{0,30}rotat/,null,'gluteus'],
+ [/rotator|rotatoren|aussenrotation|außenrotation|innenrotation|external rotation|internal rotation/,null,'rotator cuff'],
+ [/serratus/,/scapula(r)?[- ]?(liegestütz|push)/,'serratus'],
+ [/diaphragm|zwerchfell/,null,'diaphragm'],
+ [/\btfl\b|tensor fasci|\bitb\b|\bit[- ]band|tractus/,null,'tensor fasciae'],
+ [/quadratus lumborum|\bql\b/,null,'quadratus lumborum'],
+ [/sternocleido|\bscm\b/,null,'sternocleidomastoid'],
+ [/levator scap/,null,'levator scapulae'],
+ [/scalen|skalen/,null,'scalene'],
+ [/suboccipital|subokzipital/,null,'suboccipital'],
+ [/rhomboid/,/face ?pulls?\b|reverse fly|band pull[- ]?apart|snow angel|schnee-engel|\bitw\b|\b[tyaw]'s\b/,'rhomboid'],
+ [/trapez|\btrap[- ]?3\b|lower trap/,/shrugs?\b/,'trapezius'],
+ [/\bhws\b|nacken|\bneck\b/,null,'cervical'],
+ [/\bbws\b|thorakal|thoracic|brustwirbel/,null,'thoracic'],
+ [/brustkorb|rib cage/,null,['rib','thoracic']],
+ [/masseter|kaumuskel|kiefer|\bjaw\b/,null,'masseter'],
+ [/peroneus|peroneal|peronäen|fibular/,null,'peroneus'],
+ [/multifidus/,null,'multifidus'],
+ [/hamstring|ischiocrural/,/nordic|leg curl|beinbeuger|\brdl\b|romanian|rumänisch/,'hamstring'],
+ [/adduct|adduktor/,/copenhagen/,'adductor'],
+ [/glute|gesäss|gesäß/,/clam ?shell|hip thrust|monster walk|hip abduct|hüftabdukt|band walk|band-gang|seitlicher gang|abduktion|abduction|frog pump|pull through|hip airplane/,'gluteus'],
+ [/tibialis|schienbein/,null,'tibialis'],
+ [/soleus/,null,'soleus'],
+ [/gastrocnemius|\bcalf|\bcalves|\bwaden?/,null,'gastrocnemius'],
+ [null,/toes? to (bar|ring)|toes? through|toe touch|toe spot|zehen (berühren|durch|zu ring|stelle)|zehen zu ring|ring übergang/,'abdominal'],
+ [null,/handgelenk (wippen|gehen)/,'wrist'],
+ [/zehe|\btoes?\b/,null,'foot'],
+ [/dorsalext|dorsiflex/,null,'tibialis'],
+ [/sprunggelenk|\bankle|\bosg\b|\busg\b/,null,['ankle','foot']],
+ [/quadricep|quadrizeps|\bquads?\b|rectus femoris|vastus/,/leg extension|beinstrecker|knie-fokussiert|knee focused/,'quadriceps'],
+ [null,/unterarm ?(stütz|plank)|forearm plank|front plank/,'abdominal'],
+ [null,/unterarm (kopfstand|gestützt)|forearm (headstand|supported)/,'deltoid'],
+ [/unterarm|forearm/,/wrist curl/,'wrist flexor'],
+ [null,/seitstütz|side plank|side bridge|seitbrücke|golf swing/,'oblique'],
+ [null,/beat swing/,'abdominal'],
+ [null,/upright row|aufrecht(es)? rudern/,'deltoid'],
+ [null,/\biyt\b|t,w,y|\by on bench|bauchlage y\b/,'trapezius'],
+ [null,/sorens[eo]n/,'erector spinae'],
+ [null,/couch stretch/,'quadriceps'],
+ [null,/tate press/,'triceps'],
+ [null,/knie zu (brust|ellbogen|trizeps)|knee to (chest|elbow|tricep)|(hängend|hanging|sprossenwand|stall bar|dip stütz|dip support|chaos)[^,(]{0,25}(knieheben|knee raise)|knieheben hängend|curl[- ]?(up|hoch)/,'abdominal'],
+ [/latissimus|\blats?\b/,/chest to (bar|ring)|brust (an stange|zu ring)|pull[- ]?ups?\b|chin[- ]?ups?\b|klimmz|pull[- ]?downs?\b|latzug/,'latissimus'],
+ [/handgelenk/,null,'wrist'],
+ [/deltoid|deltamuskel/,/lateral raise|front raise|seitheben|frontheben|shoulder press|overhead press|military press|schulterdrücken|überkopfdrücken|arnold press|z-press|log (press|drücken)|jammer|viper (press|drücken)|cuban press|split (press|drücken)|filly press|fohlen drücken|seated (barbell |dumbbell |half |top half |single arm kettlebell )?press|sitzend (langhantel |kurzhantel |halb |oben halb |einarmig kettlebell |einarmig kurzhantel |einarmig |doppelt kurzhantel |eine kurzhantel )?drücken|overhead (barbell |dumbbell )?(hold|walk|carry)|überkopf ?(langhantel |kurzhantel )?(halten|tragen)|strict press|push press|handstand|landmine[- ]?(press|drücken)|\bdelts?\b|\bdelt raise/,'deltoid'],
+ [/triceps|trizeps/,/skull ?crusher|\bdips?\b(?! ?(stange|bar|stütz|support))|push[- ]?downs?\b|french press|\bjm press|kickbacks? \(?(triceps|trizeps)/,'triceps'],
+ [/biceps|bizeps/,/\bcurls?\b(?![- ]?(up|hoch))/,'biceps'],
+ [/\bpec|pectoralis|brustmuskel|brust-|brustdehnung/,/bench press|bankdrück|brustdrück|push[- ]?ups?\b|liegestütz(?! ?position)|chest (press|fly|pass)|bodendrücken|floor press|schrägbank[^,(]{0,25}drücken|incline[^,(]{0,25}press|brust ?(drücken|fliegende|pass)|butterfly am|pec deck|\bfly(es|s)?\b|crossover(?! ?(step|aufsteig|rudern|row|scap|sieg|vict|90))|cable fly/,'pectoralis'],
+ [/erector|rückenstrecker/,/back extension|reverse hyper|superman|^(?!.*kn(ie|ee)).*hyperextension/,'erector spinae'],
+ [/anatomie des (inneren|äusseren) rumpfs|rumpfspannung|rumpfaktivierung/,null,['abdominal','core']],
+ [/oblique|schräge? bauch/,/side plank|seitstütz|pallof|woodchop|holzhacker|russian twist|schräger crunch|\bchops?\b|side bend|seitneigen|landmine rotation|cuban rotation/,'oblique'],
+ [/bauchmusk|bauchdehnung/,/plank|unterarmstütz|crunch|sit[- ]?ups?\b|roll[- ]?outs?\b|dead ?bug|ab wheel|hollow|v[- ]?ups?\b|knee raise|knieheben|leg raise|leg lift|beinheben|bein lift|knee tuck|tuck[- ]?ups?\b|\bl[- ]?(hold|sit)\b|body saw|stir the pot|mountain climber|bergsteiger|klappmesser|jack ?knife|toes to bar|liegestütz ?position|front leaning rest/,'abdominal'],
+ [null,/squat|kniebeuge|leg press|beinpresse|wall sit|wandsitz|pistol|kosak|cossack/,'quadriceps'],
+ [null,/\blunges?\b|ausfallschritt|step[- ]?(ups?|overs?|downs?)\b|aufsteiger|absteiger|übersteiger/,'gluteus'],
+ [null,/deadlift|kreuzheben|good ?morning|bridge|brücke|(kettlebell|kurzhantel|dumbbell|russian|russisch|american|amerikanisch|dead stop|einarmig|single arm|banded|doppelt|dual)[^,(]{0,15}swings?\b|^swings?\b|rack pull|hip hinge|hip extension|hüftstreckung|kickback|monster band/,'gluteus'],
+ [null,/\brows?\b|rudern|pullover/,'latissimus'],
+ [/hüftschmerz|hip pain/,null,'hip'],
+ [/beckenkipp|pelvic tilt/,null,['pelvis','pelvic tilt']],
+ [/\bbecken\b|\bpelvis\b/,null,'pelvis'],
+ [/schulterblatt|scapula/,null,'scapula']
+];
+// [Anatomy, Posture]
+var MM_BES={
+ 'Rotatorenmanschette':['rotator cuff','rotator cuff'],'Instabile Schulter':['rotator cuff','rotator cuff'],'Impingement':['rotator cuff','shoulder'],
+ 'Bizepssehne':['biceps','biceps'],'Trizepssehne':['triceps','triceps'],'AC-Gelenk':['shoulder','shoulder'],'Wurfschulter':['rotator cuff','rotator cuff'],
+ 'Überkopf eingeschränkt':['latissimus','latissimus'],'Verspannung Schulterblatt':['levator scapulae','scapula'],
+ 'Schienbeinkante':['tibialis','tibialis'],'Achillessehne':['gastrocnemius','gastrocnemius'],'Wadenschmerzen':['gastrocnemius','gastrocnemius'],
+ 'Umknicken/Bänder Sprunggelenk':['peroneus','peroneus'],'Instabiles Sprunggelenk':['peroneus','peroneus'],
+ 'Plantarfasziitis':['plantar','sole of foot'],'Plattfuss':['sole of foot','flat foot'],'X-/O-Beine, Plattfuss':['foot','valgus'],
+ 'Ischias':['sciatic','sciatic'],'ISG':['sacroiliac','sacroiliac'],'Bandscheibe':['vertebra','vertebra'],'Bandscheibe HWS':['cervical','cervical'],
+ 'ITB-Syndrom':['tensor fasciae','tensor fasciae'],'Leistenschmerzen':['adductor','adductor'],'Oberschenkelzerrung':['hamstring','hamstring'],
+ 'Beinrückseite steif':['hamstring','hamstring'],'Sitzbeinhöcker':['hamstring','hamstring'],'Patellasehne':['quadriceps','quadriceps'],
+ 'Rundrücken/Kopf vorne':['thoracic','kyphosis'],'Rundrücken':['thoracic','kyphosis'],'Flachrücken':['lumbar','flat back'],'Hohlkreuz':['lumbar','lordosis'],
+ 'BWS-Schmerzen':['thoracic','thoracic'],'Hexenschuss':['quadratus lumborum','lumbar'],'Kopfschmerzen':['suboccipital','suboccipital'],
+ 'Blockade HWS':['cervical','cervical'],'Nackenschmerzen':['cervical','neck'],'TOS / Armkribbeln':['scalene','scalene'],
+ 'Tennis-/Golferellbogen':['wrist extensor','elbow'],'Innenband Ellbogen':['wrist flexor','elbow'],'Ellbogenschmerzen':['elbow','elbow'],
+ 'Handgelenkschmerzen':['wrist','wrist'],'Karpaltunnel':['median nerve','wrist'],'Daumengrundgelenk':['thumb','thumb'],
+ 'Kieferschmerzen':['masseter','masseter'],'Zähneknirschen':['masseter','masseter'],'Atmung':['diaphragm','diaphragm'],
+ 'Rippenschmerzen':['rib','thoracic'],'Beckenboden':['pelvis','pelvis'],'Inkontinenz':['pelvis','pelvis'],
+ 'Schnappende Hüfte':['psoas','psoas'],'Seitlicher Hüftschmerz':['gluteus','gluteus'],'Impingement Hüfte':['hip','hip'],
+ 'Schulterschmerzen':['shoulder','shoulder'],'Hüftschmerzen':['hip','hip'],'Knieschmerzen':['knee','knee'],'Rückenschmerzen':['lumbar','lumbar'],
+ 'Meniskus/Bänder Knie':['knee','knee'],'Kreuzband':['knee','knee'],'Arthrose Knie':['knee','knee'],'Innenseite Knie':['knee','knee'],
+ 'Kniekehle':['hamstring','knee'],'Bakerzyste':['knee','knee'],'Fussschmerzen':['foot','foot'],'Zehenschmerzen':['foot','foot'],
+ 'Grosszehe':['foot','foot'],'Krallenzehen':['foot','foot'],'Sprunggelenk unbeweglich':['ankle','ankle'],'Sprunggelenk blockiert':['ankle','ankle'],
+ 'Sprunggelenkschmerzen':['ankle','ankle'],'Unterarmschmerzen':['wrist flexor','wrist'],'Schulter eingeschränkt':['shoulder','shoulder'],
+ 'Schmerz bei Liegestütz':['pectoralis','shoulder']
+};
+var MM_REG={'Schulter':['shoulder','shoulder'],'Hüfte/Becken':['hip','hip'],'Rumpf':['abdominal','core'],'Knie':['knee','knee'],
+ 'LWS/Rücken':['lumbar','lumbar'],'Fuss/Sprunggelenk':['foot','foot'],'Nacken/HWS':['cervical','neck'],'BWS':['thoracic','thoracic'],
+ 'Ellbogen/Hand':['wrist','elbow'],'Oberschenkel hinten':['hamstring','hamstring'],'Leiste/Adduktoren':['adductor','adductor'],
+ 'Haltung':['spine','posture'],'Kiefer':['masseter','masseter']};
+var MM_KAT={'Kniebeuge':'quadriceps'};
+function mmBody(name,bes,reg,kat){
+  var full=String(name||'').split('\n')[0].toLowerCase()
+    .replace(/ (am|zu|in den|auf dem|hinter dem) nacken|behind the neck|prisoner|knie über zehen|knees? over toes?|\bkot\b/g,' ')
+    .replace(/\bnacken (?=(aufsteiger|ausfallschritt|split|hinterer|reissgriff|ghd|kang|kniebeuge|push|strict|strikt|klimmzug|latzug|kellner|drücken|split))/g,''),a='',p='',i;
+  var de=full.replace(/\s*\([^()]*(\([^()]*\)[^()]*)*\)\s*$/,'');
+  var isTest=/^test\b/.test(full);
+  if(kat&&/^(zirkel|pods|im wechsel|konditionierung|koordination|wettkampfphase|sprungtraining|schnelligkeit)/i.test(kat))return {a:'',p:''};
+  function scan(n){
+    for(var j=0;j<MM_NAME_KW.length;j++){var r=MM_NAME_KW[j];
+      if((r[0]&&r[0].test(n))||(!isTest&&r[1]&&r[1].test(n)))return r[2];}
+    return '';
+  }
+  var t=scan(de)||(de!==full?scan(full):'');
+  if(t==='-')return {a:'',p:''};
+  if(t){if(typeof t==='string'){a=p=t;}else{a=t[0];p=t[1];}}
+  if(!a){(bes||[]).some(function(b){var m=MM_BES[b];if(m){a=m[0];p=m[1];return true;}return false;});}
+  if(!a){(reg||[]).some(function(r){var m=MM_REG[r];if(m&&(m[0]||m[1])){a=m[0];p=m[1];return true;}return false;});}
+  if(!a&&kat&&!isTest){var g=full.replace(/(zu|auf|über) (der )?schulter|to shoulder|over (the )?shoulder|on shoulder|schulter tippen|shoulder tap|schulter tragen|shoulder carry/g,' ');
+    if(/schulter(?!blatt)|shoulder/.test(g))a=p='shoulder';else if(/hüfte (beugen|kreis|innenrot|aussenrot|heben)|hip (circle|raise|internal rot|external rot)/.test(g))a=p='hip';}
+  if(!a&&!p&&kat&&MM_KAT[kat])a=p=MM_KAT[kat];
+  return {a:a,p:p};
+}
+function mmAppUrl(app,term){
+  return term?'https://app.'+app+'.muscleandmotion.com/search-result?query='+encodeURIComponent(term):'';
+}
+function mmAPLinks(b,fs){
+  var s='font-size:'+(fs||11)+'px;color:#1D5FD6;text-decoration:none;white-space:nowrap;';
+  var h=[];
+  if(b.a)h.push('<a href="'+mmAppUrl('anatomy',b.a)+'" target="_blank" rel="noopener" title="Anatomy: Suche «'+b.a+'»" style="'+s+'">🦴 Anatomie</a>');
+  if(b.p)h.push('<a href="'+mmAppUrl('posture',b.p)+'" target="_blank" rel="noopener" title="Posture: Suche «'+b.p+'»" style="'+s+'">🧍 Haltung</a>');
+  return h.join(' ');
+}
+
 function vidBase(line){return String(line||'').split(' / ')[0].trim();}
 function videoForLine(line){
   const vids=S.katalogVideos||{};
@@ -1868,7 +2012,8 @@ function rKatalog(){
       const vid=(S.katalogVideos||{})[u];
       const mmL=(S.katalogMM||{})[u];
       const vidHtml=(vid?'<a href="'+vid+'" target="_blank" rel="noopener" style="font-size:11px;color:#E8000F;text-decoration:none;margin-top:2px;display:inline-block;margin-right:10px;">▶ Video</a>':(u.indexOf('\n')!==-1?planVidsHtml(u):''))
-        +((u.indexOf('\n')===-1&&mmUrl(u,mmL))?'<a href="'+mmUrl(u,mmL).replace(/"/g,'&quot;')+'" target="_blank" rel="noopener" title="'+(mmL?'Eigener M&amp;M-Link':'Suche in Muscle &amp; Motion')+'" style="font-size:11px;color:#1D5FD6;text-decoration:none;margin-top:2px;display:inline-block;">🧠 M&amp;M</a>':'');
+        +((u.indexOf('\n')===-1&&mmUrl(u,mmL))?'<a href="'+mmUrl(u,mmL).replace(/"/g,'&quot;')+'" target="_blank" rel="noopener" title="'+(mmL?'Eigener M&amp;M-Link':'Suche in Muscle &amp; Motion')+'" style="font-size:11px;color:#1D5FD6;text-decoration:none;margin-top:2px;display:inline-block;">🧠 M&amp;M</a>':'')
+        +(u.indexOf('\n')===-1?(function(){var l=mmAPLinks(mmBody(u,[],[],cat));return l?'<span style="display:inline-block;margin-top:2px;margin-left:10px;">'+l.replace('</a> <a','</a><span style="margin-left:10px;"></span><a')+'</span>':'';})():'');
       const esc=u.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
       rows+='<div class="kat-row" style="display:flex;align-items:flex-start;gap:8px;padding:8px 12px;border-bottom:1px solid #E8E8E8;'+bb+'">'
         +'<input type="checkbox" class="kat-sel" data-name="'+esc+'" '+(window._kSel.has(u)?'checked':'')+' title="Zum Senden auswählen" style="margin-top:2px;width:16px;height:16px;flex-shrink:0;cursor:pointer;">'
@@ -6231,6 +6376,7 @@ document.addEventListener('visibilitychange',function(){if(document.visibilitySt
       +pf+lsgHtml(e)+'</div>'
       +'<div style="flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:4px;">'+vid
       +(function(){var own=e.mm_link,auto=(['Test','Theorie','Flossing'].indexOf(e.typ)===-1)&&typeof mmUrl==='function';var u=own||(auto?mmUrl(e.quelle==='Leib'?String(e.name).replace(/\s*\([^)]*\)\s*$/,''):e.name,''):'');return '<span style="white-space:nowrap;">'+(u?'<a href="'+esc(u)+'" target="_blank" rel="noopener" title="'+(own?'Eigener M&amp;M-Link':'Suche in Muscle &amp; Motion')+'" style="font-size:12px;color:#1D5FD6;text-decoration:none;">🧠 M&amp;M</a> ':'')+'<a href="#" onclick="thMM('+e.id+');return false;" title="Genauen M&amp;M-Link hinterlegen" style="font-size:11px;color:var(--hint);text-decoration:none;">'+(u?'✎':'+ M&amp;M')+'</a></span>';})()
+      +(function(){var l=(typeof mmBody==='function')?mmAPLinks(mmBody(e.name,e.beschwerden,e.regionen),12):'';return l?'<span style="white-space:nowrap;display:flex;gap:8px;">'+l.replace('</a> <a','</a><a')+'</span>':'';})()
       +'</div></div>';
   }
   function lsgHtml(e){
