@@ -6178,6 +6178,15 @@ function patPlanHtml(p){
   var h='<div style="border:1.5px solid #CDE8D5;border-radius:10px;background:#F4FBF6;padding:10px;margin-bottom:10px;">'
     +'<div style="'+lab+'color:#1A8F3C;">&#127916; Therapieplan</div>';
   if(!ok)h+='<div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Videos werden geladen…</div>';
+  if(ok&&typeof mmAppUrl==='function'){
+    var regs=[];
+    plan.forEach(function(g){(g.items||[]).forEach(function(it){var e=it.id!=null?window.thRow(it.id):null;(e&&e.regionen||[]).forEach(function(r){if(regs.indexOf(r)===-1&&MM_REG[r]&&MM_REG[r][0])regs.push(r);});});});
+    if(regs.length){
+      h+='<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:2px 0 4px;"><span style="font-size:11px;color:#1A8F3C;font-weight:600;">Anatomie:</span>'
+        +regs.map(function(r){return '<a href="'+mmAppUrl('anatomy',MM_REG[r][0])+'" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-size:12px;color:#1D5FD6;text-decoration:none;border:1px solid #B9CCF0;background:#fff;border-radius:12px;padding:2px 9px;white-space:nowrap;">&#129460; '+patEsc(r)+'</a>';}).join('')
+        +'</div>';
+    }
+  }
   plan.forEach(function(g){
     h+='<div style="font-size:12px;font-weight:700;color:#1A8F3C;margin-top:8px;padding-bottom:3px;border-bottom:1px solid #CDE8D5;">'+patEsc(g.titel||'')+'</div>';
     (g.items||[]).forEach(function(it){
@@ -6189,6 +6198,15 @@ function patPlanHtml(p){
       var nm=e?e.name:('Übung #'+it.id);
       var typ=e&&e.typ?' <span style="color:var(--muted);font-size:11px;">· '+patEsc(e.typ)+'</span>':'';
       var vid=(e&&e.video)?'<a href="#" onclick="event.stopPropagation();thPlay('+it.id+');return false;" style="font-size:12px;color:#E8000F;text-decoration:none;white-space:nowrap;">&#9654; Video</a>':'';
+      var mmL='';
+      if(e){
+        var own=e.mm_link,auto=(['Test','Theorie','Flossing'].indexOf(e.typ)===-1)&&typeof mmUrl==='function';
+        var u=own||(auto?mmUrl(e.quelle==='Leib'?String(e.name).replace(/\s*\([^)]*\)\s*$/,''):e.name,''):'');
+        if(u)mmL+='<a href="'+patEsc(u)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="'+(own?'Eigener M&amp;M-Link':'Suche in Muscle &amp; Motion')+'" style="font-size:12px;color:#1D5FD6;text-decoration:none;white-space:nowrap;">&#129504; M&amp;M</a>';
+        var ap=(typeof mmBody==='function'&&typeof mmAPLinks==='function')?mmAPLinks(mmBody(e.name,e.beschwerden,e.regionen),12):'';
+        if(ap)mmL+=ap.replace(/<a /g,'<a onclick="event.stopPropagation()" ');
+      }
+      vid='<div style="flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:3px;">'+vid+(mmL?'<span style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">'+mmL+'</span>':'')+'</div>';
       h+='<div style="display:flex;gap:8px;align-items:flex-start;padding:5px 0;border-bottom:1px solid #DDEFE2;">'
         +'<div style="flex:1;min-width:0;font-size:12px;line-height:1.4;">'+patEsc(nm)+typ
         +(it.hinweis?'<div style="font-size:11px;color:#3B6D11;">'+patEsc(it.hinweis)+'</div>':'')+'</div>'
