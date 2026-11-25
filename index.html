@@ -3047,7 +3047,7 @@ async function sjFetch(method,path,body,_retry){
 }
 async function loadSprungtests(){
   try{
-    var res=await sjFetch('GET','?select=id,athlet_id,athlet_name,datum,werte,quelle,training,created_at&order=datum.asc,created_at.asc');
+    var res=await sjFetch('GET','?select=id,athlet_id,athlet_name,datum,werte,quelle,training,geraet,v,mrsi,asym_brems,asym_abstoss,kg,created_at&order=datum.asc,created_at.asc');
     if(!res.ok){console.error('Sprungtest load',res.status);return;}
     _sj=await res.json();_sjLoaded=true;
   }catch(e){console.error('Sprungtest',e);return;}
@@ -3056,6 +3056,7 @@ async function loadSprungtests(){
 function sjPaintAll(){
   var boxes=document.querySelectorAll('[data-sj]');
   for(var i=0;i<boxes.length;i++){var b=boxes[i];b.innerHTML=sjInner(+b.getAttribute('data-sj'));}
+  sjPaintHeute();
 }
 function sjPaint(id){
   var boxes=document.querySelectorAll('[data-sj="'+id+'"]');
@@ -3078,49 +3079,138 @@ function sjInferT(id,ds,ent,skipId){
   return fr?2:1;
 }
 function sjT(id,e,ent){return (e.training===1||e.training===2)?e.training:sjInferT(id,e.datum,ent,e.id);}
+function sjPl(e){return (e.geraet||'')==='platte'&&e.v&&e.v.length>0;}
+function sjMeanA(a){return sjMean(a);}
+function sjCV(arr){var n=arr.length;var mu=arr.reduce(function(s,x){return s+x;},0)/n;var sd=Math.sqrt(arr.reduce(function(s,x){return s+(x-mu)*(x-mu);},0)/(n-1));return {mu:mu,cv:sd/mu*100};}
+function sjNum(a){return (a||[]).map(Number).filter(function(x){return !isNaN(x);});}
+// Asymmetrie: positiv = rechts drückt mehr, also links schwächer
+function sjAsym(arr){
+  var v=sjNum(arr);if(!v.length)return null;
+  var mu=v.reduce(function(s,x){return s+x;},0)/v.length;
+  var pos=v.filter(function(x){return x>0;}).length,neg=v.filter(function(x){return x<0;}).length;
+  var gleich=Math.max(pos,neg)>=Math.ceil(0.75*v.length);
+  var p=Math.abs(mu);var side=mu>0?'li':'re';
+  var befund=gleich&&p>=10;
+  return {pct:p,side:side,befund:befund,lvl:befund?(p>15?'rot':'gelb'):'gruen',gleich:gleich};
+}
 function sjStats(id){
   var all=sjEntries(id);
-  var ent=all.map(function(e){return {e:e,m:sjMean(e.werte),kt:sjIsKT(e),t:sjT(id,e,all)};}).filter(function(x){return x.m!==null;});
+  var ent=all.filter(sjPl).map(function(e){return {e:e,m:sjMean(e.v),h:sjMean(e.werte),r:sjMean(e.mrsi),kt:sjIsKT(e),t:sjT(id,e,all),ab:sjAsym(e.asym_abstoss),br:sjAsym(e.asym_brems)};}).filter(function(x){return x.m!==null;});
   var st={list:ent,n:ent.length,T:{}};
   [1,2].forEach(function(t){
     var mo=ent.filter(function(x){return !x.kt&&x.t===t;});
-    var b0={base:null,grenze:null,nMo:mo.length};
+    var b0={base:null,grenze:null,nMo:mo.length,vorl:false,rbase:null,rgrenze:null};
     if(mo.length>=4){
-      var b=mo.slice(0,4).map(function(x){return x.m;});
-      var mu=(b[0]+b[1]+b[2]+b[3])/4;
-      var sd=Math.sqrt(b.reduce(function(s,x){return s+(x-mu)*(x-mu);},0)/3);
-      b0.base=mu;b0.grenze=Math.max(5,2*(sd/mu*100));
+      var c=sjCV(mo.slice(0,4).map(function(x){return x.m;}));
+      b0.base=c.mu;b0.grenze=Math.max(2.5,2*c.cv);
+      var rr=mo.slice(0,4).map(function(x){return x.r;}).filter(function(x){return x!==null;});
+      if(rr.length===4){var c2=sjCV(rr);b0.rbase=c2.mu;b0.rgrenze=Math.max(7.5,2*c2.cv);}
+    }else if(mo.length>=1){
+      b0.base=mo[0].m;b0.grenze=2.5;b0.vorl=true;b0.refId=mo[0].e.id;
+      if(mo[0].r!==null){b0.rbase=mo[0].r;b0.rgrenze=10;}
     }
     st.T[t]=b0;
   });
-  var prevMo={1:null,2:null};
+  var prev={1:null,2:null};
   ent.forEach(function(x){
-    var B=st.T[x.t];
-    if(B.base===null){x.pct=null;x.stufe=x.kt?'kt':'';return;}
+    var B=st.T[x.t];x.vorl=B.vorl;
+    x.rstufe='';x.rpct=null;
+    if(B.base===null||(B.vorl&&B.refId===x.e.id)){x.pct=null;x.stufe=x.kt?'kt':'ref';return;}
     x.pct=(x.m-B.base)/B.base*100;
-    if(x.kt){x.stufe='kt';return;}
-    var pm=prevMo[x.t];
-    var tief=x.pct<-B.grenze;
-    var prevTief=pm&&pm.pct!==null&&pm.pct<-B.grenze;
-    x.stufe=tief?(prevTief?'rot':'orange'):'gruen';
-    prevMo[x.t]=x;
+    if(B.rbase!==null&&x.r!==null){x.rpct=(x.r-B.rbase)/B.rbase*100;}
+    if(x.kt){x.stufe='kt';x.rstufe='kt';return;}
+    var pm=prev[x.t];
+    var tief=x.pct<-B.grenze,ptief=pm&&pm.pct!==null&&pm.pct<-B.grenze;
+    x.stufe=tief?(ptief?'rot':'orange'):'gruen';
+    if(x.rpct!==null){var rt=x.rpct<-B.rgrenze,prt=pm&&pm.rpct!==null&&pm.rpct<-B.rgrenze;x.rstufe=rt?(prt?'rot':'orange'):'gruen';}
+    prev[x.t]=x;
+  });
+  // Seiten-Hinweis: gleiche Seite auch im Test davor
+  ent.forEach(function(x,i){
+    var pv=i>0?ent[i-1]:null;
+    ['ab','br'].forEach(function(k){var a=x[k];if(a&&a.befund){a.wdh=!!(pv&&pv[k]&&pv[k].befund&&pv[k].side===a.side);}});
   });
   return st;
 }
-var SJ_COL={kt:['#ECEFF3','#2C4A6B'],gruen:['#E3F4EC','#1D7A55'],orange:['#FDECD8','#9A4A00'],rot:['#FCEAEA','#C0392B']};
+var SJ_COL={kt:['#ECEFF3','#2C4A6B'],gruen:['#E3F4EC','#1D7A55'],orange:['#FDECD8','#9A4A00'],rot:['#FCEAEA','#C0392B'],gelb:['#FFF6D6','#B08900'],ref:['#ECEFF3','#8A94A3']};
 function sjBadge(x){
-  if(x.pct===null||x.pct===undefined)return '';
+  if(x.pct===null||x.pct===undefined)return x.stufe==='ref'?'<span style="font-size:10px;color:var(--muted);">Referenz</span>':'';
   var c=SJ_COL[x.stufe]||SJ_COL.gruen;
-  return '<span style="font-size:10px;padding:1px 6px;border-radius:8px;background:'+c[0]+';color:'+c[1]+';font-weight:600;">'+(x.pct>=0?'+':'')+sjR1(x.pct).toFixed(1)+' %</span>';
+  return '<span style="font-size:10px;padding:1px 6px;border-radius:8px;background:'+c[0]+';color:'+c[1]+';font-weight:600;'+(x.vorl?'border:1px dashed '+c[1]+';':'')+'">'+(x.pct>=0?'+':'')+sjR1(x.pct).toFixed(1)+' %</span>';
 }
+function sjDot(stufe,vorl,title){
+  if(!stufe||stufe==='ref')return '<span title="'+(title||'Referenz')+'" style="display:inline-block;width:12px;height:12px;border-radius:50%;border:2px solid #C5CBD3;box-sizing:border-box;"></span>';
+  var c=(SJ_COL[stufe]||SJ_COL.gruen)[1];
+  return '<span title="'+(title||'')+'" style="display:inline-block;width:12px;height:12px;border-radius:50%;box-sizing:border-box;'+(vorl?'border:3px solid '+c+';':'background:'+c+';')+'"></span>';
+}
+function sjBar(a){
+  if(!a)return '<span style="font-size:10px;color:var(--muted);">–</span>';
+  var W=90,c=W/2,L=Math.min(a.pct,25)/25*(c-2);
+  var col=a.befund?SJ_COL[a.lvl][1]:'#9FC9B3';
+  var x=a.side==='li'?c-L:c;
+  return '<svg viewBox="0 0 '+W+' 12" style="width:'+W+'px;height:12px;vertical-align:middle;">'
+    +'<line x1="'+c+'" x2="'+c+'" y1="0" y2="12" stroke="#8A94A3" stroke-width="1"/>'
+    +'<rect x="'+x.toFixed(1)+'" y="3" width="'+L.toFixed(1)+'" height="6" rx="2" fill="'+col+'"/></svg>';
+}
+function sjSeite(s){return s==='li'?'links':'rechts';}
+function sjHinweis(x){
+  var t=[];
+  [['ab','Abstoss'],['br','Bremsen']].forEach(function(k){
+    var a=x[k[0]];if(!a||!a.befund)return;
+    var s=k[1]+' '+sjSeite(a.side)+' schwächer';
+    if(a.lvl==='rot')s+=', bitte drauf schauen';
+    if(a.wdh&&k[0]==='ab')s+='. Einbeinig '+sjSeite(a.side)+' 1 Satz mehr';
+    t.push(s+'.');
+  });
+  if(x.stufe==='rot'||x.rstufe==='rot')t.unshift('Zweimal in Folge tiefer.');
+  else if(x.stufe==='orange'||x.rstufe==='orange')t.unshift('Deutlich tiefer als sonst.');
+  return t.length?t.join(' '):'ok';
+}
+var _sjHeuteOpen={};
+function sjHeuteHtml(){
+  if(!_sjLoaded)return '';
+  var heute=tbToday();
+  var ids=[];_sj.forEach(function(e){if(e.datum===heute&&sjPl(e)&&e.athlet_id!=null&&ids.indexOf(e.athlet_id)<0)ids.push(e.athlet_id);});
+  if(!ids.length)return '';
+  var h='<div style="border:2px solid #2C4A6B;border-radius:10px;padding:8px 10px;margin-bottom:10px;background:var(--bg);">'
+    +'<div style="font-size:11px;font-weight:700;color:#2C4A6B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">🦘 Sprung heute</div>'
+    +'<div style="display:grid;grid-template-columns:minmax(110px,1.2fr) 56px 56px 100px 100px minmax(140px,2fr);gap:4px 8px;align-items:center;font-size:12px;">'
+    +'<div style="font-size:10px;color:var(--muted);">Athlet</div><div style="font-size:10px;color:var(--muted);">Absprung</div><div style="font-size:10px;color:var(--muted);">Explosiv</div><div style="font-size:10px;color:var(--muted);">Abstoss li | re</div><div style="font-size:10px;color:var(--muted);">Bremsen li | re</div><div style="font-size:10px;color:var(--muted);">Hinweis</div>';
+  ids.forEach(function(id){
+    var a=S.athleten.find(function(z){return z.id===id;});var st=sjStats(id);
+    var xs=st.list.filter(function(x){return x.e.datum===heute;});if(!xs.length)return;
+    var x=xs[xs.length-1];
+    var hw=x.kt?'Krafttest, ohne Vergleich.':sjHinweis(x);
+    var ok=hw==='ok';
+    h+='<div onclick="event.stopPropagation();_sjHeuteOpen['+id+']=!_sjHeuteOpen['+id+'];sjPaintHeute()" style="cursor:pointer;font-weight:600;">'+tbEsc(a?a.name:(x.e.athlet_name||''))+'</div>'
+      +'<div>'+sjDot(x.stufe,x.vorl,'Absprunggeschwindigkeit')+'</div>'
+      +'<div>'+sjDot(x.rstufe||'ref',x.vorl,'Explosivität (mRSI)')+'</div>'
+      +'<div>'+sjBar(x.ab)+'</div><div>'+sjBar(x.br)+'</div>'
+      +'<div style="'+(ok?'color:#1D7A55;':'color:#9A4A00;font-weight:600;')+'">'+tbEsc(hw)+'</div>';
+    if(_sjHeuteOpen[id]){
+      var B=st.T[x.t];
+      var f=function(v,d){return v===null||v===undefined?'–':Number(v).toFixed(d);};
+      h+='<div style="grid-column:1/-1;font-size:11px;color:var(--muted);padding:2px 0 6px 8px;border-left:2px solid var(--border2);">'
+        +'Training '+x.t+' · '+f(x.m,2)+' m/s'+(x.pct!==null?' ('+(x.pct>=0?'+':'')+sjR1(x.pct).toFixed(1)+' %)':'')
+        +' · Höhe '+f(x.h,1)+' cm · mRSI '+f(x.r,2)+(x.rpct!==null?' ('+(x.rpct>=0?'+':'')+sjR1(x.rpct).toFixed(1)+' %)':'')
+        +' · Abstoss '+(x.ab?sjR1(x.ab.pct).toFixed(1)+' % '+sjSeite(x.ab.side)+' schwächer':'–')
+        +' · Bremsen '+(x.br?sjR1(x.br.pct).toFixed(1)+' % '+sjSeite(x.br.side)+' schwächer':'–')
+        +(B.vorl?' · vorläufige Ampel ('+B.nMo+'/4)':'')
+        +'<br>Sprünge: '+sjNum(x.e.v).map(function(v){return v.toFixed(2);}).join(' / ')+' m/s</div>';
+    }
+  });
+  return h+'</div></div>';
+}
+function sjPaintHeute(){var el=document.getElementById('sj-heute');if(el)el.innerHTML=sjHeuteHtml();}
 function sjBoxHtml(id){return '<div data-sj="'+id+'" onclick="event.stopPropagation()">'+sjInner(id)+'</div>';}
 var SJ_TCOL={1:'#2C4A6B',2:'#7B5EA7'};
+var _sjOpen={};
 function sjChartT(pts,B,t){
   if(pts.length<2)return '';
   var W=300,H=60,P=6,col=SJ_TCOL[t];
   var vals=pts.map(function(x){return x.m;});
   if(B.base!==null){vals.push(B.base);vals.push(B.base*(1-B.grenze/100));}
-  var lo=Math.min.apply(null,vals),hi=Math.max.apply(null,vals);if(hi-lo<1){hi+=0.5;lo-=0.5;}
+  var lo=Math.min.apply(null,vals),hi=Math.max.apply(null,vals);if(hi-lo<0.05){hi+=0.025;lo-=0.025;}
   var X=function(i){return P+i*(W-2*P)/(pts.length-1);};
   var Y=function(v){return H-P-(v-lo)/(hi-lo)*(H-2*P);};
   var s='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:60px;display:block;margin:4px 0;">';
@@ -3135,10 +3225,11 @@ function sjChartT(pts,B,t){
   return s+'</svg>';
 }
 function sjRow(id,x,noBadge){
-  var w=(x.e.werte||[]).map(function(v){return String(sjR1(Number(v)));}).join(' / ');
+  var w=sjNum(x.e.v).map(function(v){return v.toFixed(2);}).join(' / ');
   return '<div style="display:flex;align-items:center;gap:6px;font-size:12px;padding:3px 0;border-top:1px solid var(--border);">'
     +'<span style="min-width:84px;">'+tbDateStr(x.e.datum)+'</span>'
-    +'<strong style="min-width:56px;">'+sjR1(x.m).toFixed(1)+' cm</strong>'+(noBadge?'':sjBadge(x))
+    +'<strong style="min-width:62px;">'+x.m.toFixed(2)+' m/s</strong>'+(noBadge?'':sjBadge(x))
+    +'<span style="color:var(--muted);font-size:11px;">'+(x.h!==null?sjR1(x.h).toFixed(1)+' cm':'')+'</span>'
     +'<span style="flex:1;color:var(--muted);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+tbEsc(w)+'</span>'
     +'<button onclick="event.stopPropagation();sjDel('+id+','+x.e.id+')" title="Test löschen" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:12px;">✕</button></div>';
 }
@@ -3146,14 +3237,12 @@ function sjSection(id,st,t,multi){
   var pts=st.list.filter(function(x){return !x.kt&&x.t===t;});
   if(!pts.length)return '';
   var B=st.T[t],col=SJ_TCOL[t],last=pts[pts.length-1];
-  var h='<div style="margin-top:8px;padding:6px 8px;border-left:3px solid '+col+';background:var(--card,transparent);">';
+  var h='<div style="margin-top:8px;padding:6px 8px;border-left:3px solid '+col+';">';
   h+='<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px;">'
     +(multi?'<strong style="color:'+col+';">Training '+t+'</strong>':'')
-    +'<span>Letzter <strong>'+sjR1(last.m).toFixed(1)+' cm</strong></span>'+sjBadge(last)+'</div>';
-  if(B.base===null)h+='<div style="font-size:11px;color:var(--muted);margin-top:2px;">Basis wird gebildet ('+B.nMo+'/4 Tests)</div>';
-  else h+='<div style="font-size:11px;color:var(--muted);margin-top:2px;">Basis '+sjR1(B.base).toFixed(1)+' cm · Grenze −'+sjR1(B.grenze).toFixed(1)+' % ('+sjR1(B.base*(1-B.grenze/100)).toFixed(1)+' cm)</div>';
-  if(last.stufe==='rot')h+='<div style="font-size:12px;color:#C0392B;font-weight:600;margin-top:3px;">Zweimal in Folge deutlich unter der Basis</div>';
-  else if(last.stufe==='orange')h+='<div style="font-size:12px;color:#9A4A00;margin-top:3px;">Deutlich unter der Basis</div>';
+    +'<span>Letzter <strong>'+last.m.toFixed(2)+' m/s</strong></span>'+sjBadge(last)+'</div>';
+  if(B.vorl)h+='<div style="font-size:11px;color:var(--muted);margin-top:2px;">Vorläufige Ampel: Vergleich mit dem 1. Test ('+B.base.toFixed(2)+' m/s), Grenze −2.5 %. Basis wird gebildet ('+B.nMo+'/4 Tests)</div>';
+  else h+='<div style="font-size:11px;color:var(--muted);margin-top:2px;">Basis '+B.base.toFixed(2)+' m/s · Grenze −'+sjR1(B.grenze).toFixed(1)+' % ('+(B.base*(1-B.grenze/100)).toFixed(2)+' m/s)</div>';
   h+=sjChartT(pts,B,t);
   var key=id+'_'+t;var rows=pts.slice().reverse();var showAll=!!_sjShowAll[key];
   (showAll?rows:rows.slice(0,4)).forEach(function(x){h+=sjRow(id,x,false);});
@@ -3162,26 +3251,26 @@ function sjSection(id,st,t,multi){
 }
 function sjInner(id){
   var st=sjStats(id);
-  var h='<div style="margin-top:10px;border:1px solid var(--border2);border-radius:8px;padding:8px 10px;background:var(--bg);">';
-  h+='<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">'
-    +'<div style="font-size:10px;font-weight:600;color:#2C4A6B;text-transform:uppercase;letter-spacing:.06em;">🦘 Sprungtest CMJ</div>'
-    +'<button onclick="event.stopPropagation();sjTogForm('+id+')" style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid #2C4A6B;background:#E8EEF5;color:#2C4A6B;cursor:pointer;font-weight:600;">'+(_sjForm[id]?'Abbrechen':'+ Test')+'</button></div>';
-  if(_sjForm[id]){
-    var p='sj-'+id+'-';var ein=sjEinmal(id);var tv=sjInferT(id,tbToday());
-    h+='<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:6px;">'
-      +'<input type="date" id="'+p+'d" value="'+tbToday()+'" onclick="event.stopPropagation()" style="font-size:13px;padding:4px 6px;">';
-    for(var i=0;i<5;i++)h+='<input type="number" inputmode="decimal" step="0.1" min="0" id="'+p+'v'+i+'" placeholder="'+(i+1)+'." onclick="event.stopPropagation()" style="width:58px;font-size:13px;padding:4px 6px;">';
-    h+='<span style="font-size:11px;color:var(--muted);">cm</span>'
-      +(ein?'<input type="hidden" id="'+p+'t" value="1">':'<select id="'+p+'t" onclick="event.stopPropagation()" style="font-size:13px;padding:4px 6px;"><option value="1"'+(tv===1?' selected':'')+'>Training 1</option><option value="2"'+(tv===2?' selected':'')+'>Training 2</option></select>')
-      +'<label onclick="event.stopPropagation()" style="font-size:12px;display:inline-flex;align-items:center;gap:3px;"><input type="checkbox" id="'+p+'kt">Krafttest</label>'
-      +'<button onclick="event.stopPropagation();sjSave('+id+')" style="font-size:12px;padding:4px 12px;border-radius:6px;border:1px solid #1D7A55;background:#1D7A55;color:#fff;cursor:pointer;font-weight:600;">Speichern</button></div>';
+  var open=!!_sjOpen[id];
+  var h='<div style="margin-top:8px;border:1px solid var(--border2);border-radius:8px;padding:5px 8px;background:var(--bg);">';
+  var line='';
+  if(!_sjLoaded)line='<span style="color:var(--muted);">Lädt…</span>';
+  else if(!st.n)line='<span style="color:var(--muted);">Noch kein Test mit der Platte</span>';
+  else{
+    var multi=!sjEinmal(id)&&st.list.some(function(x){return !x.kt&&x.t===2;});
+    [1,2].forEach(function(t){
+      var pts=st.list.filter(function(x){return !x.kt&&x.t===t;});if(!pts.length)return;
+      var l=pts[pts.length-1];
+      line+='<span style="display:inline-flex;align-items:center;gap:3px;margin-right:8px;">'+(multi?'<span style="color:'+SJ_TCOL[t]+';font-weight:600;">T'+t+'</span>':'')+'<strong>'+l.m.toFixed(2)+'</strong><span style="color:var(--muted);font-size:10px;">m/s</span>'+sjDot(l.stufe,l.vorl)+'</span>';
+    });
+    if(!line)line='<span style="color:var(--muted);">nur Krafttest</span>';
   }
-  if(!_sjLoaded){return h+'<div style="font-size:12px;color:var(--muted);margin-top:6px;">Lädt…</div></div>';}
-  if(!st.n){return h+'<div style="font-size:12px;color:var(--muted);margin-top:6px;">Noch keine Tests.</div></div>';}
-  var has2=st.list.some(function(x){return !x.kt&&x.t===2;});
-  var multi=has2&&!sjEinmal(id);
-  h+=sjSection(id,st,1,multi);
-  h+=sjSection(id,st,2,multi);
+  h+='<div onclick="event.stopPropagation();_sjOpen['+id+']=!_sjOpen['+id+'];sjPaint('+id+')" style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;flex-wrap:wrap;">'
+    +'<span title="Sprungtest">🦘</span>'+line+'<span style="margin-left:auto;color:var(--muted);font-size:10px;">'+(open?'▲':'▼')+'</span></div>';
+  if(!open||!_sjLoaded||!st.n)return h+'</div>';
+  var multi2=!sjEinmal(id)&&st.list.some(function(x){return !x.kt&&x.t===2;});
+  h+=sjSection(id,st,1,multi2);
+  h+=sjSection(id,st,2,multi2);
   var kts=st.list.filter(function(x){return x.kt;}).reverse();
   if(kts.length){
     h+='<div style="margin-top:8px;padding:6px 8px;border-left:3px solid #8A94A3;">'
@@ -3751,6 +3840,7 @@ function rUebersicht(){
     </div>`;
   });
   if(athletCards)h+=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:6px;">${athletCards}</div>`;
+  h='<div id="sj-heute">'+sjHeuteHtml()+'</div>'+h;
   document.getElementById('view-uebersicht').innerHTML=h;
   // Auto-resize all plan textareas to fit content
   setTimeout(()=>{
@@ -6196,7 +6286,7 @@ function patPlanHtml(p){
       }
       var e=ok?window.thRow(it.id):null;
       var nm=e?e.name:('Übung #'+it.id);
-      var typ=e&&e.typ?' <span style="color:var(--muted);font-size:11px;">· '+patEsc(e.typ)+'</span>':'';
+      var typ=e?' <span style="font-size:10px;font-weight:600;padding:1px 6px;border-radius:8px;white-space:nowrap;'+(e.quelle==='Omnibody'?'background:#E8EEFB;color:#1D5FD6;">Omnibody':'background:#F3E9D2;color:#7A5C1E;">Leib')+'</span>'+(e.typ?' <span style="color:var(--muted);font-size:11px;">· '+patEsc(e.typ)+'</span>':''):'';
       var vid=(e&&e.video)?'<a href="#" onclick="event.stopPropagation();thPlay('+it.id+');return false;" style="font-size:12px;color:#E8000F;text-decoration:none;white-space:nowrap;">&#9654; Video</a>':'';
       var mmL='';
       if(e){
