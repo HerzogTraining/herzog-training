@@ -3139,6 +3139,7 @@ function sjBadge(x){
   return '<span style="font-size:10px;padding:1px 6px;border-radius:8px;background:'+c[0]+';color:'+c[1]+';font-weight:600;'+(x.vorl?'border:1px dashed '+c[1]+';':'')+'">'+(x.pct>=0?'+':'')+sjR1(x.pct).toFixed(1)+' %</span>';
 }
 function sjDot(stufe,vorl,title){
+  if(stufe==='kt')return '<span title="Krafttest, ohne Vergleich" style="display:inline-block;font-size:9px;font-weight:700;padding:1px 4px;border-radius:6px;background:#ECEFF3;color:#5B6573;">KT</span>';
   if(!stufe||stufe==='ref')return '<span title="'+(title||'Referenz')+'" style="display:inline-block;width:12px;height:12px;border-radius:50%;border:2px solid #C5CBD3;box-sizing:border-box;"></span>';
   var c=(SJ_COL[stufe]||SJ_COL.gruen)[1];
   return '<span title="'+(title||'')+'" style="display:inline-block;width:12px;height:12px;border-radius:50%;box-sizing:border-box;'+(vorl?'border:3px solid '+c+';':'background:'+c+';')+'"></span>';
@@ -3184,7 +3185,7 @@ function sjHeuteHtml(){
     var ok=hw==='ok';
     h+='<div onclick="event.stopPropagation();_sjHeuteOpen['+id+']=!_sjHeuteOpen['+id+'];sjPaintHeute()" style="cursor:pointer;font-weight:600;">'+tbEsc(a?a.name:(x.e.athlet_name||''))+'</div>'
       +'<div>'+sjDot(x.stufe,x.vorl,'Absprunggeschwindigkeit')+'</div>'
-      +'<div>'+sjDot(x.rstufe||'ref',x.vorl,'Explosivität (mRSI)')+'</div>'
+      +'<div>'+sjDot(x.kt?'kt':(x.rstufe||'ref'),x.vorl,'Explosivität (mRSI)')+'</div>'
       +'<div>'+sjBar(x.ab)+'</div><div>'+sjBar(x.br)+'</div>'
       +'<div style="'+(ok?'color:#1D7A55;':'color:#9A4A00;font-weight:600;')+'">'+tbEsc(hw)+'</div>';
     if(_sjHeuteOpen[id]){
