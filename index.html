@@ -225,6 +225,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--border2);}
     <button class="tab" onclick="switchTab('extern',this)">Extern</button>
     <button class="tab" onclick="switchTab('patienten',this)">Patienten</button>
     <button class="tab" onclick="switchTab('therapie',this)">Therapie</button>
+    <button class="tab" onclick="switchTab('spruenge',this)">Sprünge</button>
   </div>
   <div id="view-uebersicht" class="view active"></div>
   <div id="view-training" class="view"></div>
@@ -236,6 +237,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--border2);}
   <div id="view-extern" class="view"></div>
   <div id="view-patienten" class="view"></div>
   <div id="view-therapie" class="view"></div>
+  <div id="view-spruenge" class="view"></div>
 </div>
 <div id="modal-wrap"></div>
 
@@ -3047,7 +3049,7 @@ async function sjFetch(method,path,body,_retry){
 }
 async function loadSprungtests(){
   try{
-    var res=await sjFetch('GET','?select=id,athlet_id,athlet_name,datum,werte,quelle,training,geraet,v,mrsi,asym_brems,asym_abstoss,kg,created_at&order=datum.asc,created_at.asc');
+    var res=await sjFetch('GET','?select=id,athlet_id,athlet_name,datum,werte,quelle,training,geraet,test,v,mrsi,asym_brems,asym_abstoss,kg,rsi,gct,huerde_cm,created_at&order=datum.asc,created_at.asc');
     if(!res.ok){console.error('Sprungtest load',res.status);return;}
     _sj=await res.json();_sjLoaded=true;
   }catch(e){console.error('Sprungtest',e);return;}
@@ -3057,6 +3059,7 @@ function sjPaintAll(){
   var boxes=document.querySelectorAll('[data-sj]');
   for(var i=0;i<boxes.length;i++){var b=boxes[i];b.innerHTML=sjInner(+b.getAttribute('data-sj'));}
   sjPaintHeute();
+  var spv=document.getElementById('view-spruenge');if(spv&&spv.classList.contains('active'))rSpruenge();
 }
 function sjPaint(id){
   var boxes=document.querySelectorAll('[data-sj="'+id+'"]');
@@ -3079,7 +3082,7 @@ function sjInferT(id,ds,ent,skipId){
   return fr?2:1;
 }
 function sjT(id,e,ent){return (e.training===1||e.training===2)?e.training:sjInferT(id,e.datum,ent,e.id);}
-function sjPl(e){return (e.geraet||'')==='platte'&&e.v&&e.v.length>0;}
+function sjPl(e){return (e.geraet||'')==='platte'&&(e.test||'cmj')==='cmj'&&e.v&&e.v.length>0;}
 function sjMeanA(a){return sjMean(a);}
 function sjCV(arr){var n=arr.length;var mu=arr.reduce(function(s,x){return s+x;},0)/n;var sd=Math.sqrt(arr.reduce(function(s,x){return s+(x-mu)*(x-mu);},0)/(n-1));return {mu:mu,cv:sd/mu*100};}
 function sjNum(a){return (a||[]).map(Number).filter(function(x){return !isNaN(x);});}
@@ -3202,6 +3205,144 @@ function sjHeuteHtml(){
   });
   return h+'</div></div>';
 }
+// ---- TAB SPRÜNGE (alle Sprungtests pro Athlet, Diagramme, Senden an Athlet) ----
+var _spSel=null;
+function spAthleten(){
+  var ids={};_sj.forEach(function(e){if(e.athlet_id!=null)ids[e.athlet_id]=1;});
+  return S.athleten.filter(function(a){return ids[a.id];}).sort(function(a,b){return a.name.localeCompare(b.name);});
+}
+function spDate(ds){var p=String(ds).split('-');return new Date(+p[0],+p[1]-1,+p[2]).getTime();}
+function spDE(ds){var p=String(ds).split('-');return p.length<3?ds:(p[2]+'.'+p[1]+'.');}
+function spDmy2Iso(s){var p=String(s||'').split('.');if(p.length<3)return null;return p[2]+'-'+('0'+p[1]).slice(-2)+'-'+('0'+p[0]).slice(-2);}
+function spMax(a){var v=sjNum(a);return v.length?Math.max.apply(null,v):null;}
+function spMin(a){var v=sjNum(a);return v.length?Math.min.apply(null,v):null;}
+// series: [{name,col,pts:[{d,v,kt}],dash}], lines: [{v,col,dash,label}]
+function spChart(series,lines,dec,unit){
+  var all=[];series.forEach(function(s){s.pts.forEach(function(p){all.push(p);});});
+  if(!all.length)return '<div style="font-size:12px;color:var(--muted);padding:6px 0;">Noch keine Werte.</div>';
+  var W=640,H=170,L=44,R=12,T=12,B=26;
+  var xs=all.map(function(p){return spDate(p.d);}),vs=all.map(function(p){return p.v;});
+  (lines||[]).forEach(function(l){vs.push(l.v);});
+  var x0=Math.min.apply(null,xs),x1=Math.max.apply(null,xs);if(x1-x0<86400000*6){x0-=86400000*3;x1+=86400000*3;}
+  var lo=Math.min.apply(null,vs),hi=Math.max.apply(null,vs);var pad=(hi-lo)*0.15||Math.abs(hi)*0.03||1;lo-=pad;hi+=pad;
+  var X=function(t){return L+(t-x0)/(x1-x0)*(W-L-R);},Y=function(v){return T+(hi-v)/(hi-lo)*(H-T-B);};
+  var s='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block;">';
+  for(var g=0;g<=3;g++){var gv=lo+(hi-lo)*g/3,gy=Y(gv);s+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+gy.toFixed(1)+'" y2="'+gy.toFixed(1)+'" stroke="#E3E6EA" stroke-width="1"/><text x="'+(L-6)+'" y="'+(gy+4).toFixed(1)+'" font-size="11" fill="#8A94A3" text-anchor="end">'+gv.toFixed(dec)+'</text>';}
+  (lines||[]).forEach(function(l){var y=Y(l.v).toFixed(1);s+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+y+'" y2="'+y+'" stroke="'+l.col+'" stroke-width="1.2" '+(l.dash?'stroke-dasharray="5 4"':'')+' opacity=".8"/>'+(l.label?'<text x="'+(W-R-2)+'" y="'+(+y-4)+'" font-size="10" fill="'+l.col+'" text-anchor="end">'+l.label+'</text>':'');});
+  var dset={};all.forEach(function(p){dset[p.d]=1;});var dl=Object.keys(dset).sort();
+  var yr=dl[0].slice(0,4)!==dl[dl.length-1].slice(0,4);
+  var shown=[];dl.slice().reverse().forEach(function(d){var x=X(spDate(d));if(shown.some(function(o){return Math.abs(o.x-x)<(yr?52:42);}))return;shown.push({x:x,d:d});});
+  shown.forEach(function(o){var an=o.x>W-R-28?'end':(o.x<L+28?'start':'middle');s+='<text x="'+o.x.toFixed(1)+'" y="'+(H-8)+'" font-size="10" fill="#8A94A3" text-anchor="'+an+'">'+spDE(o.d)+(yr?o.d.slice(2,4):'')+'</text>';});
+  series.forEach(function(se){
+    var pts=se.pts.slice().sort(function(a,b){return a.d<b.d?-1:1;});
+    var line=pts.filter(function(p){return !p.kt;});
+    if(line.length>1){var d='';line.forEach(function(p,i){d+=(i?'L':'M')+X(spDate(p.d)).toFixed(1)+' '+Y(p.v).toFixed(1);});s+='<path d="'+d+'" fill="none" stroke="'+se.col+'" stroke-width="2" '+(se.dash?'stroke-dasharray="5 4"':'')+'/>';}
+    pts.forEach(function(p){var cx=X(spDate(p.d)).toFixed(1),cy=Y(p.v).toFixed(1);
+      if(p.kt)s+='<rect x="'+(cx-4)+'" y="'+(cy-4)+'" width="8" height="8" transform="rotate(45 '+cx+' '+cy+')" fill="#fff" stroke="'+se.col+'" stroke-width="2"><title>Krafttest '+spDE(p.d)+': '+p.v.toFixed(dec)+' '+unit+'</title></rect>';
+      else s+='<circle cx="'+cx+'" cy="'+cy+'" r="3.5" fill="'+se.col+'"><title>'+spDE(p.d)+': '+p.v.toFixed(dec)+' '+unit+'</title></circle>';});
+  });
+  s+='</svg>';
+  var leg=series.filter(function(se){return se.pts.length&&se.name;}).map(function(se){return '<span style="display:inline-flex;align-items:center;gap:4px;margin-right:10px;"><span style="width:14px;height:3px;background:'+se.col+';display:inline-block;'+(se.dash?'opacity:.6;':'')+'"></span>'+se.name+'</span>';}).join('');
+  if(series.some(function(se){return se.pts.some(function(p){return p.kt;});}))leg+='<span style="display:inline-flex;align-items:center;gap:4px;">◇ Krafttest</span>';
+  return s+'<div style="font-size:11px;color:var(--muted);margin-top:2px;">'+leg+'</div>';
+}
+function spCard(title,sub,body){
+  return '<div style="border:1px solid var(--border2);border-radius:10px;padding:10px 12px;margin-bottom:10px;background:var(--surface,#fff);">'
+    +'<div style="font-size:12px;font-weight:700;color:#2C4A6B;text-transform:uppercase;letter-spacing:.05em;">'+title+'</div>'
+    +(sub?'<div style="font-size:11px;color:var(--muted);margin:2px 0 4px;">'+sub+'</div>':'')+body+'</div>';
+}
+function spBarNeutral(a){
+  if(!a)return '–';
+  var W=110,c=W/2,L=Math.min(a.pct,25)/25*(c-2),x=a.side==='li'?c-L:c;
+  return '<svg viewBox="0 0 '+W+' 12" style="width:'+W+'px;height:12px;vertical-align:middle;"><line x1="'+c+'" x2="'+c+'" y1="0" y2="12" stroke="#8A94A3"/><rect x="'+x.toFixed(1)+'" y="3" width="'+L.toFixed(1)+'" height="6" rx="2" fill="#7B93B3"/></svg>';
+}
+function spBuild(id,athlet){
+  var a=S.athleten.find(function(z){return z.id===id;});if(!a)return '';
+  var all=sjEntries(id);
+  var st=sjStats(id);
+  var cmj=st.list;
+  var t1=cmj.filter(function(x){return !x.kt&&x.t===1;}),t2=cmj.filter(function(x){return !x.kt&&x.t===2;}),kt=cmj.filter(function(x){return x.kt;});
+  var multi=!sjEinmal(id)&&t2.length>0;
+  var h='';
+  // Absprung
+  var ser=[{name:multi?'Training 1':'Absprung',col:SJ_TCOL[1],pts:t1.map(function(x){return {d:x.e.datum,v:x.m};})}];
+  if(multi)ser.push({name:'Training 2',col:SJ_TCOL[2],pts:t2.map(function(x){return {d:x.e.datum,v:x.m};})});
+  ser.push({name:'',col:'#5B6573',pts:kt.map(function(x){return {d:x.e.datum,v:x.m,kt:1};})});
+  var lines=[];
+  if(!athlet){[1,2].forEach(function(t){var B=st.T[t];if(B.base!==null&&!B.vorl&&(t===1||multi)){lines.push({v:B.base,col:SJ_TCOL[t],label:'Basis'+(multi?' T'+t:'')});lines.push({v:B.base*(1-B.grenze/100),col:'#C0392B',dash:1,label:'Grenze'+(multi?' T'+t:'')});}});}
+  h+=spCard('Absprunggeschwindigkeit','m/s, Mittel der Sprünge. Je höher, desto explosiver der Absprung.',spChart(ser,lines,2,'m/s'));
+  // Höhe
+  var hs=[{name:'Platte',col:'#2C4A6B',pts:cmj.filter(function(x){return x.h!==null;}).map(function(x){return {d:x.e.datum,v:x.h,kt:x.kt};})}];
+  var alt=all.filter(function(e){return (e.geraet||'jump')!=='platte'&&(e.test||'cmj')==='cmj'&&sjMean(e.werte)!==null;});
+  if(alt.length)hs.push({name:'Jump-System (alt, nicht vergleichbar)',col:'#B8BEC6',dash:1,pts:alt.map(function(e){return {d:e.datum,v:sjMean(e.werte),kt:sjIsKT(e)};})});
+  h+=spCard('Sprunghöhe','cm, Mittel der Sprünge.',spChart(hs,[],1,'cm'));
+  // mRSI
+  var rs=[{name:'Explosivität (mRSI)',col:'#1D7A55',pts:cmj.filter(function(x){return x.r!==null;}).map(function(x){return {d:x.e.datum,v:x.r,kt:x.kt};})}];
+  h+=spCard('Explosivität (mRSI)','Sprunghöhe geteilt durch die Zeit bis zum Absprung. Höher heisst: hoch und schnell.',spChart(rs,[],2,''));
+  // Körpergewicht
+  var kgp=[];var tk=(a.tests||{}).koerpergewicht;
+  if(tk){(tk.history||[]).concat(tk.current?[tk.current]:[]).forEach(function(o){var d=spDmy2Iso(o&&o.dat);if(d&&o.val)kgp.push({d:d,v:+o.val});});}
+  var lim=new Date();lim.setFullYear(lim.getFullYear()-2);var limS=lim.toISOString().slice(0,10);
+  kgp=kgp.filter(function(p){return p.d>=limS;});
+  h+=spCard('Körpergewicht','kg, letzte 2 Jahre.',spChart([{name:'Körpergewicht',col:'#9A4A00',pts:kgp}],[],1,'kg'));
+  // Seiten
+  var sv=cmj.filter(function(x){return x.ab||x.br;}).slice().reverse().slice(0,10);
+  if(sv.length){
+    var b='<div style="display:grid;grid-template-columns:70px 1fr 1fr;gap:4px 10px;font-size:12px;align-items:center;"><div style="font-size:10px;color:var(--muted);">Datum</div><div style="font-size:10px;color:var(--muted);">Abstoss li | re</div><div style="font-size:10px;color:var(--muted);">Bremsen li | re</div>';
+    sv.forEach(function(x){
+      var f=function(z){if(!z)return '–';var lbl=sjR1(z.pct).toFixed(0)+' % '+(z.side==='li'?'li':'re')+' schwächer';return (athlet?spBarNeutral(z):sjBar(z))+' <span style="font-size:11px;color:var(--muted);">'+lbl+'</span>';};
+      b+='<div>'+spDE(x.e.datum)+(x.kt?' KT':'')+'</div><div>'+f(x.ab)+'</div><div>'+f(x.br)+'</div>';
+    });
+    h+=spCard('Seitenvergleich','Der Balken zeigt zur schwächeren Seite. Unter 10 % ist normal.',b+'</div>');
+  }
+  // Einbeinig
+  var ein={};all.forEach(function(e){var t=e.test||'';if(t==='einbein_li'||t==='einbein_re'){ein[e.datum]=ein[e.datum]||{};ein[e.datum][t==='einbein_li'?'li':'re']=e;}});
+  var ed=Object.keys(ein).sort().reverse();
+  if(ed.length){
+    var b2='<table style="width:100%;font-size:12px;border-collapse:collapse;"><tr style="color:var(--muted);font-size:10px;text-align:left;"><th style="font-weight:400;">Datum</th><th style="font-weight:400;">Links</th><th style="font-weight:400;">Rechts</th><th style="font-weight:400;">Unterschied</th></tr>';
+    ed.forEach(function(d){var o=ein[d],li=o.li?spMax(o.li.werte):null,re=o.re?spMax(o.re.werte):null;
+      var diff=(li&&re)?Math.abs(li-re)/Math.max(li,re)*100:null;
+      b2+='<tr style="border-top:1px solid var(--border);"><td style="padding:3px 0;">'+spDE(d)+'</td><td>'+(li?li.toFixed(1)+' cm':'–')+'</td><td>'+(re?re.toFixed(1)+' cm':'–')+'</td><td>'+(diff!==null?sjR1(diff).toFixed(0)+' % '+(diff<0.5?'':(li<re?'li':'re')+' tiefer'):'–')+'</td></tr>';});
+    h+=spCard('Einbeinig','Bester Sprung pro Bein.',b2+'</table>');
+  }
+  // Drop Jump
+  var dj=all.filter(function(e){return (e.test||'')==='drop';}).sort(function(x,y){return x.datum<y.datum?1:-1;});
+  if(dj.length){
+    var b3='<table style="width:100%;font-size:12px;border-collapse:collapse;"><tr style="color:var(--muted);font-size:10px;text-align:left;"><th style="font-weight:400;">Datum</th><th style="font-weight:400;">Box</th><th style="font-weight:400;">Bester RSI</th><th style="font-weight:400;">Bodenkontakt</th><th style="font-weight:400;">Höhe</th></tr>';
+    dj.forEach(function(e){var r=sjNum(e.rsi),i=r.indexOf(Math.max.apply(null,r));var g=sjNum(e.gct),w=sjNum(e.werte);
+      b3+='<tr style="border-top:1px solid var(--border);"><td style="padding:3px 0;">'+spDE(e.datum)+'</td><td>'+(e.huerde_cm?e.huerde_cm+' cm':'–')+'</td><td><strong>'+(r.length?r[i].toFixed(2):'–')+'</strong></td><td>'+(g[i]!=null?g[i].toFixed(3)+' s':'–')+'</td><td>'+(w[i]!=null?w[i].toFixed(1)+' cm':'–')+'</td></tr>';});
+    h+=spCard('Drop Jump','RSI = Sprunghöhe geteilt durch Bodenkontaktzeit. Höher heisst reaktiver.',b3+'</table>');
+  }
+  return h;
+}
+function rSpruenge(){
+  var v=document.getElementById('view-spruenge');if(!v)return;
+  if(!_sjLoaded){v.innerHTML='<div class="empty">Sprungtests werden geladen…</div>';return;}
+  var list=spAthleten();
+  if(!list.length){v.innerHTML='<div class="empty">Noch keine Sprungtests.</div>';return;}
+  if(_spSel===null){try{var ls=+localStorage.getItem('spSel');if(list.some(function(a){return a.id===ls;}))_spSel=ls;}catch(e){}}
+  if(!list.some(function(a){return a.id===_spSel;}))_spSel=list[0].id;
+  var h='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">'
+    +'<select onchange="_spSel=+this.value;try{localStorage.setItem(\'spSel\',this.value)}catch(e){};rSpruenge()" style="font-size:14px;padding:6px 8px;border-radius:8px;">'
+    +list.map(function(a){return '<option value="'+a.id+'"'+(a.id===_spSel?' selected':'')+'>'+tbEsc(a.name)+'</option>';}).join('')+'</select>'
+    +'<button onclick="spSenden('+_spSel+')" style="font-size:13px;padding:6px 12px;border-radius:8px;border:1px solid #1D7A55;background:#1D7A55;color:#fff;cursor:pointer;font-weight:600;">An Athlet senden</button>'
+    +'</div>';
+  h+='<div style="max-width:760px;">'+spBuild(_spSel,false)+'</div>';
+  v.innerHTML=h;
+}
+function spSenden(id){
+  var a=S.athleten.find(function(z){return z.id===id;});if(!a)return;
+  var body=spBuild(id,true);
+  var html='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sprungtest '+tbEsc(a.name)+'</title>'
+    +'<style>body{font-family:-apple-system,Helvetica,Arial,sans-serif;margin:18px;color:#1d2430;--muted:#6B7480;--border:#E3E6EA;--border2:#D5DAE0;--surface:#fff}h1{font-size:20px;margin:0 0 2px}@media print{.np{display:none}div{break-inside:avoid}}</style></head><body>'
+    +'<h1>Sprungtest '+tbEsc(a.name)+'</h1><div style="font-size:12px;color:#6B7480;margin-bottom:12px;">Herzog Training · Stand '+tbDateStr(tbToday())+'</div>'
+    +'<div class="np" style="margin-bottom:12px;"><button onclick="window.print()" style="font-size:14px;padding:8px 14px;border-radius:8px;border:1px solid #1D7A55;background:#1D7A55;color:#fff;">Als PDF sichern / teilen</button></div>'
+    +body+'</body></html>';
+  var w=window.open('','_blank');
+  if(!w){alert('Bitte Pop-ups für die App erlauben.');return;}
+  w.document.open();w.document.write(html);w.document.close();
+}
+
 function sjPaintHeute(){var el=document.getElementById('sj-heute');if(el)el.innerHTML=sjHeuteHtml();}
 function sjBoxHtml(id){return '<div data-sj="'+id+'" onclick="event.stopPropagation()">'+sjInner(id)+'</div>';}
 var SJ_TCOL={1:'#2C4A6B',2:'#7B5EA7'};
@@ -5533,6 +5674,7 @@ function switchTab(t,btn){
   else if(t==='extern')rExtern();
   else if(t==='patienten')rPatienten();
   else if(t==='therapie'){if(typeof rTherapie==='function')rTherapie();}
+  else if(t==='spruenge')rSpruenge();
 }
 
 // ---- ASYNC INIT ----
