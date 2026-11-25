@@ -3272,9 +3272,7 @@ function spBuild(id,athlet){
   if(!athlet){[1,2].forEach(function(t){var B=st.T[t];if(B.base!==null&&!B.vorl&&(t===1||multi)){lines.push({v:B.base,col:SJ_TCOL[t],label:'Basis'+(multi?' T'+t:'')});lines.push({v:B.base*(1-B.grenze/100),col:'#C0392B',dash:1,label:'Grenze'+(multi?' T'+t:'')});}});}
   h+=spCard('Absprunggeschwindigkeit','m/s, Mittel der Sprünge. Je höher, desto explosiver der Absprung.',spChart(ser,lines,2,'m/s'));
   // Höhe
-  var hs=[{name:'Platte',col:'#2C4A6B',pts:cmj.filter(function(x){return x.h!==null;}).map(function(x){return {d:x.e.datum,v:x.h,kt:x.kt};})}];
-  var alt=all.filter(function(e){return (e.geraet||'jump')!=='platte'&&(e.test||'cmj')==='cmj'&&sjMean(e.werte)!==null;});
-  if(alt.length)hs.push({name:'Jump-System (alt, nicht vergleichbar)',col:'#B8BEC6',dash:1,pts:alt.map(function(e){return {d:e.datum,v:sjMean(e.werte),kt:sjIsKT(e)};})});
+  var hs=[{name:'Sprunghöhe',col:'#2C4A6B',pts:cmj.filter(function(x){return x.h!==null;}).map(function(x){return {d:x.e.datum,v:x.h,kt:x.kt};})}];
   h+=spCard('Sprunghöhe','cm, Mittel der Sprünge.',spChart(hs,[],1,'cm'));
   // mRSI
   var rs=[{name:'Explosivität (mRSI)',col:'#1D7A55',pts:cmj.filter(function(x){return x.r!==null;}).map(function(x){return {d:x.e.datum,v:x.r,kt:x.kt};})}];
